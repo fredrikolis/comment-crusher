@@ -153,6 +153,28 @@ fn a_shebang_names_the_language_of_a_file_with_no_extension() {
 }
 
 #[test]
+fn an_allowance_cannot_exempt_a_file_only_widen_its_bound() {
+    let dir = tempfile::tempdir().expect("tempdir");
+    write(dir.path(), "docs/long.md", &"a line\n".repeat(500));
+    for setting in [
+        "doc-length.level=allow",
+        "doc-length.max_lines=0",
+        "doc-length.max_lines=-1",
+    ] {
+        let out = run(dir.path(), &["docs", "--allow", "docs/**", setting]);
+        assert_eq!(code(&out), 2, "{setting} should be refused");
+    }
+    // The same field, widened rather than removed, is accepted.
+    assert_eq!(
+        code(&run(
+            dir.path(),
+            &["docs", "--allow", "docs/**", "doc-length.max_lines=600"]
+        )),
+        0
+    );
+}
+
+#[test]
 fn a_malformed_allowance_is_a_configuration_error_not_a_finding() {
     let dir = tempfile::tempdir().expect("tempdir");
     write(dir.path(), "lean.rs", &lean_rust());

@@ -326,28 +326,42 @@ fn build_globs(patterns: &[String]) -> Result<GlobSet> {
 }
 
 /// `comment-ratio.max_ratio=0.4` -> the dotted path and its typed value.
+///
+/// An allowance widens a bound. It cannot switch a rule off, and it cannot set a bound to
+/// zero, which every rule reads as "no limit" — so no path a run measures is ever exempt,
+/// and every one of them is measured against a finite budget.
 fn parse_setting(s: &str) -> Result<(String, Value)> {
     let Some((path, raw)) = s.split_once('=') else {
         bail!("`{s}` is not <rule>.<field>=<value>");
     };
     let path = path.trim().to_string();
-    if !path.contains('.') {
+    let Some((_, field)) = path.rsplit_once('.') else {
         bail!("`{s}` is missing the rule: write <rule>.<field>=<value>");
+    };
+    if field == "level" {
+        bail!("`{s}` would switch a rule off; an allowance may only widen a bound");
     }
     let raw = raw.trim();
     let value = raw.parse::<i64>().map_or_else(
-        |_| {
-            raw.parse::<f64>().map_or_else(
-                |_| {
-                    raw.parse::<bool>()
-                        .map_or_else(|_| Value::String(raw.to_string()), Value::Boolean)
-                },
-                Value::Float,
-            )
-        },
-        Value::Integer,
+        |_| raw.parse::<f64>().map_or(None, |f| Some(Value::Float(f))),
+        |i| Some(Value::Integer(i)),
     );
+    let Some(value) = value else {
+        bail!("`{s}` is not a number; an allowance may only widen a bound");
+    };
+    if !positive(&value) {
+        bail!("`{s}` would leave the budget unlimited; an allowance may only widen a bound");
+    }
     Ok((path, value))
+}
+
+/// Zero is how every rule spells "no limit", so an allowance may never produce one.
+fn positive(value: &Value) -> bool {
+    match value {
+        Value::Integer(i) => *i > 0,
+        Value::Float(f) => *f > 0.0,
+        _ => false,
+    }
 }
 
 fn set_dotted(table: &mut Table, path: &str, value: Value) {

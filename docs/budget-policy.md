@@ -19,11 +19,19 @@ the product" is a reason. "too long otherwise" restates the finding.
 
 An allowance covers the narrowest path set that works, and changes only the fields it must.
 
+## An allowance widens, it never exempts
+
+`level` and a zero bound are refused inside an `[[allow]]`, and the refusal is the point: a
+per-path exemption nobody reads is the failure this tool exists to prevent. A change that
+reopens either route is a finding, whatever it is called.
+
 ## A language entry is proved against real source
 
-A new or changed `[languages.*]` entry needs a corpus repository whose comment syntax it
-covers, pinned by SHA in `corpus.toml`. A snapshot diff that moves without an explanation of
-which construct re-classified is a finding.
+The scanner is what is being proved, not the language. An entry that only recombines
+constructs already proved — `//` beside `/* */` — needs a unit snippet. One that introduces a
+new construct, a new nesting form or a new string shape, needs a corpus repository pinned by
+SHA in `corpus.toml`. A snapshot diff that moves without an explanation of which construct
+re-classified is a finding.
 
 ## The tool is honest about what it cannot see
 

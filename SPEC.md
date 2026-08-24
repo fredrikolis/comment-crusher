@@ -17,6 +17,7 @@ needs no clause admitting it, only the absence of one it breaks.
 - **Comment / Code** — the two classes every visible character of a Measured file falls into.
 - **Budget** — the thresholds in force for one Measured file, after every Allowance is applied.
 - **Allowance** — a declared widening of a Budget for the paths it names, carrying its reason.
+  It is only ever a widening: nothing in this vocabulary exempts a file.
 - **Report** — everything a run emits on any channel a caller can observe, its exit status
   included.
 
@@ -39,6 +40,9 @@ states, and no file is Measured under a Language its path did not resolve.
 value, and the Budget it exceeded.
 
 **B2** — Every finding produced under a widened Budget carries the Allowance's reason.
+
+**B3** — Every Measured file has a finite Budget under every rule in force, and no Allowance
+removes a rule, disables one, or makes a bound unlimited.
 
 ## CORE
 
