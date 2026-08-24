@@ -3,7 +3,7 @@
 
 A language-agnostic comment budget. It fails a file whose **comment-to-code ratio** is over
 budget, whose **single comment** runs too long, or whose **document** is longer than allowed —
-in 88 languages, from one binary, with no per-language toolchain.
+in 91 languages, from one binary, with no per-language toolchain.
 
 ```
 $ comment-crusher .
@@ -98,11 +98,18 @@ block = [["#[", "]#"]]
 nested_block = true
 ```
 
-202 extensions, 32 exact filenames, 21 interpreters. Nested block comments in 16 languages
-(`/* */`, `#| |#`, `#[ ]#`, `{- -}`, `(* *)`, `/+ +/`), heredocs in 6, docstrings in 4, plus
-raw strings, char literals against lifetimes, and markers inside strings. Held to a
-**partition invariant** — comment chars plus code chars equal the file's visible chars — over
-a corpus of twelve pinned real-world repositories.
+Nested block comments in 16 languages (`/* */`, `#| |#`, `#[ ]#`, `{- -}`, `(* *)`, `/+ +/`),
+heredocs in 6, docstrings in 4, plus raw strings, char literals against lifetimes, and markers
+inside strings.
+
+**Embedded languages.** A `<script>` or `<style>` region is scanned as the language its tag
+names — HTML, Vue, Svelte and Astro, including `lang="ts"`, an Astro `---` frontmatter fence,
+and the `{…}` markup expressions where most of a Svelte component's logic actually lives. The
+child is named, never guessed: `type="application/json"` resolves to a language this table
+does not have, so that body stays code.
+
+Held to a **partition invariant** — comment chars plus code chars equal the file's visible
+chars — over a corpus of fourteen pinned real-world repositories.
 
 ## Licence
 

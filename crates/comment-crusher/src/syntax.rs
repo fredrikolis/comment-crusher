@@ -12,10 +12,7 @@ pub struct StringSpec {
     pub close: String,
     pub multiline: bool,
     pub escape: Option<char>,
-    /// Only a string if it closes on the same line, within a few characters: a Rust lifetime
-    /// must not read as an unterminated quote.
     pub char_literal: bool,
-    /// Opening a line makes it prose — a Python or Elixir docstring.
     pub docstring: bool,
 }
 
@@ -25,6 +22,22 @@ pub enum Opener {
     Block { close: String, kind: CommentKind },
     Str(usize),
 }
+
+/// Resolves a language name, so an embedded region can be scanned.
+pub trait Resolve {
+    fn language_named(&self, name: &str) -> Option<&Syntax>;
+}
+
+/// For callers with no language table: every embedded region stays code.
+pub struct NoEmbeds;
+
+impl Resolve for NoEmbeds {
+    fn language_named(&self, _name: &str) -> Option<&Syntax> {
+        None
+    }
+}
+
+use crate::embed::EmbedSpec;
 
 #[derive(Debug, Clone)]
 pub struct Syntax {
@@ -38,6 +51,7 @@ pub struct Syntax {
     pub openers: Vec<(String, Opener)>,
     /// Cancels a line comment when the marker is followed by it: `#[` is a PHP attribute.
     pub line_exceptions: Vec<String>,
+    pub embeds: Vec<EmbedSpec>,
 }
 
 impl Syntax {
@@ -53,6 +67,6 @@ impl Syntax {
     }
 
     pub const fn measurable(&self) -> bool {
-        self.prose || !self.openers.is_empty()
+        self.prose || !self.openers.is_empty() || !self.embeds.is_empty()
     }
 }

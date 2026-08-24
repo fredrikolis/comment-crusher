@@ -3,6 +3,7 @@
 pub mod cli;
 pub mod config;
 pub mod diagnostic;
+pub mod embed;
 pub mod engine;
 pub mod rules;
 pub mod scan;
@@ -10,6 +11,7 @@ pub mod syntax;
 
 pub use config::Config;
 pub use diagnostic::{Diagnostic, Level};
+pub use embed::EmbedSpec;
 pub use engine::{Engine, FileStat, Report};
-pub use scan::{Scan, scan};
-pub use syntax::Syntax;
+pub use scan::{Scan, scan, scan_in};
+pub use syntax::{Resolve, Syntax};

@@ -4,15 +4,13 @@ use super::*;
 use crate::config::Config;
 use std::path::Path;
 
-fn syn_for(name: &str) -> Syntax {
-    let cfg = Config::defaults().unwrap();
-    cfg.language(Path::new(&format!("x.{name}")))
-        .unwrap()
-        .clone()
-}
-
 fn run(ext: &str, src: &str) -> Scan {
-    scan(src, &syn_for(ext))
+    let cfg = Config::defaults().unwrap();
+    let syn = cfg
+        .language(Path::new(&format!("x.{ext}")))
+        .unwrap()
+        .clone();
+    crate::scan::scan_in(src, &syn, &cfg)
 }
 
 fn split(ext: &str, src: &str) -> (usize, usize) {
@@ -158,6 +156,59 @@ fn a_shebang_is_neither_comment_nor_a_header() {
     assert_eq!(s.regions.len(), 1);
     assert_eq!(s.regions[0].start_line, 2);
     assert!(s.regions[0].header);
+}
+
+#[test]
+fn an_embedded_script_is_scanned_as_the_language_its_tag_names() {
+    let s = run("html", "<!-- page -->\n<script>\n// a note\n</script>\n");
+    assert_eq!(s.regions.len(), 2);
+    assert_eq!(s.regions[1].start_line, 3);
+    assert_eq!(s.regions[1].chars, visible("// a note"));
+
+    // `lang="ts"` picks TypeScript, whose `///` is a doc comment JavaScript has no notion of.
+    let s = run("vue", "<script lang=\"ts\">\n/* note */\n</script>\n");
+    assert_eq!(s.regions.len(), 1);
+    assert_eq!(s.regions[0].chars, visible("/* note */"));
+
+    let s = run("html", "<style>\n/* note */\n</style>\n");
+    assert_eq!(s.regions.len(), 1);
+}
+
+#[test]
+fn a_markup_expression_is_scanned_as_code_and_its_braces_are_balanced() {
+    // Most of a Svelte component's logic is here, not in <script>.
+    let s = run(
+        "svelte",
+        "<p>x</p>\n<form use:go={() => {\n// a note\n}}>y</form>\n",
+    );
+    assert_eq!(s.regions.len(), 1);
+    assert_eq!(s.regions[0].chars, visible("// a note"));
+
+    // A block directive is control flow, not an expression, and its body keeps being markup.
+    let s = run("svelte", "{#if user}\n<!-- m -->\n{/if}\n");
+    assert_eq!(s.regions.len(), 1);
+    assert_eq!(s.regions[0].chars, visible("<!-- m -->"));
+
+    let s = run("vue", "<p>{{ x /* note */ }}</p>\n");
+    assert_eq!(s.regions.len(), 1);
+    assert_eq!(s.regions[0].chars, visible("/* note */"));
+}
+
+#[test]
+fn an_embedded_region_in_no_known_language_stays_code() {
+    // JSON has no comments, so `//` inside one is data, not prose.
+    let src = "<script type=\"application/json\">\n{\"a\": \"//b\"}\n</script>\n";
+    let s = run("html", src);
+    assert_eq!(s.regions.len(), 0);
+    assert_eq!(s.code_chars, visible(src));
+}
+
+#[test]
+fn an_astro_frontmatter_fence_is_matched_only_at_the_top() {
+    let s = run("astro", "---\n// a note\n---\n<p>x --- y</p>\n<!-- m -->\n");
+    assert_eq!(s.regions.len(), 2);
+    assert_eq!(s.regions[0].chars, visible("// a note"));
+    assert_eq!(s.regions[1].start_line, 5);
 }
 
 #[test]

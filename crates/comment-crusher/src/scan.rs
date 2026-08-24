@@ -1,6 +1,7 @@
 // Concern: splits a file into comment regions and code, counting the visible characters of each | Non-concern: judging the result, or which language a file is | IO: (text, Syntax) -> Scan
 
-use crate::syntax::{CommentKind, Opener, StringSpec, Syntax};
+use crate::embed::EmbedSpec;
+use crate::syntax::{CommentKind, NoEmbeds, Opener, Resolve, StringSpec, Syntax};
 
 /// One comment as a reader sees it: a block comment, or a run of adjacent whole-line
 /// comments merged into the paragraph they form.
@@ -58,9 +59,25 @@ impl Scan {
 /// Every visible character of a file is either comment or code, markers and delimiters
 /// included, so `comment_chars(true, false) + code_chars` is the file's whole visible weight.
 pub fn scan(src: &str, syn: &Syntax) -> Scan {
+    scan_in(src, syn, &NoEmbeds)
+}
+
+/// How deep one language may be written inside another before the nesting is refused. Three
+/// covers every real case (a component, its `<script>`, a template within it) and makes a
+/// table that embeds itself terminate.
+const MAX_EMBED_DEPTH: usize = 3;
+
+/// Scan `src`, following any embedded-language region its syntax declares.
+pub fn scan_in(src: &str, syn: &Syntax, resolve: &dyn Resolve) -> Scan {
+    scan_at(src, syn, resolve, 0)
+}
+
+fn scan_at(src: &str, syn: &Syntax, resolve: &dyn Resolve, depth: usize) -> Scan {
     let mut s = Scanner {
         src,
         syn,
+        resolve,
+        depth,
         i: 0,
         line: 1,
         line_start: 0,
@@ -140,6 +157,8 @@ fn merge(raw: Vec<Region>) -> Vec<Region> {
 struct Scanner<'a> {
     src: &'a str,
     syn: &'a Syntax,
+    resolve: &'a dyn Resolve,
+    depth: usize,
     i: usize,
     line: usize,
     line_start: usize,
@@ -187,12 +206,105 @@ impl<'a> Scanner<'a> {
 
     fn run(&mut self) {
         while self.i < self.src.len() {
-            if self.take_raw_string() || self.take_heredoc() || self.take_opener() {
+            if self.take_embed()
+                || self.take_raw_string()
+                || self.take_heredoc()
+                || self.take_opener()
+            {
                 continue;
             }
             let step = self.peek().map_or(1, char::len_utf8);
             self.advance_to(self.i + step);
         }
+    }
+
+    /// `<script>…</script>`: the markup is code, and the body is scanned as whatever language
+    /// the tag names. An unknown language leaves the body code, which under-reports rather
+    /// than inventing comments that are not there.
+    fn take_embed(&mut self) -> bool {
+        if self.depth >= MAX_EMBED_DEPTH {
+            return false;
+        }
+        let Some((spec, body_start)) = self.match_embed() else {
+            return false;
+        };
+        let attrs = &self.src[self.i..body_start];
+        let end = self.embed_end(&spec, body_start);
+        self.advance_to(body_start);
+
+        let body = &self.src[body_start..end];
+        match self.resolve.language_named(spec.language_of(attrs)) {
+            Some(child) => {
+                let inner = scan_at(body, child, self.resolve, self.depth + 1);
+                let (offset, line) = (body_start, self.line);
+                for mut r in inner.regions {
+                    r.start += offset;
+                    r.end += offset;
+                    r.start_line += line - 1;
+                    r.end_line += line - 1;
+                    r.header = false;
+                    self.raw.push(r);
+                }
+                self.code_chars += inner.code_chars;
+                self.count_newlines(body_start, end);
+                self.saw_code = true;
+                self.i = end;
+            }
+            None => self.advance_to(end),
+        }
+        true
+    }
+
+    /// Where an embedded region's body ends: the `close` that balances the opener when the
+    /// spec says so, else the first one.
+    fn embed_end(&self, spec: &EmbedSpec, body_start: usize) -> usize {
+        if !spec.balanced {
+            return find_ci(&self.src[body_start..], &spec.close)
+                .map_or(self.src.len(), |n| body_start + n);
+        }
+        let (mut depth, mut j) = (1usize, body_start);
+        while j < self.src.len() {
+            let rest = &self.src[j..];
+            if starts_with_ci(rest, &spec.close) {
+                depth -= 1;
+                if depth == 0 {
+                    return j;
+                }
+                j += spec.close.len();
+                continue;
+            }
+            if starts_with_ci(rest, &spec.open) {
+                depth += 1;
+                j += spec.open.len();
+                continue;
+            }
+            j += rest.chars().next().map_or(1, char::len_utf8);
+        }
+        self.src.len()
+    }
+
+    /// The embed whose opening tag starts here, and the byte its body begins at.
+    fn match_embed(&self) -> Option<(EmbedSpec, usize)> {
+        let rest = self.rest();
+        let spec = self.syn.embeds.iter().find(|e| {
+            (!e.at_start || self.i == 0)
+                && starts_with_ci(rest, &e.open)
+                && !e
+                    .skip
+                    .iter()
+                    .any(|k| starts_with_ci(&rest[e.open.len()..], k))
+                && (!e.is_tag()
+                    || rest[e.open.len()..]
+                        .chars()
+                        .next()
+                        .is_some_and(|c| c.is_whitespace() || c == '>' || c == '/'))
+        })?;
+        let body_start = if spec.is_tag() {
+            self.i + rest.find('>')? + 1
+        } else {
+            self.i + spec.open.len()
+        };
+        Some((spec.clone(), body_start))
     }
 
     fn take_opener(&mut self) -> bool {
@@ -388,6 +500,22 @@ impl<'a> Scanner<'a> {
             }
         }
     }
+}
+
+/// Byte-wise so a multi-byte character cannot be sliced through. Every needle is ASCII, and
+/// a continuation byte matches none of it, so a hit is always on a character boundary.
+fn starts_with_ci(haystack: &str, needle: &str) -> bool {
+    haystack
+        .as_bytes()
+        .get(..needle.len())
+        .is_some_and(|head| head.eq_ignore_ascii_case(needle.as_bytes()))
+}
+
+fn find_ci(haystack: &str, needle: &str) -> Option<usize> {
+    haystack
+        .as_bytes()
+        .windows(needle.len())
+        .position(|w| w.eq_ignore_ascii_case(needle.as_bytes()))
 }
 
 fn count_visible(s: &str) -> usize {

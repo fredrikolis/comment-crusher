@@ -20,6 +20,7 @@
 |---|---|
 | `crates/comment-crusher/src/default_config.toml` | the language table and the shipped thresholds |
 | `src/syntax.rs` | the resolved token table a scan matches against |
+| `src/embed.rs` | where a region of one language inside another ends, and which language it is |
 | `src/scan.rs` | the scanner: text + syntax -> comment regions and code |
 | `src/config.rs` | layered config, allowances, language resolution |
 | `src/rules/` | one module per rule; each owns its `Config` and its check |
@@ -87,6 +88,10 @@ would drift.
   set once in `resolve_syntax`.
 - **A bad string open self-heals at end of line** unless the spec says `multiline`, so a
   mis-read quote costs one line, not the rest of the file.
+- **An embedded region is named, never guessed.** An unresolved child language leaves the
+  body code, which under-reports rather than inventing comments. Nesting stops at depth 3.
+- **Every knob has one home**: the `[languages]` legend and the `[languages.html]` embed
+  legend in `default_config.toml`. The structs mirroring them carry no prose.
 
 ## Conventions
 

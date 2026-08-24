@@ -361,6 +361,54 @@ lines = 344
 comment_chars = 320
 code_chars = 8115
 
+["svelte-realworld".css]
+files = 1
+lines = 1526
+comment_chars = 4299
+code_chars = 20061
+
+["svelte-realworld".html]
+files = 2
+lines = 30
+comment_chars = 115
+code_chars = 6721
+
+["svelte-realworld".javascript]
+files = 18
+lines = 410
+comment_chars = 712
+code_chars = 7780
+
+["svelte-realworld".jsonc]
+files = 1
+lines = 3
+comment_chars = 0
+code_chars = 41
+
+["svelte-realworld".markdown]
+files = 2
+lines = 30
+comment_chars = 0
+code_chars = 820
+
+["svelte-realworld".plaintext]
+files = 1
+lines = 3
+comment_chars = 0
+code_chars = 54
+
+["svelte-realworld".svelte]
+files = 24
+lines = 937
+comment_chars = 69
+code_chars = 16527
+
+["svelte-realworld".yaml]
+files = 2
+lines = 1677
+comment_chars = 0
+code_chars = 45140
+
 ["type-fest".html]
 files = 1
 lines = 13
@@ -438,3 +486,27 @@ files = 6
 lines = 298
 comment_chars = 600
 code_chars = 4567
+
+["vue-hackernews".html]
+files = 1
+lines = 23
+comment_chars = 21
+code_chars = 769
+
+["vue-hackernews".javascript]
+files = 15
+lines = 623
+comment_chars = 3785
+code_chars = 10217
+
+["vue-hackernews".markdown]
+files = 1
+lines = 71
+comment_chars = 0
+code_chars = 2254
+
+["vue-hackernews".vue]
+files = 8
+lines = 750
+comment_chars = 375
+code_chars = 11872

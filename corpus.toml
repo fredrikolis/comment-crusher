@@ -73,3 +73,15 @@ name = "uuid-php"
 language = "php"
 url = "https://github.com/ramsey/uuid"
 rev = "5c7eadcf1d4e8abb9b128ebc71ef708d696cdb74" # 4.9.3
+
+[[repo]]
+name = "vue-hackernews"
+language = "vue"
+url = "https://github.com/vuejs/vue-hackernews-2.0"
+rev = "98399b55c6f1da4197840ba76189795b3e95be0f" # default branch, archived
+
+[[repo]]
+name = "svelte-realworld"
+language = "svelte"
+url = "https://github.com/sveltejs/realworld"
+rev = "df796708040f5200ec572b28ab7f88ecee5794dd" # default branch

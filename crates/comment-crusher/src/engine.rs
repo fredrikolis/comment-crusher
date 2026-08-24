@@ -9,7 +9,7 @@ use serde::Serialize;
 
 use crate::config::Config;
 use crate::diagnostic::{Diagnostic, Level};
-use crate::scan::scan;
+use crate::scan::scan_in;
 
 #[derive(Debug, Clone, Serialize)]
 pub struct FileStat {
@@ -130,7 +130,7 @@ impl<'a> Engine<'a> {
         }
         let rel = self.relative(file);
         let (rules, reasons) = self.config.rules_for(&rel).ok()?;
-        let result = scan(&content, syn);
+        let result = scan_in(&content, syn, self.config);
         let allowance = (!reasons.is_empty()).then(|| reasons.join("; "));
         let stat = FileStat {
             path: rel.clone(),

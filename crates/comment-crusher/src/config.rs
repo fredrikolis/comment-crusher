@@ -8,8 +8,9 @@ use globset::{Glob, GlobSet, GlobSetBuilder};
 use serde::Deserialize;
 use toml::{Table, Value};
 
+use crate::embed::EmbedSpec;
 use crate::rules::Rules;
-use crate::syntax::{CommentKind, Opener, StringSpec, Syntax};
+use crate::syntax::{CommentKind, Opener, Resolve, StringSpec, Syntax};
 
 pub const CONFIG_FILE: &str = ".comment-crusher.toml";
 const DEFAULTS: &str = include_str!("default_config.toml");
@@ -60,6 +61,26 @@ struct RawLanguage {
     line_exceptions: Vec<String>,
     #[serde(default)]
     strings: Vec<RawString>,
+    #[serde(default)]
+    embed: Vec<RawEmbed>,
+}
+
+#[derive(Debug, Clone, Deserialize)]
+#[serde(deny_unknown_fields)]
+struct RawEmbed {
+    open: String,
+    close: String,
+    default: String,
+    #[serde(default)]
+    attrs: Vec<String>,
+    #[serde(default)]
+    map: HashMap<String, String>,
+    #[serde(default)]
+    at_start: bool,
+    #[serde(default)]
+    balanced: bool,
+    #[serde(default)]
+    skip: Vec<String>,
 }
 
 #[derive(Debug, Clone, Deserialize)]
@@ -253,6 +274,12 @@ impl Config {
     }
 }
 
+impl Resolve for Config {
+    fn language_named(&self, name: &str) -> Option<&Syntax> {
+        self.langs.iter().find(|l| l.name == name)
+    }
+}
+
 fn section<T: for<'de> Deserialize<'de> + Default>(table: &Table, key: &str) -> Result<T> {
     table.get(key).map_or_else(
         || Ok(T::default()),
@@ -314,6 +341,24 @@ fn resolve_syntax(name: &str, raw: &RawLanguage) -> Syntax {
         strings,
         openers,
         line_exceptions: raw.line_exceptions.clone(),
+        embeds: raw.embed.iter().map(resolve_embed).collect(),
+    }
+}
+
+fn resolve_embed(e: &RawEmbed) -> EmbedSpec {
+    EmbedSpec {
+        open: e.open.clone(),
+        close: e.close.clone(),
+        default: e.default.clone(),
+        attrs: e.attrs.clone(),
+        map: e
+            .map
+            .iter()
+            .map(|(k, v)| (k.to_ascii_lowercase(), v.clone()))
+            .collect(),
+        at_start: e.at_start,
+        balanced: e.balanced,
+        skip: e.skip.clone(),
     }
 }
 
