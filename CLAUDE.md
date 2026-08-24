@@ -32,13 +32,51 @@
 ## Before every change
 
 ```sh
+./scripts/fetch-corpus.sh          # once; idempotent afterwards
 cargo fmt --all
 cargo clippy --all-targets -- -D warnings
 cargo test
-cargo run -- .
+cargo run -- .                     # the repo holds itself to its own budget
 ```
 
-All four, clean. The corpus must be present: `./scripts/fetch-corpus.sh`.
+All four, clean. The last is not ceremony: a change that cannot live inside
+`.comment-crusher.toml` needs a better shape, not a bigger number.
+
+## No fixtures
+
+There are no fixture files. `corpus.toml` pins real repositories by commit SHA, and
+`scripts/fetch-corpus.sh` clones them into gitignored `target/corpus/`. Nothing third-party
+is vendored and nobody maintains a fake source tree. Two assertions:
+
+- **The partition invariant** over every corpus file. A scanner that loses a character has
+  dropped a region; one that gains a character has left a state it entered.
+- **`corpus-expected.toml`**, per-language totals. The revs are SHAs, so any movement is a
+  scanner change. Re-record with `UPDATE_CORPUS_SNAPSHOT=1 cargo test --test corpus` and
+  **read the diff** — it is the regression report.
+
+Construct-level cases are inline snippets in `src/scan_tests.rs`. A language belongs in the
+corpus only if it brings a scanner construct no pinned repo already covers.
+
+## Adding a language
+
+`src/default_config.toml` is the table; the legend at its top documents every knob. An entry
+that only recombines proved constructs (`//` plus `/* */`) needs a unit snippet. One that
+introduces a new construct — a new nesting form, a new string shape — needs a corpus repo.
+
+## Gates
+
+Every file carries a first-line annotation, checked by
+[annotated-tree](https://github.com/fredrikolis/annotated-tree). Commits go through
+[git-agent-verdict](https://github.com/fredrikolis/git-agent-verdict). Per clone, once:
+
+```sh
+git config core.hooksPath .githooks
+git config --global agent-verdict.runner claude
+```
+
+`.githooks/commit-msg` declares which reviews run and in what order; run
+`git agent-verdict --reviewer-prompt <gate>` for a gate's live brief. A second copy here
+would drift.
 
 ## Invariants worth knowing
 
