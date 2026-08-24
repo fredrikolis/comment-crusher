@@ -1,0 +1,1 @@
+Concern: what every commit to this repo must clear, and in what order | Non-concern: how any gate is checked — the tools own that | IO: (working tree, message) -> pass/fail

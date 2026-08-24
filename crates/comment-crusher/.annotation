@@ -1,0 +1,1 @@
+Concern: measures a tree's comment budget and reports what is over it | Non-concern: acting on a finding — an agent's edit loop is a later crate | IO: (paths, config) -> findings, exit code

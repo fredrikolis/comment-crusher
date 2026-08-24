@@ -1,0 +1,41 @@
+#!/usr/bin/env bash
+# Concern: the mechanical gates every commit clears locally — annotations, then the comment budget | Non-concern: the semantic review, attested in the message | IO: (tree) -> pass/fail
+# Enable per clone: git config core.hooksPath .githooks   Bypass: git commit --no-verify
+set -euo pipefail
+
+fail() {
+	echo "" >&2
+	echo "pre-commit: $1 (see above)" >&2
+	exit 1
+}
+
+if command -v annotated-tree >/dev/null 2>&1; then
+	annotated-tree --strict-check . --hidden --max-length 200 ||
+		fail "ANNOTATION GATE FAILED — a file lacks a conforming first-line annotation"
+	annotated-tree --strict-check . --hidden --include-tests --max-length 200 ||
+		fail "ANNOTATION GATE FAILED — a file under tests/ lacks one"
+fi
+
+# The tool gates its own commits, built from this tree so the gate grades what is being
+# committed. Blocking comes from `level = "deny"` in the config, never from -W.
+cargo run --quiet --release -- . 1>&2 || {
+	echo "" >&2
+	echo "pre-commit: COMMENT GATE FAILED — what this gate does and does not measure:" >&2
+	cat >&2 <<'STANDARD'
+It measures size, never quality: a comment-to-code character ratio, the length of any single
+comment, and the length of any document. It cannot tell a good comment from a bad one and
+does not try.
+
+Tripping it is NOT an instruction to delete comments until the number passes. It asks why
+this function needed a block of explanation, or why this document grew so long; the usual
+answer is that the code is wrong, not the comment. Fix the shape: extract it, rename it,
+split it.
+
+Never raise a threshold to make a file pass. The bound is the detector, and a bigger number
+only hides what it found. Where an exception is genuinely right, add an [[allow]] entry with
+a reason a reviewer can check — see docs/budget-policy.md.
+
+The bar a comment must clear to earn its space: git agent-verdict --standards programming
+STANDARD
+	exit 1
+}

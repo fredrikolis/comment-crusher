@@ -1,0 +1,416 @@
+# Concern: the per-language totals the pinned corpus must keep producing | Non-concern: choosing the corpus (corpus.toml) or asserting over it (tests/corpus.rs) | IO: none
+# Re-record with: UPDATE_CORPUS_SNAPSHOT=1 cargo test --test corpus
+
+["anyhow".markdown]
+files = 1
+lines = 181
+comment_chars = 0
+code_chars = 5105
+
+["anyhow".rust]
+files = 37
+lines = 6398
+comment_chars = 24543
+code_chars = 135454
+
+["anyhow".toml]
+files = 3
+lines = 58
+comment_chars = 202
+code_chars = 1194
+
+["anyhow".yaml]
+files = 2
+lines = 148
+comment_chars = 0
+code_chars = 2936
+
+["chalk".html]
+files = 1
+lines = 1
+comment_chars = 0
+code_chars = 69494
+
+["chalk".javascript]
+files = 13
+lines = 924
+comment_chars = 3669
+code_chars = 23381
+
+["chalk".markdown]
+files = 4
+lines = 411
+comment_chars = 0
+code_chars = 15126
+
+["chalk".typescript]
+files = 1
+lines = 437
+comment_chars = 4644
+code_chars = 3745
+
+["chalk".yaml]
+files = 2
+lines = 25
+comment_chars = 0
+code_chars = 382
+
+["go-errors".go]
+files = 10
+lines = 2108
+comment_chars = 10815
+code_chars = 27888
+
+["go-errors".make]
+files = 1
+lines = 44
+comment_chars = 0
+code_chars = 730
+
+["go-errors".markdown]
+files = 1
+lines = 59
+comment_chars = 0
+code_chars = 2341
+
+["go-errors".yaml]
+files = 2
+lines = 42
+comment_chars = 208
+code_chars = 411
+
+["inspect-lua".lua]
+files = 4
+lines = 953
+comment_chars = 256
+code_chars = 17953
+
+["inspect-lua".make]
+files = 1
+lines = 25
+comment_chars = 0
+code_chars = 257
+
+["inspect-lua".markdown]
+files = 2
+lines = 314
+comment_chars = 0
+code_chars = 7401
+
+["inspect-lua".plaintext]
+files = 1
+lines = 20
+comment_chars = 0
+code_chars = 892
+
+["inspect-lua".yaml]
+files = 1
+lines = 43
+comment_chars = 0
+code_chars = 686
+
+["json-java".html]
+files = 3
+lines = 1099
+comment_chars = 343
+code_chars = 31857
+
+["json-java".java]
+files = 85
+lines = 27346
+comment_chars = 244247
+code_chars = 527664
+
+["json-java".markdown]
+files = 9
+lines = 968
+comment_chars = 0
+code_chars = 30331
+
+["json-java".yaml]
+files = 2
+lines = 320
+comment_chars = 809
+code_chars = 8411
+
+["nvm".docker]
+files = 1
+lines = 112
+comment_chars = 789
+code_chars = 1781
+
+["nvm".javascript]
+files = 1
+lines = 2
+comment_chars = 0
+code_chars = 35
+
+["nvm".make]
+files = 2
+lines = 121
+comment_chars = 1961
+code_chars = 3555
+
+["nvm".markdown]
+files = 12
+lines = 2346
+comment_chars = 796
+code_chars = 91322
+
+["nvm".plaintext]
+files = 18
+lines = 2990
+comment_chars = 0
+code_chars = 42922
+
+["nvm".shell]
+files = 340
+lines = 17647
+comment_chars = 47291
+code_chars = 416778
+
+["nvm".yaml]
+files = 19
+lines = 1768
+comment_chars = 4433
+code_chars = 35016
+
+["requests".css]
+files = 1
+lines = 12
+comment_chars = 0
+code_chars = 250
+
+["requests".html]
+files = 2
+lines = 34
+comment_chars = 0
+code_chars = 870215
+
+["requests".ini]
+files = 1
+lines = 18
+comment_chars = 0
+code_chars = 234
+
+["requests".make]
+files = 8
+lines = 324
+comment_chars = 418
+code_chars = 8064
+
+["requests".markdown]
+files = 12
+lines = 2431
+comment_chars = 219
+code_chars = 63040
+
+["requests".plaintext]
+files = 2
+lines = 10
+comment_chars = 0
+code_chars = 158
+
+["requests".python]
+files = 37
+lines = 11997
+comment_chars = 78286
+code_chars = 216318
+
+["requests".restructuredtext]
+files = 16
+lines = 2939
+comment_chars = 0
+code_chars = 86559
+
+["requests".toml]
+files = 1
+lines = 117
+comment_chars = 139
+code_chars = 2460
+
+["requests".yaml]
+files = 12
+lines = 465
+comment_chars = 2028
+code_chars = 7433
+
+["sds".c]
+files = 4
+lines = 1626
+comment_chars = 16335
+code_chars = 19974
+
+["sds".make]
+files = 1
+lines = 8
+comment_chars = 0
+code_chars = 166
+
+["sds".markdown]
+files = 1
+lines = 892
+comment_chars = 0
+code_chars = 25510
+
+["sinatra".asciidoc]
+files = 1
+lines = 1
+comment_chars = 0
+code_chars = 19
+
+["sinatra".css]
+files = 4
+lines = 9
+comment_chars = 0
+code_chars = 87
+
+["sinatra".markdown]
+files = 12
+lines = 5571
+comment_chars = 0
+code_chars = 156914
+
+["sinatra".plaintext]
+files = 2
+lines = 1
+comment_chars = 0
+code_chars = 52
+
+["sinatra".ruby]
+files = 156
+lines = 24492
+comment_chars = 76594
+code_chars = 413913
+
+["sinatra".yaml]
+files = 10
+lines = 406
+comment_chars = 1203
+code_chars = 6574
+
+["spdlog".c]
+files = 108
+lines = 27124
+comment_chars = 124759
+code_chars = 617364
+
+["spdlog".cpp]
+files = 39
+lines = 4649
+comment_chars = 12324
+code_chars = 130160
+
+["spdlog".html]
+files = 1
+lines = 43
+comment_chars = 0
+code_chars = 4359
+
+["spdlog".markdown]
+files = 1
+lines = 553
+comment_chars = 0
+code_chars = 15931
+
+["spdlog".plaintext]
+files = 4
+lines = 565
+comment_chars = 0
+code_chars = 20248
+
+["spdlog".python]
+files = 1
+lines = 17
+comment_chars = 0
+code_chars = 416
+
+["spdlog".restructuredtext]
+files = 1
+lines = 27
+comment_chars = 0
+code_chars = 1201
+
+["spdlog".shell]
+files = 2
+lines = 31
+comment_chars = 0
+code_chars = 717
+
+["spdlog".yaml]
+files = 5
+lines = 344
+comment_chars = 320
+code_chars = 8115
+
+["type-fest".html]
+files = 1
+lines = 13
+comment_chars = 0
+code_chars = 43420
+
+["type-fest".javascript]
+files = 17
+lines = 4924
+comment_chars = 9083
+code_chars = 80306
+
+["type-fest".markdown]
+files = 7
+lines = 1251
+comment_chars = 237
+code_chars = 60797
+
+["type-fest".typescript]
+files = 427
+lines = 32770
+comment_chars = 197134
+code_chars = 780409
+
+["type-fest".yaml]
+files = 8
+lines = 219
+comment_chars = 699
+code_chars = 4230
+
+["uuid-php".make]
+files = 1
+lines = 20
+comment_chars = 293
+code_chars = 225
+
+["uuid-php".markdown]
+files = 14
+lines = 2245
+comment_chars = 4054
+code_chars = 65418
+
+["uuid-php".php]
+files = 190
+lines = 22196
+comment_chars = 154864
+code_chars = 386418
+
+["uuid-php".plaintext]
+files = 1
+lines = 3
+comment_chars = 0
+code_chars = 67
+
+["uuid-php".python]
+files = 1
+lines = 108
+comment_chars = 1378
+code_chars = 1412
+
+["uuid-php".restructuredtext]
+files = 55
+lines = 4109
+comment_chars = 0
+code_chars = 128389
+
+["uuid-php".yaml]
+files = 6
+lines = 298
+comment_chars = 600
+code_chars = 4567

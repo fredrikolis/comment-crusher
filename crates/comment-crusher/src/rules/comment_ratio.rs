@@ -1,0 +1,60 @@
+// Concern: fails a code file whose comment characters exceed their allowed share | Non-concern: the size of any one comment, or of a document | IO: (Scan) -> Option<Diagnostic>
+
+use serde::Deserialize;
+use std::path::Path;
+
+use crate::diagnostic::{Diagnostic, Level};
+use crate::scan::Scan;
+
+pub const NAME: &str = "comment-ratio";
+
+#[derive(Debug, Clone, Deserialize)]
+#[serde(default, deny_unknown_fields)]
+pub struct Config {
+    pub level: Level,
+    pub max_ratio: f64,
+    pub count_doc_comments: bool,
+    pub min_chars: usize,
+    pub skip_header: bool,
+}
+
+impl Default for Config {
+    fn default() -> Self {
+        Self {
+            level: Level::Deny,
+            max_ratio: 0.25,
+            count_doc_comments: true,
+            min_chars: 200,
+            skip_header: true,
+        }
+    }
+}
+
+#[expect(
+    clippy::cast_precision_loss,
+    reason = "character counts are far below f64 precision"
+)]
+pub fn check(cfg: &Config, file: &Path, scan: &Scan) -> Option<Diagnostic> {
+    if cfg.level == Level::Allow || cfg.max_ratio <= 0.0 {
+        return None;
+    }
+    let comment = scan.comment_chars(cfg.count_doc_comments, cfg.skip_header);
+    let total = comment + scan.code_chars;
+    if total < cfg.min_chars {
+        return None;
+    }
+    let ratio = comment as f64 / total as f64;
+    if ratio <= cfg.max_ratio {
+        return None;
+    }
+    Some(Diagnostic::new(
+        NAME,
+        cfg.level,
+        file,
+        format!(
+            "{:.0}% comment ({comment}/{total} chars), budget is {:.0}%",
+            ratio * 100.0,
+            cfg.max_ratio * 100.0
+        ),
+    ))
+}

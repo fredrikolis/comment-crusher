@@ -1,0 +1,372 @@
+# Concern: the shipped thresholds and the per-language comment, string and heredoc markers | Non-concern: resolving these against the config layers (config.rs) | IO: none
+# Precedence (low -> high): these defaults < ~/.config/comment-crusher/config.toml
+# < ./.comment-crusher.toml (nearest ancestor of the target) < --allow.
+# Every threshold ships ON and DENYING: a budget nobody enables measures nothing.
+
+[global]
+# Directory names pruned from every walk, on top of .gitignore.
+exclude = ["target", "node_modules", "vendor", "dist", "build", ".venv"]
+
+# --- Rules -----------------------------------------------------------------
+
+[rules.comment-ratio]
+# Comment characters as a fraction of all non-whitespace characters in a code file.
+# Characters, not lines: a trailing `// why` and a wall of prose then cost what they
+# actually occupy, and no language's line shape distorts the comparison.
+level = "deny"
+max_ratio = 0.25
+# Doc comments (`///`, `/** */`, a Python docstring) count too. At file scope they are
+# usually the larger share, and an API doc is still a comment somebody has to keep true.
+count_doc_comments = true
+# Files below this many non-whitespace characters are skipped, so a stub is never
+# trivially "100% comments". Roughly ten lines of code.
+min_chars = 200
+# Exempt one leading comment block — licence banner, SPDX header, file annotation.
+# It is a fixed per-file cost the body should not be charged for.
+skip_header = true
+
+[rules.comment-block]
+# The longest single comment a file may carry: one block comment, or one unbroken run
+# of adjacent line comments. This is the multi-line bound.
+level = "deny"
+max_lines = 5
+# A doc comment on a public item earns more room than a remark inside a body does.
+doc_max_lines = 10
+# The leading banner — licence, SPDX, file annotation — is a fixed per-file cost.
+header_max_lines = 30
+max_chars = 400
+
+[rules.doc-length]
+# Applies to `prose = true` languages only. Code files are bounded by comment-ratio.
+level = "deny"
+max_lines = 400
+
+# --- Languages -------------------------------------------------------------
+# A file resolves to a language by extension, else by exact filename, else by the
+# interpreter on a `#!` line. Nothing else is measured: an unrecognized file is not
+# guessed at, it is skipped.
+#
+# Per language:
+#   line / doc_line      line-comment markers; doc_line wins when both match (longest first)
+#   line_exceptions      text that cancels a line comment — `#[` opens a PHP attribute
+#   block / doc_block    [open, close] pairs
+#   nested_block         `/* /* */ */` closes once, not twice
+#   strings              [open, close] regions whose contents are CODE, not comment
+#     multiline          may cross a newline; without it a bad open self-heals at end of line
+#     docstring          when it opens a line, count it as a doc comment (Python, Elixir)
+#     char_literal       only a string if it closes within a few chars on the same line,
+#                        so a Rust lifetime or a Ruby symbol is not read as an open quote
+#   hash_raw_strings     `r"..."` / `r#"..."#`
+#   heredoc              `<<WORD` / `<<-'WORD'` bodies are code until a line equal to WORD
+#   prose                measured by doc-length, never by comment-ratio
+
+[languages.rust]
+extensions = [".rs"]
+line = ["//"]
+doc_line = ["///", "//!"]
+block = [["/*", "*/"]]
+doc_block = [["/**", "*/"], ["/*!", "*/"]]
+nested_block = true
+hash_raw_strings = true
+strings = [
+  { open = '"', close = '"', multiline = true },
+  { open = "'", close = "'", char_literal = true },
+]
+
+[languages.c]
+extensions = [".c", ".h"]
+line = ["//"]
+block = [["/*", "*/"]]
+doc_block = [["/**", "*/"]]
+strings = [{ open = '"', close = '"' }, { open = "'", close = "'", char_literal = true }]
+
+[languages.cpp]
+extensions = [".cc", ".cpp", ".cxx", ".hh", ".hpp", ".hxx", ".ipp", ".inl"]
+line = ["//"]
+doc_line = ["///"]
+block = [["/*", "*/"]]
+doc_block = [["/**", "*/"]]
+strings = [{ open = '"', close = '"' }, { open = "'", close = "'", char_literal = true }]
+
+[languages.go]
+extensions = [".go"]
+line = ["//"]
+block = [["/*", "*/"]]
+strings = [
+  { open = '"', close = '"' },
+  { open = "`", close = "`", multiline = true, escape = "" },
+  { open = "'", close = "'", char_literal = true },
+]
+
+[languages.java]
+extensions = [".java"]
+line = ["//"]
+block = [["/*", "*/"]]
+doc_block = [["/**", "*/"]]
+strings = [
+  { open = '"""', close = '"""', multiline = true },
+  { open = '"', close = '"' },
+  { open = "'", close = "'", char_literal = true },
+]
+
+[languages.kotlin]
+extensions = [".kt", ".kts"]
+line = ["//"]
+block = [["/*", "*/"]]
+doc_block = [["/**", "*/"]]
+nested_block = true
+strings = [
+  { open = '"""', close = '"""', multiline = true },
+  { open = '"', close = '"' },
+  { open = "'", close = "'", char_literal = true },
+]
+
+[languages.swift]
+extensions = [".swift"]
+line = ["//"]
+doc_line = ["///"]
+block = [["/*", "*/"]]
+doc_block = [["/**", "*/"]]
+nested_block = true
+strings = [{ open = '"""', close = '"""', multiline = true }, { open = '"', close = '"' }]
+
+[languages.csharp]
+extensions = [".cs"]
+line = ["//"]
+doc_line = ["///"]
+block = [["/*", "*/"]]
+strings = [{ open = '"', close = '"' }, { open = "'", close = "'", char_literal = true }]
+
+[languages.javascript]
+extensions = [".js", ".jsx", ".mjs", ".cjs"]
+interpreters = ["node"]
+line = ["//"]
+block = [["/*", "*/"]]
+doc_block = [["/**", "*/"]]
+strings = [
+  { open = '"', close = '"' },
+  { open = "'", close = "'" },
+  { open = "`", close = "`", multiline = true },
+]
+
+[languages.typescript]
+extensions = [".ts", ".tsx", ".mts", ".cts"]
+line = ["//"]
+block = [["/*", "*/"]]
+doc_block = [["/**", "*/"]]
+strings = [
+  { open = '"', close = '"' },
+  { open = "'", close = "'" },
+  { open = "`", close = "`", multiline = true },
+]
+
+[languages.python]
+extensions = [".py", ".pyi"]
+interpreters = ["python", "python2", "python3"]
+line = ["#"]
+strings = [
+  { open = '"""', close = '"""', multiline = true, docstring = true },
+  { open = "'''", close = "'''", multiline = true, docstring = true },
+  { open = '"', close = '"' },
+  { open = "'", close = "'" },
+]
+
+[languages.ruby]
+extensions = [".rb", ".rake", ".gemspec"]
+filenames = ["Rakefile", "Gemfile"]
+interpreters = ["ruby"]
+line = ["#"]
+block = [["=begin", "=end"]]
+heredoc = true
+strings = [{ open = '"', close = '"' }, { open = "'", close = "'" }]
+
+[languages.php]
+extensions = [".php"]
+line = ["//", "#"]
+# `#[Attr]` is a PHP 8 attribute, not a comment.
+line_exceptions = ["#["]
+block = [["/*", "*/"]]
+doc_block = [["/**", "*/"]]
+heredoc = true
+strings = [{ open = '"', close = '"' }, { open = "'", close = "'" }]
+
+[languages.shell]
+extensions = [".sh", ".bash", ".zsh"]
+interpreters = ["sh", "bash", "zsh", "dash", "ksh"]
+line = ["#"]
+heredoc = true
+strings = [{ open = '"', close = '"', multiline = true }, { open = "'", close = "'", multiline = true }]
+
+[languages.powershell]
+extensions = [".ps1", ".psm1"]
+line = ["#"]
+block = [["<#", "#>"]]
+strings = [{ open = '"', close = '"' }, { open = "'", close = "'" }]
+
+[languages.lua]
+extensions = [".lua"]
+interpreters = ["lua"]
+line = ["--"]
+block = [["--[[", "]]"]]
+strings = [
+  { open = "[[", close = "]]", multiline = true },
+  { open = '"', close = '"' },
+  { open = "'", close = "'" },
+]
+
+[languages.perl]
+extensions = [".pl", ".pm"]
+interpreters = ["perl"]
+line = ["#"]
+block = [["=pod", "=cut"]]
+heredoc = true
+strings = [{ open = '"', close = '"' }, { open = "'", close = "'" }]
+
+[languages.sql]
+extensions = [".sql"]
+line = ["--"]
+block = [["/*", "*/"]]
+strings = [{ open = "'", close = "'" }]
+
+[languages.haskell]
+extensions = [".hs"]
+line = ["--"]
+block = [["{-", "-}"]]
+nested_block = true
+strings = [{ open = '"', close = '"' }]
+
+[languages.elixir]
+extensions = [".ex", ".exs"]
+line = ["#"]
+strings = [
+  { open = '"""', close = '"""', multiline = true, docstring = true },
+  { open = '"', close = '"' },
+]
+
+[languages.erlang]
+extensions = [".erl", ".hrl"]
+line = ["%"]
+strings = [{ open = '"', close = '"' }]
+
+[languages.clojure]
+extensions = [".clj", ".cljs", ".cljc", ".edn"]
+line = [";"]
+strings = [{ open = '"', close = '"', multiline = true }]
+
+[languages.ocaml]
+extensions = [".ml", ".mli"]
+block = [["(*", "*)"]]
+nested_block = true
+strings = [{ open = '"', close = '"' }]
+
+[languages.zig]
+extensions = [".zig"]
+line = ["//"]
+doc_line = ["///", "//!"]
+strings = [{ open = '"', close = '"' }, { open = "'", close = "'", char_literal = true }]
+
+[languages.dart]
+extensions = [".dart"]
+line = ["//"]
+doc_line = ["///"]
+block = [["/*", "*/"]]
+nested_block = true
+strings = [{ open = '"', close = '"' }, { open = "'", close = "'" }]
+
+[languages.scala]
+extensions = [".scala", ".sc"]
+line = ["//"]
+block = [["/*", "*/"]]
+doc_block = [["/**", "*/"]]
+nested_block = true
+strings = [{ open = '"""', close = '"""', multiline = true }, { open = '"', close = '"' }]
+
+[languages.r]
+extensions = [".r", ".R"]
+line = ["#"]
+strings = [{ open = '"', close = '"' }, { open = "'", close = "'" }]
+
+[languages.julia]
+extensions = [".jl"]
+line = ["#"]
+block = [["#=", "=#"]]
+nested_block = true
+strings = [
+  { open = '"""', close = '"""', multiline = true, docstring = true },
+  { open = '"', close = '"' },
+]
+
+[languages.css]
+extensions = [".css", ".scss", ".sass", ".less"]
+line = ["//"]
+block = [["/*", "*/"]]
+strings = [{ open = '"', close = '"' }, { open = "'", close = "'" }]
+
+[languages.html]
+extensions = [".html", ".htm", ".xml", ".xhtml", ".svg", ".vue", ".svelte"]
+block = [["<!--", "-->"]]
+strings = [{ open = '"', close = '"' }, { open = "'", close = "'" }]
+
+[languages.toml]
+extensions = [".toml"]
+line = ["#"]
+strings = [{ open = '"', close = '"' }, { open = "'", close = "'" }]
+
+[languages.yaml]
+extensions = [".yml", ".yaml"]
+line = ["#"]
+strings = [{ open = '"', close = '"' }, { open = "'", close = "'" }]
+
+[languages.ini]
+extensions = [".ini", ".cfg", ".conf", ".properties", ".editorconfig"]
+line = ["#", ";"]
+
+[languages.make]
+extensions = [".mk"]
+filenames = ["Makefile", "makefile", "GNUmakefile"]
+line = ["#"]
+
+[languages.docker]
+extensions = [".dockerfile"]
+filenames = ["Dockerfile"]
+line = ["#"]
+
+[languages.terraform]
+extensions = [".tf", ".tfvars", ".hcl"]
+line = ["#", "//"]
+block = [["/*", "*/"]]
+heredoc = true
+strings = [{ open = '"', close = '"' }]
+
+[languages.proto]
+extensions = [".proto"]
+line = ["//"]
+block = [["/*", "*/"]]
+strings = [{ open = '"', close = '"' }]
+
+[languages.graphql]
+extensions = [".graphql", ".gql"]
+line = ["#"]
+strings = [{ open = '"""', close = '"""', multiline = true }, { open = '"', close = '"' }]
+
+[languages.vim]
+extensions = [".vim"]
+line = ['"']
+
+[languages.markdown]
+extensions = [".md", ".markdown", ".mdx"]
+block = [["<!--", "-->"]]
+prose = true
+
+[languages.restructuredtext]
+extensions = [".rst"]
+prose = true
+
+[languages.asciidoc]
+extensions = [".adoc", ".asciidoc"]
+line = ["//"]
+prose = true
+
+[languages.plaintext]
+extensions = [".txt", ".text", ".org"]
+prose = true

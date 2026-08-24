@@ -1,0 +1,1 @@
+Concern: one budget each — the thresholds it declares and the findings it raises | Non-concern: producing the measurement any of them judges (scan.rs owns that) | IO: (Scan) -> Vec<Diagnostic>

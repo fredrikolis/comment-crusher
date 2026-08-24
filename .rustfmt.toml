@@ -1,0 +1,3 @@
+# Concern: the formatting rustfmt enforces | Non-concern: lint rules (clippy.toml) | IO: none
+max_width = 100
+edition = "2024"

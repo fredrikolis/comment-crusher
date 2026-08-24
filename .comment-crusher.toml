@@ -1,0 +1,11 @@
+# Concern: the comment budget this repo holds itself to, and every allowance it granted | Non-concern: what makes a comment worth keeping | IO: none
+# The defaults are the product. This file adds allowances, never a raised threshold: the
+# bound is the detector, and a bigger number only hides what it found.
+
+[global]
+exclude = ["corpus"]
+
+[[allow]]
+paths = ["crates/comment-crusher/src/default_config.toml"]
+reason = "a reference table carries its own legend"
+set = ["comment-block.max_lines=20", "comment-block.header_max_lines=40", "comment-block.max_chars=1200"]

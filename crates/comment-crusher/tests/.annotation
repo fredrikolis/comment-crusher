@@ -1,0 +1,1 @@
+Concern: holds the tool to what a caller observes — exit codes, output shape, and real numbers | Non-concern: its internals, unit-tested in src/ | IO: (temp trees, corpus) -> pass/fail

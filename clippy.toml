@@ -1,0 +1,5 @@
+# Concern: the complexity thresholds clippy enforces | Non-concern: which lints are on (Cargo.toml) or formatting (.rustfmt.toml) | IO: none
+too-many-lines-threshold = 60
+cognitive-complexity-threshold = 15
+too-many-arguments-threshold = 5
+type-complexity-threshold = 200

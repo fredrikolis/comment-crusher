@@ -1,0 +1,4 @@
+# Concern: pins the toolchain every build and CI job resolves to | Non-concern: crate dependencies, or the lint rules run on top | IO: none
+[toolchain]
+channel = "1.96.0"
+components = ["rustfmt", "clippy"]

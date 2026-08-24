@@ -1,0 +1,1 @@
+Concern: how release-please derives versions, changelog sections and tags for this workspace | Non-concern: running it (.github/workflows/release-please.yml) | IO: none

@@ -1,0 +1,1 @@
+Concern: what GitHub runs on this repo — the checks and the release | Non-concern: what a commit must clear locally (.githooks/) | IO: (a commit) -> pass/fail, releases

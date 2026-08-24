@@ -1,0 +1,81 @@
+# Concern: the checks every push and pull request must clear | Non-concern: cutting a release (release-please.yml) | IO: (a commit) -> pass/fail
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.head_ref || github.run_id }}
+  cancel-in-progress: true
+
+env:
+  CARGO_TERM_COLOR: always
+  CORPUS_DIR: ${{ github.workspace }}/.corpus
+
+jobs:
+  lint:
+    name: Lint
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+      - uses: dtolnay/rust-toolchain@master
+        with:
+          toolchain: "1.96.0"
+          components: rustfmt, clippy
+      - uses: Swatinem/rust-cache@v2
+
+      - run: cargo fmt --all -- --check
+      - run: cargo clippy --all-targets -- -D warnings
+
+      # The tool gates itself. A repo that cannot live inside its own budget has no business
+      # asking anyone else to.
+      - run: cargo run --release -- .
+
+  annotations:
+    name: Annotations
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+      - uses: dtolnay/rust-toolchain@master
+        with:
+          toolchain: "1.96.0"
+      - uses: Swatinem/rust-cache@v2
+      - run: cargo install --locked annotated-tree
+      # Two passes: the walk prunes `tests` without --include-tests, and prunes dot-directories
+      # without --hidden. Both must match .githooks/pre-commit.
+      - run: annotated-tree --strict-check . --hidden --max-length 200
+      - run: annotated-tree --strict-check . --hidden --include-tests --max-length 200
+
+  test:
+    name: Test
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+      - uses: dtolnay/rust-toolchain@master
+        with:
+          toolchain: "1.96.0"
+      - uses: Swatinem/rust-cache@v2
+
+      # Keyed on the manifest, so the clone happens once per corpus change, not per run.
+      - uses: actions/cache@v4
+        with:
+          path: ${{ env.CORPUS_DIR }}
+          key: corpus-${{ hashFiles('corpus.toml') }}
+
+      - run: ./scripts/fetch-corpus.sh
+      - run: cargo test --all-targets
+
+  check:
+    name: Check
+    if: always()
+    needs: [lint, annotations, test]
+    runs-on: ubuntu-latest
+    steps:
+      - name: All jobs passed
+        run: |
+          for r in "${{ needs.lint.result }}" "${{ needs.annotations.result }}" "${{ needs.test.result }}"; do
+            [ "$r" = "success" ] || { echo "a required job did not pass"; exit 1; }
+          done

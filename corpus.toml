@@ -1,0 +1,75 @@
+# Concern: names the third-party repositories the corpus tests measure, pinned by SHA | Non-concern: fetching them, or what is asserted over them | IO: none
+# Nothing is vendored: fetch-corpus.sh clones each `rev` into gitignored target/corpus/.
+# A `rev` is a commit SHA, never a tag — a tag can move, and the assertions would drift.
+
+[[repo]]
+name = "anyhow"
+language = "rust"
+url = "https://github.com/dtolnay/anyhow"
+rev = "18a1e8e9e5de6c19ec972cc7554b71bdfd95c63a" # 1.0.99
+
+[[repo]]
+name = "sds"
+language = "c"
+url = "https://github.com/antirez/sds"
+rev = "568d691c80cd997bf8c15c47d10c3ebc0a879737" # 2.0.0
+
+[[repo]]
+name = "spdlog"
+language = "cpp"
+url = "https://github.com/gabime/spdlog"
+rev = "79524ddd08a4ec981b7fea76afd08ee05f83755d" # v1.17.0
+
+[[repo]]
+name = "go-errors"
+language = "go"
+url = "https://github.com/pkg/errors"
+rev = "614d223910a179a466c1767a985424175c39b465" # v0.9.1
+
+[[repo]]
+name = "requests"
+language = "python"
+url = "https://github.com/psf/requests"
+rev = "6e83187b8feb273ed4c6cdab5efd8d54901dfab3" # v2.34.2
+
+[[repo]]
+name = "chalk"
+language = "javascript"
+url = "https://github.com/chalk/chalk"
+rev = "a52d7e223ca656eea6875989646830277f721c58" # v6.0.0
+
+[[repo]]
+name = "type-fest"
+language = "typescript"
+url = "https://github.com/sindresorhus/type-fest"
+rev = "e86a2739b8e53cb8febe14c83bd74c99466e548f" # v5.8.0
+
+[[repo]]
+name = "json-java"
+language = "java"
+url = "https://github.com/stleary/JSON-java"
+rev = "6c140480797ad70a41df84bc8ebab405ca44656b" # 20260814
+
+[[repo]]
+name = "sinatra"
+language = "ruby"
+url = "https://github.com/sinatra/sinatra"
+rev = "518c22e9dd45c1c2fa4e11017e02766a8fc443f6" # v4.2.1
+
+[[repo]]
+name = "nvm"
+language = "shell"
+url = "https://github.com/nvm-sh/nvm"
+rev = "8869c20fa2ebdfce4021e6eabe572142d2dc67b8" # v0.40.7
+
+[[repo]]
+name = "inspect-lua"
+language = "lua"
+url = "https://github.com/kikito/inspect.lua"
+rev = "9a6884423d05638b96e92b7310ac48520ff1e953" # v3.1.3
+
+[[repo]]
+name = "uuid-php"
+language = "php"
+url = "https://github.com/ramsey/uuid"
+rev = "5c7eadcf1d4e8abb9b128ebc71ef708d696cdb74" # 4.9.3

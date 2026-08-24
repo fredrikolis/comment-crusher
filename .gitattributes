@@ -1,0 +1,2 @@
+# Golden CLI tests compare output byte-for-byte, so a CRLF checkout would fail spuriously.
+* text=auto eol=lf

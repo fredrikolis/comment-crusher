@@ -1,0 +1,1 @@
+Concern: normalizes line endings so a checkout on any platform matches what the tests measure | Non-concern: which files are tracked (.gitignore) | IO: none

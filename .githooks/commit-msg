@@ -1,0 +1,19 @@
+#!/usr/bin/env bash
+# Concern: the gate declarations for this repo | Non-concern: how a gate is checked (git-agent-verdict owns that) or what a reviewer judges | IO: (message, tool version) -> status, edited message
+# Line order IS review order: `set -e` stops at the first unattested gate.
+# Enable per clone: git config core.hooksPath .githooks
+set -euo pipefail
+
+git agent-verdict --require-version 2.0
+
+git agent-verdict "$1" standards --standard programming --standard testing \
+	--rule "This is a synchronous single-process CLI. Blocking file IO is correct here; a new blocking API is not a finding." \
+	--rule "There are deliberately no test fixture files. A finding that a construct lacks a fixture is wrong; it belongs in an inline snippet in scan_tests.rs or in a corpus repository pinned in corpus.toml." \
+	--path .
+git agent-verdict "$1" budget --doc docs/budget-policy.md \
+	--path .comment-crusher.toml --path crates/comment-crusher/src/default_config.toml --path corpus.toml
+git agent-verdict "$1" cli --simple --standard cli \
+	--path crates/comment-crusher/src/cli.rs --path crates/comment-crusher/src/main.rs
+git agent-verdict "$1" prose --simple --standard human-communication \
+	--path README.md --path CONTRIBUTING.md --path docs
+git agent-verdict "$1" changelog --simple --standard terse-log --path CHANGELOG.md

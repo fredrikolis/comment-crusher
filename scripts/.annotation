@@ -1,0 +1,1 @@
+Concern: the developer commands too long for a README line | Non-concern: anything a commit must clear (.githooks/ owns that) | IO: (manifests) -> a working tree ready to test
