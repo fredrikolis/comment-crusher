@@ -191,10 +191,21 @@ heredoc = true
 strings = [{ open = '"', close = '"' }, { open = "'", close = "'" }]
 
 [languages.shell]
-extensions = [".sh", ".bash", ".zsh"]
-interpreters = ["sh", "bash", "zsh", "dash", "ksh"]
+extensions = [".sh", ".bash", ".zsh", ".ksh", ".mksh", ".ash", ".command"]
+filenames = [
+  ".bashrc", ".bash_profile", ".bash_aliases", ".bash_logout",
+  ".zshrc", ".zshenv", ".zprofile", ".zlogin", ".profile", ".kshrc",
+]
+interpreters = ["sh", "bash", "zsh", "dash", "ksh", "mksh", "ash", "busybox"]
 line = ["#"]
 heredoc = true
+strings = [{ open = '"', close = '"', multiline = true }, { open = "'", close = "'", multiline = true }]
+
+[languages.fish]
+# No heredoc, so `<<` is never an opener here.
+extensions = [".fish"]
+interpreters = ["fish"]
+line = ["#"]
 strings = [{ open = '"', close = '"', multiline = true }, { open = "'", close = "'", multiline = true }]
 
 [languages.powershell]
@@ -282,7 +293,7 @@ nested_block = true
 strings = [{ open = '"""', close = '"""', multiline = true }, { open = '"', close = '"' }]
 
 [languages.r]
-extensions = [".r", ".R"]
+extensions = [".r"]
 line = ["#"]
 strings = [{ open = '"', close = '"' }, { open = "'", close = "'" }]
 
@@ -352,6 +363,294 @@ strings = [{ open = '"""', close = '"""', multiline = true }, { open = '"', clos
 [languages.vim]
 extensions = [".vim"]
 line = ['"']
+
+
+# --- C-family and object languages ---
+
+[languages.objc]
+# `.m` is shared with MATLAB. Objective-C is the far more common `.m` in source
+# repositories, and a MATLAB project overrides this table like any other.
+extensions = [".m", ".mm"]
+line = ["//"]
+block = [["/*", "*/"]]
+doc_block = [["/**", "*/"]]
+strings = [{ open = '"', close = '"' }, { open = "'", close = "'", char_literal = true }]
+
+[languages.groovy]
+extensions = [".groovy", ".gvy", ".gradle"]
+filenames = ["Jenkinsfile"]
+line = ["//"]
+block = [["/*", "*/"]]
+doc_block = [["/**", "*/"]]
+strings = [
+  { open = '"""', close = '"""', multiline = true },
+  { open = '"', close = '"' },
+  { open = "'", close = "'" },
+]
+
+[languages.apex]
+extensions = [".cls", ".trigger"]
+line = ["//"]
+block = [["/*", "*/"]]
+strings = [{ open = "'", close = "'" }]
+
+[languages.haxe]
+extensions = [".hx"]
+line = ["//"]
+block = [["/*", "*/"]]
+doc_block = [["/**", "*/"]]
+strings = [{ open = '"', close = '"' }, { open = "'", close = "'" }]
+
+[languages.d]
+extensions = [".d"]
+line = ["//"]
+doc_line = ["///"]
+block = [["/*", "*/"], ["/+", "+/"]]
+nested_block = true
+strings = [{ open = '"', close = '"', multiline = true }]
+
+[languages.odin]
+extensions = [".odin"]
+line = ["//"]
+block = [["/*", "*/"]]
+nested_block = true
+strings = [{ open = '"', close = '"' }]
+
+[languages.gleam]
+extensions = [".gleam"]
+line = ["//"]
+doc_line = ["////", "///"]
+strings = [{ open = '"', close = '"', multiline = true }]
+
+[languages.solidity]
+extensions = [".sol"]
+line = ["//"]
+doc_line = ["///"]
+block = [["/*", "*/"]]
+doc_block = [["/**", "*/"]]
+strings = [{ open = '"', close = '"' }, { open = "'", close = "'" }]
+
+[languages.rescript]
+extensions = [".res", ".resi", ".re", ".rei"]
+line = ["//"]
+block = [["/*", "*/"]]
+strings = [{ open = '"', close = '"', multiline = true }]
+
+[languages.shaderlang]
+extensions = [".glsl", ".frag", ".vert", ".comp", ".geom", ".hlsl", ".wgsl", ".metal"]
+line = ["//"]
+block = [["/*", "*/"]]
+
+# --- ML and Lisp families ---
+
+[languages.fsharp]
+extensions = [".fs", ".fsi", ".fsx"]
+line = ["//"]
+doc_line = ["///"]
+block = [["(*", "*)"]]
+nested_block = true
+strings = [{ open = '"""', close = '"""', multiline = true }, { open = '"', close = '"' }]
+
+[languages.sml]
+extensions = [".sml", ".sig", ".fun"]
+block = [["(*", "*)"]]
+nested_block = true
+strings = [{ open = '"', close = '"' }]
+
+[languages.lisp]
+# Common Lisp, Scheme, Racket and Emacs Lisp share `;` and the nestable `#| |#`.
+extensions = [".lisp", ".lsp", ".cl", ".el", ".scm", ".ss", ".rkt", ".fnl"]
+line = [";"]
+block = [["#|", "|#"]]
+nested_block = true
+strings = [{ open = '"', close = '"', multiline = true }]
+
+[languages.elm]
+extensions = [".elm"]
+line = ["--"]
+block = [["{-", "-}"]]
+nested_block = true
+strings = [{ open = '"""', close = '"""', multiline = true }, { open = '"', close = '"' }]
+
+[languages.purescript]
+extensions = [".purs"]
+line = ["--"]
+block = [["{-", "-}"]]
+nested_block = true
+strings = [{ open = '"', close = '"' }]
+
+[languages.nim]
+extensions = [".nim", ".nims", ".nimble"]
+line = ["#"]
+doc_line = ["##"]
+block = [["#[", "]#"]]
+nested_block = true
+strings = [{ open = '"""', close = '"""', multiline = true }, { open = '"', close = '"' }]
+
+[languages.crystal]
+extensions = [".cr"]
+line = ["#"]
+heredoc = true
+strings = [{ open = '"', close = '"' }, { open = "'", close = "'", char_literal = true }]
+
+# --- Hardware, numeric and legacy ---
+
+[languages.verilog]
+extensions = [".v", ".sv", ".svh", ".vh"]
+line = ["//"]
+block = [["/*", "*/"]]
+strings = [{ open = '"', close = '"' }]
+
+[languages.vhdl]
+extensions = [".vhd", ".vhdl"]
+line = ["--"]
+strings = [{ open = '"', close = '"' }]
+
+[languages.fortran]
+extensions = [".f90", ".f95", ".f03", ".f08", ".f", ".for", ".ftn"]
+line = ["!"]
+strings = [{ open = "'", close = "'" }, { open = '"', close = '"' }]
+
+[languages.ada]
+extensions = [".adb", ".ads", ".ada"]
+line = ["--"]
+strings = [{ open = '"', close = '"' }]
+
+[languages.pascal]
+extensions = [".pas", ".pp", ".dpr", ".lpr"]
+line = ["//"]
+block = [["{", "}"], ["(*", "*)"]]
+strings = [{ open = "'", close = "'" }]
+
+[languages.vb]
+extensions = [".vb", ".vbs", ".bas", ".frm"]
+line = ["'"]
+strings = [{ open = '"', close = '"' }]
+
+[languages.gas]
+extensions = [".s"]
+line = ["#"]
+block = [["/*", "*/"]]
+strings = [{ open = '"', close = '"' }]
+
+[languages.asm]
+extensions = [".asm", ".nasm", ".inc"]
+line = [";"]
+strings = [{ open = '"', close = '"' }, { open = "'", close = "'" }]
+
+[languages.tcl]
+extensions = [".tcl", ".tk"]
+interpreters = ["tclsh", "wish"]
+line = ["#"]
+strings = [{ open = '"', close = '"', multiline = true }]
+
+[languages.awk]
+extensions = [".awk"]
+interpreters = ["awk", "gawk", "mawk"]
+line = ["#"]
+strings = [{ open = '"', close = '"' }]
+
+[languages.batch]
+extensions = [".bat", ".cmd"]
+line = ["::", "REM ", "rem ", "Rem "]
+strings = [{ open = '"', close = '"' }]
+
+[languages.coffee]
+extensions = [".coffee"]
+line = ["#"]
+block = [["###", "###"]]
+strings = [{ open = '"', close = '"' }, { open = "'", close = "'" }]
+
+# --- Build, infrastructure and data ---
+
+[languages.cmake]
+extensions = [".cmake"]
+filenames = ["CMakeLists.txt"]
+line = ["#"]
+block = [["#[[", "]]"]]
+strings = [{ open = '"', close = '"', multiline = true }]
+
+[languages.nix]
+extensions = [".nix"]
+line = ["#"]
+block = [["/*", "*/"]]
+strings = [{ open = "''", close = "''", multiline = true }, { open = '"', close = '"', multiline = true }]
+
+[languages.starlark]
+extensions = [".bzl", ".star", ".bazel"]
+filenames = ["BUILD", "BUILD.bazel", "WORKSPACE", "WORKSPACE.bazel"]
+line = ["#"]
+strings = [
+  { open = '"""', close = '"""', multiline = true, docstring = true },
+  { open = '"', close = '"' },
+  { open = "'", close = "'" },
+]
+
+[languages.just]
+extensions = [".just"]
+filenames = ["justfile", "Justfile", ".justfile"]
+line = ["#"]
+strings = [{ open = '"', close = '"' }, { open = "'", close = "'" }]
+
+[languages.jsonnet]
+extensions = [".jsonnet", ".libsonnet"]
+line = ["//", "#"]
+block = [["/*", "*/"]]
+strings = [{ open = '"', close = '"' }, { open = "'", close = "'" }]
+
+[languages.jsonc]
+extensions = [".jsonc", ".json5"]
+filenames = ["tsconfig.json", "jsconfig.json", "devcontainer.json"]
+line = ["//"]
+block = [["/*", "*/"]]
+strings = [{ open = '"', close = '"' }]
+
+[languages.cue]
+extensions = [".cue"]
+line = ["//"]
+strings = [{ open = '"""', close = '"""', multiline = true }, { open = '"', close = '"' }]
+
+[languages.rego]
+extensions = [".rego"]
+line = ["#"]
+strings = [{ open = '"', close = '"' }]
+
+[languages.thrift]
+extensions = [".thrift"]
+line = ["//", "#"]
+block = [["/*", "*/"]]
+strings = [{ open = '"', close = '"' }, { open = "'", close = "'" }]
+
+[languages.bicep]
+extensions = [".bicep"]
+line = ["//"]
+strings = [{ open = "'''", close = "'''", multiline = true }, { open = "'", close = "'" }]
+
+[languages.dotenv]
+extensions = [".env"]
+filenames = [".env", ".env.example", ".env.local", ".env.sample"]
+line = ["#"]
+
+# --- Templates and styling ---
+
+[languages.stylus]
+extensions = [".styl"]
+line = ["//"]
+block = [["/*", "*/"]]
+
+[languages.pug]
+extensions = [".pug", ".jade"]
+line = ["//-", "//"]
+
+[languages.handlebars]
+extensions = [".hbs", ".handlebars", ".mustache"]
+block = [["{{!--", "--}}"], ["{{!", "}}"]]
+
+[languages.jinja]
+extensions = [".j2", ".jinja", ".jinja2", ".twig"]
+block = [["{#", "#}"]]
+
+# --- Prose ---
 
 [languages.markdown]
 extensions = [".md", ".markdown", ".mdx"]

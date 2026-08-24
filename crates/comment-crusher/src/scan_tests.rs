@@ -48,6 +48,29 @@ fn every_construct_partitions_into_comment_plus_code() {
             "-- note\n--[[ block\nstill block ]]\nlocal s = [[ -- not a comment ]]\n",
         ),
         ("rb", "# note\n=begin\nblock\n=end\nputs 'x'\n"),
+        (
+            "el",
+            ";; note\n#| block\nstill block |#\n(f \"; not a comment\")\n",
+        ),
+        ("nim", "## doc\n#[ block\nstill ]#\nlet s = \"# no\"\n"),
+        ("elm", "-- note\n{- block\nstill -}\nx = 1\n"),
+        ("fs", "// note\n(* block\nstill *)\nlet x = 1\n"),
+        ("f90", "! note\nprint *, 'hi'\n"),
+        ("vb", "' note\nDim x = 1\n"),
+        ("bat", ":: note\nREM also a note\necho hi\n"),
+        ("j2", "{# note #}\n<p>{{ x }}</p>\n"),
+        ("hbs", "{{!-- note --}}\n{{! short }}\n<p>{{x}}</p>\n"),
+        ("cmake", "# note\n#[[ block\nstill ]]\nset(X 1)\n"),
+        ("coffee", "# note\n### block\nstill ###\nx = 1\n"),
+        (
+            "nix",
+            "# note\n/* block */\nx = \'\'raw # not a comment\'\';\n",
+        ),
+        ("fish", "# note\nset x 1\n"),
+        (
+            "gleam",
+            "//// module doc\n/// item doc\n// note\nfn f() { 1 }\n",
+        ),
     ];
     for (ext, src) in cases {
         let (comment, code) = split(ext, src);
@@ -135,6 +158,36 @@ fn a_shebang_is_neither_comment_nor_a_header() {
     assert_eq!(s.regions.len(), 1);
     assert_eq!(s.regions[0].start_line, 2);
     assert!(s.regions[0].header);
+}
+
+#[test]
+fn block_comments_nest_in_every_family_that_nests_them() {
+    // Lisp `#| |#`, Nim `#[ ]#`, Haskell/Elm `{- -}`, ML `(* *)`, D `/+ +/`.
+    for (ext, src, tail) in [
+        ("el", "#| a #| b |# c |# (f)", "(f)"),
+        ("nim", "#[ a #[ b ]# c ]# f()", "f()"),
+        ("elm", "{- a {- b -} c -} f", "f"),
+        ("fs", "(* a (* b *) c *) f", "f"),
+        ("d", "/+ a /+ b +/ c +/ f", "f"),
+    ] {
+        let s = run(ext, src);
+        assert_eq!(s.regions.len(), 1, "{ext}");
+        assert_eq!(s.code_chars, visible(tail), "{ext}");
+    }
+}
+
+#[test]
+fn a_shell_heredoc_survives_every_opener_form() {
+    for src in [
+        "cat <<EOF\n# no\nEOF\n",
+        "cat <<-'EOF'\n# no\n\tEOF\n",
+        "cat <<\"EOF\"\n# no\nEOF\n",
+    ] {
+        assert_eq!(run("sh", src).regions.len(), 0, "{src:?}");
+    }
+    // `<<` that opens no heredoc must not swallow the rest of the file.
+    let s = run("sh", "x=$((1 << 3))\n# note\n");
+    assert_eq!(s.regions.len(), 1);
 }
 
 #[test]

@@ -109,6 +109,12 @@ lines = 43
 comment_chars = 0
 code_chars = 686
 
+["json-java".groovy]
+files = 1
+lines = 147
+comment_chars = 665
+code_chars = 2301
+
 ["json-java".html]
 files = 3
 lines = 1099
@@ -174,6 +180,12 @@ files = 19
 lines = 1768
 comment_chars = 4433
 code_chars = 35016
+
+["requests".batch]
+files = 1
+lines = 263
+comment_chars = 100
+code_chars = 5605
 
 ["requests".css]
 files = 1
@@ -283,6 +295,12 @@ lines = 24492
 comment_chars = 76594
 code_chars = 413913
 
+["sinatra".stylus]
+files = 1
+lines = 2
+comment_chars = 0
+code_chars = 11
+
 ["sinatra".yaml]
 files = 10
 lines = 406
@@ -294,6 +312,12 @@ files = 108
 lines = 27124
 comment_chars = 124759
 code_chars = 617364
+
+["spdlog".cmake]
+files = 7
+lines = 716
+comment_chars = 5441
+code_chars = 21039
 
 ["spdlog".cpp]
 files = 39
@@ -312,12 +336,6 @@ files = 1
 lines = 553
 comment_chars = 0
 code_chars = 15931
-
-["spdlog".plaintext]
-files = 4
-lines = 565
-comment_chars = 0
-code_chars = 20248
 
 ["spdlog".python]
 files = 1
@@ -354,6 +372,12 @@ files = 17
 lines = 4924
 comment_chars = 9083
 code_chars = 80306
+
+["type-fest".jsonc]
+files = 1
+lines = 12
+comment_chars = 208
+code_chars = 201
 
 ["type-fest".markdown]
 files = 7
