@@ -16,4 +16,4 @@ git agent-verdict "$1" cli --simple --standard cli \
 	--path crates/comment-crusher/src/cli.rs --path crates/comment-crusher/src/main.rs
 git agent-verdict "$1" prose --simple --standard human-communication \
 	--path README.md --path CONTRIBUTING.md --path docs
-git agent-verdict "$1" changelog --simple --standard terse-log --path CHANGELOG.md
+git agent-verdict "$1" changelog --simple --standard terse-log --path crates/comment-crusher/CHANGELOG.md

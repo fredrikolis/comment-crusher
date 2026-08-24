@@ -1,7 +1,7 @@
 # Concern: declares the comment-crusher crate — its targets, dependencies and metadata | Non-concern: what the tool measures (src/ owns that) or the workspace-wide settings it inherits | IO: none
 [package]
 name = "comment-crusher"
-version.workspace = true
+version = "0.1.0"
 edition.workspace = true
 rust-version.workspace = true
 license.workspace = true
