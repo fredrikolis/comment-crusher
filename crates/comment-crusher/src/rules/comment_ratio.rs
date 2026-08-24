@@ -7,27 +7,16 @@ use crate::diagnostic::{Diagnostic, Level};
 use crate::scan::Scan;
 
 pub const NAME: &str = "comment-ratio";
+const HELP: &str = "Extract what needed explaining, or delete what the code already says.";
 
 #[derive(Debug, Clone, Deserialize)]
-#[serde(default, deny_unknown_fields)]
+#[serde(deny_unknown_fields)]
 pub struct Config {
     pub level: Level,
     pub max_ratio: f64,
     pub count_doc_comments: bool,
     pub min_chars: usize,
     pub skip_header: bool,
-}
-
-impl Default for Config {
-    fn default() -> Self {
-        Self {
-            level: Level::Deny,
-            max_ratio: 0.25,
-            count_doc_comments: true,
-            min_chars: 200,
-            skip_header: true,
-        }
-    }
 }
 
 #[expect(
@@ -56,5 +45,6 @@ pub fn check(cfg: &Config, file: &Path, scan: &Scan) -> Option<Diagnostic> {
             ratio * 100.0,
             cfg.max_ratio * 100.0
         ),
+        HELP,
     ))
 }

@@ -7,8 +7,7 @@ root=$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)
 manifest="$root/corpus.toml"
 dest_root="${CORPUS_DIR:-$root/target/corpus}"
 
-# Field-order-independent read of corpus.toml: collect name/url/rev per [[repo]] block,
-# emit one tab-separated line when the block ends. No TOML parser in a shell script.
+# Field-order-independent read of corpus.toml; no TOML parser in a shell script.
 parse() {
 	awk '
 		function flush() { if (name != "") print name "\t" url "\t" rev; name = ""; url = ""; rev = "" }

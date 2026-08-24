@@ -7,21 +7,13 @@ use crate::diagnostic::{Diagnostic, Level};
 use crate::scan::Scan;
 
 pub const NAME: &str = "doc-length";
+const HELP: &str = "Split it, or grant an allowance in .comment-crusher.toml with a reason.";
 
 #[derive(Debug, Clone, Deserialize)]
-#[serde(default, deny_unknown_fields)]
+#[serde(deny_unknown_fields)]
 pub struct Config {
     pub level: Level,
     pub max_lines: usize,
-}
-
-impl Default for Config {
-    fn default() -> Self {
-        Self {
-            level: Level::Deny,
-            max_lines: 400,
-        }
-    }
 }
 
 pub fn check(cfg: &Config, file: &Path, scan: &Scan) -> Option<Diagnostic> {
@@ -36,5 +28,6 @@ pub fn check(cfg: &Config, file: &Path, scan: &Scan) -> Option<Diagnostic> {
             "document is {} lines, budget is {}",
             scan.total_lines, cfg.max_lines
         ),
+        HELP,
     ))
 }

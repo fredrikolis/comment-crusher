@@ -85,3 +85,147 @@ name = "svelte-realworld"
 language = "svelte"
 url = "https://github.com/sveltejs/realworld"
 rev = "df796708040f5200ec572b28ab7f88ecee5794dd" # default branch
+
+[[repo]]
+name = "swift-argparse"
+language = "swift"
+url = "https://github.com/apple/swift-argument-parser"
+rev = "6a52f3251125d74daf04fcbd5e6f08a75d074382" # 1.8.2
+
+[[repo]]
+name = "dart-collection"
+language = "dart"
+url = "https://github.com/dart-lang/collection"
+rev = "9354f386de3c57f5486b01ab4dfa1a2f033307d9" # v1.19.0
+
+[[repo]]
+name = "scopt"
+language = "scala"
+url = "https://github.com/scopt/scopt"
+rev = "603bd40457f21cbf82747c28dc1e02528ca43256" # v4.1.0
+
+[[repo]]
+name = "julia-json"
+language = "julia"
+url = "https://github.com/JuliaIO/JSON.jl"
+rev = "68a580a1b344e43d3fb0f2624cc6f3efdb4a4229" # v1.7.1
+
+[[repo]]
+name = "zig-http"
+language = "zig"
+url = "https://github.com/karlseguin/http.zig"
+rev = "461ed22a82294456f895debe7e83f515aba48f8c"
+
+[[repo]]
+name = "terraform-vpc"
+language = "terraform"
+url = "https://github.com/terraform-aws-modules/terraform-aws-vpc"
+rev = "6b147b1ef0e83c74402b984a5c8e55f95c88cf36" # v6.7.0
+
+[[repo]]
+name = "dexador"
+language = "lisp"
+url = "https://github.com/fukamachi/dexador"
+rev = "f068b40bfed2e67b09e06603ef9cbe07d2cdef0d"
+
+[[repo]]
+name = "hspec"
+language = "haskell"
+url = "https://github.com/hspec/hspec"
+rev = "17fa056a61f69d0fd8df59441e4a16e938c7bed8"
+
+[[repo]]
+name = "yojson"
+language = "ocaml"
+url = "https://github.com/ocaml-community/yojson"
+rev = "0a98c577882c36832644ab6fa1b0e199f7cea25a"
+
+[[repo]]
+name = "nimble"
+language = "nim"
+url = "https://github.com/nim-lang/nimble"
+rev = "aa8e6ea09ecac774b6fad42552569ce07bef37ec"
+
+[[repo]]
+name = "uri-perl"
+language = "perl"
+url = "https://github.com/libwww-perl/URI"
+rev = "50333da203791da1955a67d0c22b050e4d9de9bf"
+
+[[repo]]
+name = "cowlib"
+language = "erlang"
+url = "https://github.com/ninenines/cowlib"
+rev = "fca9cb74285e4a455fccd1c98c4d58eabf00f5b2"
+
+[[repo]]
+name = "d-yaml"
+language = "d"
+url = "https://github.com/dlang-community/D-YAML"
+rev = "988132aa1f4b0f0b8207e786986a53372f1bfb4f"
+
+[[repo]]
+name = "coffeescript"
+language = "coffee"
+url = "https://github.com/jashkenas/coffeescript"
+rev = "b51361abe74ccd93df40eebac44c5b34ada9a9e7"
+
+[[repo]]
+name = "json-fortran"
+language = "fortran"
+url = "https://github.com/jacobwilliams/json-fortran"
+rev = "d9ed2e4ee53745f4ed98d7536e17bee5198aa3b0"
+
+[[repo]]
+name = "gleam-stdlib"
+language = "gleam"
+url = "https://github.com/gleam-lang/stdlib"
+rev = "55f9454419add4382a3c913af25da6d893d878a8"
+
+[[repo]]
+name = "pug"
+language = "pug"
+url = "https://github.com/pugjs/pug"
+rev = "c323ed3e630b931bc04790efb509d34ac5927040"
+
+[[repo]]
+name = "pester"
+language = "powershell"
+url = "https://github.com/pester/Pester"
+rev = "f7651408e90fe12d317e33bc24ec53c14e85214e"
+
+[[repo]]
+name = "astro-paper"
+language = "astro"
+url = "https://github.com/satnaing/astro-paper"
+rev = "35cfa7fbe0b897306d27670d3819e55d5205f3dd"
+
+[[repo]]
+name = "neslib-json"
+language = "pascal"
+url = "https://github.com/neslib/Neslib.Json"
+rev = "1c368742c6fc4cc8af2873738627de1e4cb39790"
+
+[[repo]]
+name = "casper"
+language = "handlebars"
+url = "https://github.com/TryGhost/Casper"
+rev = "c198601b7a35239229d963d88c3e27289d664ec1"
+
+[[repo]]
+name = "mono-basic"
+language = "vb"
+url = "https://github.com/mono/mono-basic"
+rev = "bdb5276f7d85100e8e9ddd7e5ba2360a792644a9"
+
+[[repo]]
+name = "serde-json"
+language = "rust"
+url = "https://github.com/serde-rs/json"
+rev = "23d32e33e1bf94b3a1dd8248d1090d5c994417ec"
+
+[[repo]]
+name = "nixpkgs-fmt"
+language = "nix"
+url = "https://github.com/nix-community/nixpkgs-fmt"
+rev = "bdb15b4c7e0cb49ae091dd43113d0a938afae02c"

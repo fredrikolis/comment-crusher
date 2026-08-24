@@ -3,7 +3,7 @@
 resolver = "3"
 members = ["crates/comment-crusher"]
 
-# No shared `version`: release-please cannot read a workspace-inherited one.
+# release-please cannot read a workspace-inherited version.
 [workspace.package]
 edition = "2024"
 rust-version = "1.96"
@@ -30,10 +30,9 @@ pedantic = { level = "warn", priority = -1 }
 nursery = { level = "warn", priority = -1 }
 module_name_repetitions = "allow"
 must_use_candidate = "allow"
-# A heading restating a signature is the boilerplate comment this tool exists to bill for.
+# A heading restating a signature is the boilerplate this tool exists to bill for.
 missing_errors_doc = "allow"
 missing_panics_doc = "allow"
-# A language's syntax table is a row of independent flags, not a state machine.
 struct_excessive_bools = "allow"
 
 [profile.release]

@@ -1,29 +1,27 @@
 // Concern: splits a file into comment regions and code, counting the visible characters of each | Non-concern: judging the result, or which language a file is | IO: (text, Syntax) -> Scan
 
 use crate::embed::EmbedSpec;
-use crate::syntax::{CommentKind, NoEmbeds, Opener, Resolve, StringSpec, Syntax};
+use crate::syntax::{CommentKind, Opener, Resolve, StringSpec, Syntax};
 
-/// One comment as a reader sees it: a block comment, or a run of adjacent whole-line
-/// comments merged into the paragraph they form.
+/// A block comment, or a run of adjacent whole-line comments merged into one paragraph.
 #[derive(Debug, Clone)]
 pub struct Region {
-    /// Byte span of the whole comment, markers included, so its body can be re-read once
-    /// adjacent line comments have been merged into the paragraph they form.
+    /// Markers included, so a merged run can be re-read as the one comment it forms.
     pub start: usize,
     pub end: usize,
     pub start_line: usize,
     pub end_line: usize,
     pub chars: usize,
     pub kind: CommentKind,
-    /// Nothing but whitespace precedes it on its first line.
     pub own_line: bool,
-    /// Nothing but whitespace follows it on its last line. With `own_line`, this is what makes
-    /// a comment whole-line, and only whole-line comments merge — a run that merged around the
-    /// code sitting after each one would charge that code as prose.
+    /// Only whole-line comments merge: one merging around trailing code would charge it prose.
     pub ends_line: bool,
-    /// The leading comment of a file, above any code: a licence banner, an SPDX line, a file
-    /// annotation. A fixed per-file cost, budgeted apart from what the body spends.
+    /// The leading comment above any code — a fixed per-file cost, budgeted apart.
     pub header: bool,
+    /// Lifted from an embedded child scan, which already counted and merged it. Its
+    /// `own_line`/`ends_line` were computed in the child's coordinates, so re-reading it
+    /// against the parent source would bill the surrounding markup twice.
+    nested: bool,
 }
 
 impl Region {
@@ -40,8 +38,6 @@ pub struct Scan {
 }
 
 impl Scan {
-    /// Comment characters charged against the budget: doc comments only when `count_doc`,
-    /// and never the header when `skip_header`.
     pub fn comment_chars(&self, count_doc: bool, skip_header: bool) -> usize {
         self.regions
             .iter()
@@ -50,24 +46,12 @@ impl Scan {
             .map(|r| r.chars)
             .sum()
     }
-
-    pub fn header(&self) -> Option<&Region> {
-        self.regions.first().filter(|r| r.header)
-    }
 }
 
-/// Every visible character of a file is either comment or code, markers and delimiters
-/// included, so `comment_chars(true, false) + code_chars` is the file's whole visible weight.
-pub fn scan(src: &str, syn: &Syntax) -> Scan {
-    scan_in(src, syn, &NoEmbeds)
-}
-
-/// How deep one language may be written inside another before the nesting is refused. Three
-/// covers every real case (a component, its `<script>`, a template within it) and makes a
-/// table that embeds itself terminate.
+/// Covers a component, its `<script>`, a template within that — and makes self-embedding end.
 const MAX_EMBED_DEPTH: usize = 3;
 
-/// Scan `src`, following any embedded-language region its syntax declares.
+/// Comment and code are an exact partition of the file's visible characters.
 pub fn scan_in(src: &str, syn: &Syntax, resolve: &dyn Resolve) -> Scan {
     scan_at(src, syn, resolve, 0)
 }
@@ -90,6 +74,9 @@ fn scan_at(src: &str, syn: &Syntax, resolve: &dyn Resolve, depth: usize) -> Scan
     let mut regions = merge(s.raw);
     let mut code_chars = s.code_chars;
     for r in &mut regions {
+        if r.nested {
+            continue;
+        }
         let (comment, example) = count_body(&src[r.start..r.end.min(src.len())]);
         r.chars = comment;
         code_chars += example;
@@ -101,9 +88,7 @@ fn scan_at(src: &str, syn: &Syntax, resolve: &dyn Resolve, depth: usize) -> Scan
     }
 }
 
-/// A comment's visible characters, split into prose and the fenced examples inside it. A
-/// doctest is code that happens to live in a comment; pricing it as an essay would tax the
-/// one thing a doc comment is for.
+/// Split into prose and fenced example: a doctest is code that happens to live in a comment.
 fn count_body(text: &str) -> (usize, usize) {
     let (mut prose, mut example, mut fenced) = (0, 0, false);
     for line in text.lines() {
@@ -120,8 +105,7 @@ fn count_body(text: &str) -> (usize, usize) {
     (prose, example)
 }
 
-/// Markdown fences are the one convention every doc-comment dialect shares — rustdoc,
-/// `JSDoc`, Javadoc, docstrings — so the marker is stripped and the fence read beneath it.
+/// The marker is stripped first: a fence is the one convention every doc dialect shares.
 fn is_fence(line: &str) -> bool {
     let body = line
         .trim_start()
@@ -130,14 +114,15 @@ fn is_fence(line: &str) -> bool {
     body.starts_with("```") || body.starts_with("~~~")
 }
 
-/// Adjacent whole-line comments of the same kind read as one comment, so they are bounded
-/// as one. A run broken by code or a blank line is two.
+/// Adjacent whole-line comments of one kind read as one comment, so they are bounded as one.
 fn merge(raw: Vec<Region>) -> Vec<Region> {
     let mut out: Vec<Region> = Vec::with_capacity(raw.len());
     for r in raw {
         match out.last_mut() {
             Some(prev)
-                if prev.own_line
+                if !prev.nested
+                    && !r.nested
+                    && prev.own_line
                     && prev.ends_line
                     && r.own_line
                     && r.ends_line
@@ -146,7 +131,6 @@ fn merge(raw: Vec<Region>) -> Vec<Region> {
             {
                 prev.end_line = r.end_line;
                 prev.end = r.end;
-                prev.chars += r.chars;
             }
             _ => out.push(r),
         }
@@ -163,8 +147,7 @@ struct Scanner<'a> {
     line: usize,
     line_start: usize,
     code_chars: usize,
-    /// Whether any code has been seen yet. Not `code_chars > 0`: a shebang is code, and a
-    /// file whose first line is one still has its next comment as its header.
+    /// Not `code_chars > 0`: a shebang is code, but the comment under it is still the header.
     saw_code: bool,
     raw: Vec<Region>,
 }
@@ -178,7 +161,6 @@ impl<'a> Scanner<'a> {
         self.rest().chars().next()
     }
 
-    /// Only whitespace precedes the cursor on the current line.
     fn own_line(&self) -> bool {
         self.src[self.line_start..self.i].trim().is_empty()
     }
@@ -190,7 +172,6 @@ impl<'a> Scanner<'a> {
         }
     }
 
-    /// Move to `end`, counting newlines and non-whitespace characters as code.
     fn advance_to(&mut self, end: usize) {
         for (off, ch) in self.src[self.i..end].char_indices() {
             if ch == '\n' {
@@ -218,9 +199,7 @@ impl<'a> Scanner<'a> {
         }
     }
 
-    /// `<script>…</script>`: the markup is code, and the body is scanned as whatever language
-    /// the tag names. An unknown language leaves the body code, which under-reports rather
-    /// than inventing comments that are not there.
+    /// The markup is code; the body is the language the tag names, or code if that is unknown.
     fn take_embed(&mut self) -> bool {
         if self.depth >= MAX_EMBED_DEPTH {
             return false;
@@ -243,6 +222,7 @@ impl<'a> Scanner<'a> {
                     r.start_line += line - 1;
                     r.end_line += line - 1;
                     r.header = false;
+                    r.nested = true;
                     self.raw.push(r);
                 }
                 self.code_chars += inner.code_chars;
@@ -255,8 +235,6 @@ impl<'a> Scanner<'a> {
         true
     }
 
-    /// Where an embedded region's body ends: the `close` that balances the opener when the
-    /// spec says so, else the first one.
     fn embed_end(&self, spec: &EmbedSpec, body_start: usize) -> usize {
         if !spec.balanced {
             return find_ci(&self.src[body_start..], &spec.close)
@@ -281,6 +259,13 @@ impl<'a> Scanner<'a> {
             j += rest.chars().next().map_or(1, char::len_utf8);
         }
         self.src.len()
+    }
+
+    fn terminates(&self, tok: &str, op: &Opener) -> bool {
+        match op {
+            Opener::Block { close, .. } => self.block_end(tok, close).is_some(),
+            _ => true,
+        }
     }
 
     /// The embed whose opening tag starts here, and the byte its body begins at.
@@ -308,10 +293,20 @@ impl<'a> Scanner<'a> {
     }
 
     fn take_opener(&mut self) -> bool {
-        let Some((tok, op)) = self.syn.match_opener(self.rest()) else {
+        let candidates: Vec<(String, Opener)> = self
+            .syn
+            .matching_openers(self.rest(), self.own_line())
+            .map(|(t, o)| (t.to_owned(), o.clone()))
+            .collect();
+        // An unterminated block really does comment out the rest of the file; `/**/` is not one.
+        let Some((tok, op)) = candidates
+            .iter()
+            .find(|(t, o)| self.terminates(t, o))
+            .or_else(|| candidates.first())
+            .cloned()
+        else {
             return false;
         };
-        let (tok, op) = (tok.to_owned(), op.clone());
         match op {
             Opener::Line(kind) => self.consume_line_comment(kind),
             Opener::Block { close, kind } => self.consume_block(&tok, &close, kind),
@@ -351,6 +346,7 @@ impl<'a> Scanner<'a> {
             own_line,
             ends_line,
             header,
+            nested: false,
         });
     }
 
@@ -364,8 +360,8 @@ impl<'a> Scanner<'a> {
         self.push_region(span, start, own, kind);
     }
 
-    fn consume_block(&mut self, open: &str, close: &str, kind: CommentKind) {
-        let (start, own) = self.open_region();
+    /// Byte past the closing delimiter, or `None` when the block never closes.
+    fn block_end(&self, open: &str, close: &str) -> Option<usize> {
         let mut j = self.i + open.len();
         let mut depth = 1usize;
         while j < self.src.len() {
@@ -374,7 +370,7 @@ impl<'a> Scanner<'a> {
                 depth -= 1;
                 j += close.len();
                 if depth == 0 {
-                    break;
+                    return Some(j);
                 }
                 continue;
             }
@@ -385,6 +381,12 @@ impl<'a> Scanner<'a> {
             }
             j += rest.chars().next().map_or(1, char::len_utf8);
         }
+        None
+    }
+
+    fn consume_block(&mut self, open: &str, close: &str, kind: CommentKind) {
+        let (start, own) = self.open_region();
+        let j = self.block_end(open, close).unwrap_or(self.src.len());
         let end = j.min(self.src.len());
         self.count_newlines(self.i, j);
         let span = (self.i, end);
@@ -440,8 +442,7 @@ impl<'a> Scanner<'a> {
         None
     }
 
-    /// `r"..."` and `r#"..."#`: no escape processing, so the closing quote is the one
-    /// followed by as many `#` as the opener carried.
+    /// `r#"…"#`: no escapes, so the close is the quote trailed by the opener's `#` count.
     fn take_raw_string(&mut self) -> bool {
         if !self.syn.hash_raw_strings || self.peek() != Some('r') {
             return false;
@@ -502,8 +503,7 @@ impl<'a> Scanner<'a> {
     }
 }
 
-/// Byte-wise so a multi-byte character cannot be sliced through. Every needle is ASCII, and
-/// a continuation byte matches none of it, so a hit is always on a character boundary.
+/// Byte-wise: needles are ASCII, so a hit is always on a character boundary.
 fn starts_with_ci(haystack: &str, needle: &str) -> bool {
     haystack
         .as_bytes()
@@ -512,6 +512,9 @@ fn starts_with_ci(haystack: &str, needle: &str) -> bool {
 }
 
 fn find_ci(haystack: &str, needle: &str) -> Option<usize> {
+    if needle.is_empty() {
+        return None;
+    }
     haystack
         .as_bytes()
         .windows(needle.len())

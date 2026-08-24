@@ -1,0 +1,9 @@
+batch ::
+batch Rem 
+cmake #[[
+julia #=
+lisp #|
+lua --[[
+perl =pod
+ruby =begin
+rust /*!

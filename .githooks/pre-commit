@@ -9,33 +9,27 @@ fail() {
 	exit 1
 }
 
-if command -v annotated-tree >/dev/null 2>&1; then
-	annotated-tree --strict-check . --hidden --max-length 200 ||
-		fail "ANNOTATION GATE FAILED — a file lacks a conforming first-line annotation"
-	annotated-tree --strict-check . --hidden --include-tests --max-length 200 ||
-		fail "ANNOTATION GATE FAILED — a file under tests/ lacks one"
-fi
+command -v annotated-tree >/dev/null 2>&1 ||
+	fail "annotated-tree is not installed, so the annotation gate cannot run"
+annotated-tree --strict-check . --hidden --max-length 200 ||
+	fail "ANNOTATION GATE FAILED — a file lacks a conforming first-line annotation"
+annotated-tree --strict-check . --hidden --include-tests --max-length 200 ||
+	fail "ANNOTATION GATE FAILED — a file under tests/ lacks one"
 
-# The tool gates its own commits, built from this tree so the gate grades what is being
-# committed. Blocking comes from `level = "deny"` in the config, never from -W.
+# Built from this tree, so the gate grades what is being committed.
 cargo run --quiet --release -- . 1>&2 || {
 	echo "" >&2
 	echo "pre-commit: COMMENT GATE FAILED — what this gate does and does not measure:" >&2
 	cat >&2 <<'STANDARD'
 It measures size, never quality: a comment-to-code character ratio, the length of any single
-comment, and the length of any document. It cannot tell a good comment from a bad one and
-does not try.
+comment, and the length of any document. It cannot tell a good comment from a bad one.
 
-Tripping it is NOT an instruction to delete comments until the number passes. It asks why
-this function needed a block of explanation, or why this document grew so long; the usual
-answer is that the code is wrong, not the comment. Fix the shape: extract it, rename it,
-split it.
+Tripping it is not an instruction to delete comments until the number passes. It asks why
+this function needed a block of explanation; the usual answer is that the code is wrong, not
+the comment. Fix the shape: extract it, rename it, split it.
 
-Never raise a threshold to make a file pass. The bound is the detector, and a bigger number
-only hides what it found. Where an exception is genuinely right, add an [[allow]] entry with
-a reason a reviewer can check — see docs/budget-policy.md.
-
-The bar a comment must clear to earn its space: git agent-verdict --standards programming
+The rules a reviewer will apply: git agent-verdict --reviewer-prompt budget
+The bar a comment must clear:    git agent-verdict --standards programming
 STANDARD
 	exit 1
 }

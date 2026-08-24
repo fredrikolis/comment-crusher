@@ -58,11 +58,16 @@ struct RawLanguage {
     #[serde(default)]
     heredoc: bool,
     #[serde(default)]
-    line_exceptions: Vec<String>,
+    exceptions: Vec<String>,
+    #[serde(default)]
+    line_anchored: bool,
     #[serde(default)]
     strings: Vec<RawString>,
     #[serde(default)]
     embed: Vec<RawEmbed>,
+    /// Named entries from `[embed_sets]`, applied before this language's own `embed`.
+    #[serde(default)]
+    embed_use: Vec<String>,
 }
 
 #[derive(Debug, Clone, Deserialize)]
@@ -111,6 +116,9 @@ pub struct Allowance {
 }
 
 pub struct Config {
+    /// The directory the budget was found in. Allowance globs and reported paths are relative
+    /// to it, so one repo answer holds from wherever the tool is invoked.
+    root: PathBuf,
     pub exclude: Vec<String>,
     pub base: Rules,
     allowances: Vec<Allowance>,
@@ -127,7 +135,7 @@ impl Config {
     pub fn defaults() -> Result<Self> {
         let table: Table =
             toml::from_str(DEFAULTS).context("built-in default config is invalid")?;
-        Self::build(&table, &[])
+        Self::build(&table, &[], PathBuf::from("."))
     }
 
     /// Layer the built-in defaults, the user file, the nearest `.comment-crusher.toml` above
@@ -139,21 +147,19 @@ impl Config {
     ) -> Result<Self> {
         let mut table: Table =
             toml::from_str(DEFAULTS).context("built-in default config is invalid")?;
-        if let Some(user) = user_config_path() {
-            overlay(&mut table, &user)?;
-        }
-        match explicit {
-            Some(p) => overlay(&mut table, p)?,
-            None => {
-                if let Some(found) = find_upward(root) {
-                    overlay(&mut table, &found)?;
-                }
+        let found = explicit.map_or_else(|| find_upward(root), |p| Some(p.to_path_buf()));
+        let base = match &found {
+            Some(p) => {
+                overlay(&mut table, p)?;
+                p.parent()
+                    .map_or_else(|| PathBuf::from("."), Path::to_path_buf)
             }
-        }
-        Self::build(&table, cli_allow)
+            None => directory_of(root),
+        };
+        Self::build(&table, cli_allow, base)
     }
 
-    fn build(table: &Table, cli_allow: &[(String, String)]) -> Result<Self> {
+    fn build(table: &Table, cli_allow: &[(String, String)], root: PathBuf) -> Result<Self> {
         let global: RawGlobal = section(table, "global")?;
         let rules_table = table
             .get("rules")
@@ -162,35 +168,12 @@ impl Config {
             .unwrap_or_default();
         let base = Rules::from_table(&rules_table)?;
 
-        let mut allowances = Vec::new();
-        for raw in table
-            .get("allow")
-            .cloned()
-            .map(Value::try_into::<Vec<RawAllow>>)
-            .transpose()
-            .context("[[allow]] is malformed")?
-            .unwrap_or_default()
-        {
-            allowances.push(Allowance {
-                reason: raw.reason,
-                globs: build_globs(&raw.paths)?,
-                set: raw
-                    .set
-                    .iter()
-                    .map(|s| parse_setting(s))
-                    .collect::<Result<_>>()?,
-            });
-        }
-        for (glob, setting) in cli_allow {
-            allowances.push(Allowance {
-                reason: Some("--allow".to_string()),
-                globs: build_globs(std::slice::from_ref(glob))?,
-                set: vec![parse_setting(setting)?],
-            });
-        }
+        let allowances = build_allowances(table, cli_allow, &rules_table)?;
 
+        let sets: HashMap<String, Vec<RawEmbed>> = section(table, "embed_sets")?;
         let raw_langs: HashMap<String, RawLanguage> = section(table, "languages")?;
         let mut cfg = Self {
+            root,
             exclude: global.exclude,
             base,
             allowances,
@@ -203,12 +186,17 @@ impl Config {
         let mut names: Vec<_> = raw_langs.into_iter().collect();
         names.sort_by(|a, b| a.0.cmp(&b.0));
         for (name, raw) in names {
-            cfg.push_language(&name, &raw);
+            cfg.push_language(&name, &raw, &sets)?;
         }
         Ok(cfg)
     }
 
-    fn push_language(&mut self, name: &str, raw: &RawLanguage) {
+    fn push_language(
+        &mut self,
+        name: &str,
+        raw: &RawLanguage,
+        sets: &HashMap<String, Vec<RawEmbed>>,
+    ) -> Result<()> {
         let idx = self.langs.len();
         for e in &raw.extensions {
             self.by_ext
@@ -220,7 +208,9 @@ impl Config {
         for i in &raw.interpreters {
             self.by_interpreter.insert(i.clone(), idx);
         }
-        self.langs.push(resolve_syntax(name, raw));
+        self.langs
+            .push(resolve_syntax(name, raw, sets).with_context(|| format!("[languages.{name}]"))?);
+        Ok(())
     }
 
     pub fn language(&self, path: &Path) -> Option<&Syntax> {
@@ -246,19 +236,28 @@ impl Config {
         self.langs.get(*idx)
     }
 
-    /// Every allowance whose globs match `rel`, in declaration order.
-    pub fn matching(&self, rel: &Path) -> Vec<&Allowance> {
+    pub fn root(&self) -> &Path {
+        &self.root
+    }
+
+    pub fn languages(&self) -> impl Iterator<Item = &Syntax> {
+        self.langs.iter()
+    }
+
+    fn matching(&self, rel: &Path) -> Vec<&Allowance> {
         self.allowances
             .iter()
             .filter(|a| a.globs.is_match(rel))
             .collect()
     }
 
-    /// The base rules with every matching allowance applied, and the reasons that widened them.
-    pub fn rules_for(&self, rel: &Path) -> Result<(Rules, Vec<String>)> {
+    /// The base rules with every matching allowance applied, and the reasons that widened
+    /// them. `build_allowances` deserialized each one already, so the fallback below is
+    /// defence in depth rather than a path a caller can reach.
+    pub fn rules_for(&self, rel: &Path) -> (Rules, Vec<String>) {
         let matched = self.matching(rel);
         if matched.is_empty() {
-            return Ok((self.base.clone(), Vec::new()));
+            return (self.base.clone(), Vec::new());
         }
         let mut table = self.rules_table.clone();
         let mut reasons = Vec::new();
@@ -270,7 +269,8 @@ impl Config {
                 reasons.push(r.clone());
             }
         }
-        Ok((Rules::from_table(&table)?, reasons))
+        let rules = Rules::from_table(&table).unwrap_or_else(|_| self.base.clone());
+        (rules, reasons)
     }
 }
 
@@ -278,6 +278,58 @@ impl Resolve for Config {
     fn language_named(&self, name: &str) -> Option<&Syntax> {
         self.langs.iter().find(|l| l.name == name)
     }
+}
+
+fn build_allowances(
+    table: &Table,
+    cli_allow: &[(String, String)],
+    rules_table: &Table,
+) -> Result<Vec<Allowance>> {
+    let declared: Vec<RawAllow> = table
+        .get("allow")
+        .cloned()
+        .map(Value::try_into::<Vec<RawAllow>>)
+        .transpose()
+        .context("[[allow]] is malformed")?
+        .unwrap_or_default();
+
+    let mut allowances = Vec::with_capacity(declared.len() + cli_allow.len());
+    for raw in declared {
+        allowances.push(Allowance {
+            reason: raw.reason,
+            globs: build_globs(&raw.paths)?,
+            set: raw
+                .set
+                .iter()
+                .map(|s| parse_setting(s))
+                .collect::<Result<_>>()?,
+        });
+    }
+    for (glob, setting) in cli_allow {
+        allowances.push(Allowance {
+            reason: Some("--allow".to_string()),
+            globs: build_globs(std::slice::from_ref(glob))?,
+            set: vec![parse_setting(setting)?],
+        });
+    }
+
+    // Deserialized here, not mid-walk, where the file it covers would leave the report.
+    for a in &allowances {
+        let mut probe = rules_table.clone();
+        for (path, value) in &a.set {
+            set_dotted(&mut probe, path, value.clone());
+        }
+        Rules::from_table(&probe).with_context(|| {
+            let what = a
+                .set
+                .iter()
+                .map(|(p, v)| format!("{p}={v}"))
+                .collect::<Vec<_>>()
+                .join(", ");
+            format!("allowance `{what}` is not a value its rule can hold")
+        })?;
+    }
+    Ok(allowances)
 }
 
 fn section<T: for<'de> Deserialize<'de> + Default>(table: &Table, key: &str) -> Result<T> {
@@ -291,7 +343,12 @@ fn section<T: for<'de> Deserialize<'de> + Default>(table: &Table, key: &str) -> 
     )
 }
 
-fn resolve_syntax(name: &str, raw: &RawLanguage) -> Syntax {
+fn resolve_syntax(
+    name: &str,
+    raw: &RawLanguage,
+    sets: &HashMap<String, Vec<RawEmbed>>,
+) -> Result<Syntax> {
+    let embed_specs = gather_embeds(raw, sets)?;
     let mut openers: Vec<(String, Opener)> = Vec::new();
     for (toks, kind) in [
         (&raw.doc_line, CommentKind::Doc),
@@ -330,9 +387,12 @@ fn resolve_syntax(name: &str, raw: &RawLanguage) -> Syntax {
     for (i, s) in strings.iter().enumerate() {
         openers.push((s.open.clone(), Opener::Str(i)));
     }
+    if openers.iter().any(|(tok, _)| tok.is_empty()) {
+        bail!("`{name}` declares an empty comment or string marker");
+    }
     // Longest first, so `///` never loses to `//` and `"""` never loses to `"`.
     openers.sort_by_key(|o| std::cmp::Reverse(o.0.len()));
-    Syntax {
+    Ok(Syntax {
         name: name.to_string(),
         prose: raw.prose,
         nested_block: raw.nested_block,
@@ -340,13 +400,37 @@ fn resolve_syntax(name: &str, raw: &RawLanguage) -> Syntax {
         heredoc: raw.heredoc,
         strings,
         openers,
-        line_exceptions: raw.line_exceptions.clone(),
-        embeds: raw.embed.iter().map(resolve_embed).collect(),
-    }
+        exceptions: raw.exceptions.clone(),
+        line_anchored: raw.line_anchored,
+        embeds: embed_specs
+            .into_iter()
+            .map(resolve_embed)
+            .collect::<Result<_>>()?,
+    })
 }
 
-fn resolve_embed(e: &RawEmbed) -> EmbedSpec {
-    EmbedSpec {
+/// A language's `embed_use` sets come first, then its own `embed`, because order decides
+/// which opener wins and a `{` expression must lose to a `<script` tag.
+fn gather_embeds<'a>(
+    raw: &'a RawLanguage,
+    sets: &'a HashMap<String, Vec<RawEmbed>>,
+) -> Result<Vec<&'a RawEmbed>> {
+    let mut out: Vec<&RawEmbed> = Vec::new();
+    for set in &raw.embed_use {
+        let named = sets
+            .get(set)
+            .with_context(|| format!("no `[embed_sets]` entry named `{set}`"))?;
+        out.extend(named);
+    }
+    out.extend(&raw.embed);
+    Ok(out)
+}
+
+fn resolve_embed(e: &RawEmbed) -> Result<EmbedSpec> {
+    if e.open.is_empty() || e.close.is_empty() {
+        bail!("an embed needs a non-empty `open` and `close`");
+    }
+    Ok(EmbedSpec {
         open: e.open.clone(),
         close: e.close.clone(),
         default: e.default.clone(),
@@ -359,7 +443,7 @@ fn resolve_embed(e: &RawEmbed) -> EmbedSpec {
         at_start: e.at_start,
         balanced: e.balanced,
         skip: e.skip.clone(),
-    }
+    })
 }
 
 fn build_globs(patterns: &[String]) -> Result<GlobSet> {
@@ -370,42 +454,57 @@ fn build_globs(patterns: &[String]) -> Result<GlobSet> {
     b.build().context("glob set")
 }
 
+/// The fields an allowance may set, and the open upper limit each must stay under. Only
+/// upper bounds appear here: `min_chars` decides whether a rule applies at all and `level`
+/// whether it runs, so setting either would exempt a path rather than widen it, and a ratio
+/// of 1 can never be exceeded. This list is what makes "no file is exempt" true.
+const WIDENABLE: &[(&str, f64)] = &[
+    ("comment-ratio.max_ratio", 1.0),
+    ("comment-block.max_lines", f64::INFINITY),
+    ("comment-block.doc_max_lines", f64::INFINITY),
+    ("comment-block.header_max_lines", f64::INFINITY),
+    ("comment-block.max_chars", f64::INFINITY),
+    ("doc-length.max_lines", f64::INFINITY),
+];
+
 /// `comment-ratio.max_ratio=0.4` -> the dotted path and its typed value.
-///
-/// An allowance widens a bound. It cannot switch a rule off, and it cannot set a bound to
-/// zero, which every rule reads as "no limit" — so no path a run measures is ever exempt,
-/// and every one of them is measured against a finite budget.
 fn parse_setting(s: &str) -> Result<(String, Value)> {
     let Some((path, raw)) = s.split_once('=') else {
         bail!("`{s}` is not <rule>.<field>=<value>");
     };
     let path = path.trim().to_string();
-    let Some((_, field)) = path.rsplit_once('.') else {
-        bail!("`{s}` is missing the rule: write <rule>.<field>=<value>");
+    let Some((_, limit)) = WIDENABLE.iter().find(|(p, _)| *p == path) else {
+        let names = WIDENABLE
+            .iter()
+            .map(|(p, _)| *p)
+            .collect::<Vec<_>>()
+            .join(", ");
+        bail!("`{path}` is not a bound an allowance may widen. One of: {names}");
     };
-    if field == "level" {
-        bail!("`{s}` would switch a rule off; an allowance may only widen a bound");
-    }
     let raw = raw.trim();
     let value = raw.parse::<i64>().map_or_else(
-        |_| raw.parse::<f64>().map_or(None, |f| Some(Value::Float(f))),
+        |_| raw.parse::<f64>().ok().map(Value::Float),
         |i| Some(Value::Integer(i)),
     );
     let Some(value) = value else {
-        bail!("`{s}` is not a number; an allowance may only widen a bound");
+        bail!("`{s}` is not a number");
     };
-    if !positive(&value) {
-        bail!("`{s}` would leave the budget unlimited; an allowance may only widen a bound");
+    let n = as_f64(&value);
+    if n <= 0.0 || n >= *limit {
+        bail!("`{s}` would leave the path exempt; an allowance only ever widens a bound");
     }
     Ok((path, value))
 }
 
-/// Zero is how every rule spells "no limit", so an allowance may never produce one.
-fn positive(value: &Value) -> bool {
+#[expect(
+    clippy::cast_precision_loss,
+    reason = "bounds are far below f64 precision"
+)]
+const fn as_f64(value: &Value) -> f64 {
     match value {
-        Value::Integer(i) => *i > 0,
-        Value::Float(f) => *f > 0.0,
-        _ => false,
+        Value::Integer(i) => *i as f64,
+        Value::Float(f) => *f,
+        _ => 0.0,
     }
 }
 
@@ -420,13 +519,11 @@ fn set_dotted(table: &mut Table, path: &str, value: Value) {
         let entry = cursor
             .entry(part.to_string())
             .or_insert_with(|| Value::Table(Table::new()));
-        if !entry.is_table() {
-            *entry = Value::Table(Table::new());
-        }
-        match entry.as_table_mut() {
-            Some(t) => cursor = t,
-            None => return,
-        }
+        *entry = Value::Table(entry.as_table().cloned().unwrap_or_default());
+        let Some(table) = entry.as_table_mut() else {
+            return;
+        };
+        cursor = table;
     }
 }
 
@@ -453,21 +550,17 @@ fn merge(base: &mut Table, layer: Table) {
     }
 }
 
-fn user_config_path() -> Option<PathBuf> {
-    let base = std::env::var_os("XDG_CONFIG_HOME")
-        .map(PathBuf::from)
-        .or_else(|| std::env::var_os("HOME").map(|h| PathBuf::from(h).join(".config")))?;
-    let p = base.join("comment-crusher").join("config.toml");
-    p.is_file().then_some(p)
+fn directory_of(path: &Path) -> PathBuf {
+    let abs = path.canonicalize().unwrap_or_else(|_| path.to_path_buf());
+    if abs.is_dir() {
+        return abs;
+    }
+    abs.parent()
+        .map_or_else(|| PathBuf::from("."), Path::to_path_buf)
 }
 
 fn find_upward(from: &Path) -> Option<PathBuf> {
-    let start = if from.is_dir() {
-        from.to_path_buf()
-    } else {
-        from.parent()?.to_path_buf()
-    };
-    let mut dir = start.canonicalize().unwrap_or(start);
+    let mut dir = directory_of(from);
     loop {
         let candidate = dir.join(CONFIG_FILE);
         if candidate.is_file() {

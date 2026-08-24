@@ -1,30 +1,94 @@
-// Concern: declares the command-line surface and turns one invocation into a printed report and an exit code | Non-concern: walking, scanning or judging | IO: (argv, stdout/stderr) -> exit code
+// Concern: declares the command-line surface and turns one invocation into a rendered report and an exit code | Non-concern: walking, scanning or judging | IO: (argv, stdout) -> exit code
 
 use std::path::PathBuf;
 
 use anyhow::{Result, bail};
 use clap::{Parser, ValueEnum};
+use serde::Serialize;
 
 use crate::config::Config;
 use crate::diagnostic::Level;
-use crate::engine::{Engine, Report};
+use crate::engine::{Engine, FileStat, Report};
+
+/// Exit codes an agent branches on, from the CLI standard.
+const EXIT_VALIDATION: i32 = 3;
+const EXIT_NOT_FOUND: i32 = 24;
+pub const EXIT_BAD_ARGS: i32 = 2;
+const EXIT_INTERNAL: i32 = 1;
+
+const AFTER_HELP: &str = r##"EXAMPLES
+  comment-crusher .                                  measure a tree
+  comment-crusher src/parser.rs --format json        one file, for a machine
+  comment-crusher . --stats                          per-language totals
+  comment-crusher . --allow 'docs/**/*.md' doc-length.max_lines=2000
+
+OUTPUT (--format json)
+  {"status":"success"|"error",
+   "error":{"code":..., "message":...},          only when status is error
+   "data":{"files":[{path,language,prose,lines,code_chars,comment_chars}],
+           "languages":[{language,files,lines,comment_chars,code_chars}],
+           "diagnostics":[{code,severity,message,location,help,allowance}]},
+  `comment_chars` counts every comment in the file; a rule may judge a subset of it,
+  exempting the header or excluding doc comments, and says so in its own message.
+   "meta":{"files":{count,has_more},"diagnostics":{count,has_more}}}
+
+VERSION
+  -V, --version                answered before any other argument is judged, so a broken
+                               invocation can still say what it is
+
+EXIT CODES
+  0   nothing over budget
+  2   bad_arguments: argv itself was rejected
+  3   validation_error: a file is over budget, or the configuration is invalid
+  24  not_found: a path does not exist
+  1   internal error
+
+LANGUAGE TABLE (crates/comment-crusher/src/default_config.toml)
+  A file resolves by exact filename, then extension, then the `#!` interpreter. Per entry:
+    line / doc_line      line-comment markers; doc_line wins when both match
+    exceptions           text that cancels a comment: `#[` is a PHP attribute, `{$` a
+                         Pascal directive
+    line_anchored        a line comment only opens where nothing but whitespace precedes it,
+                         so a URL cannot open one where there are no strings to hide in
+    block / doc_block    [open, close] pairs
+    nested_block         `/* /* */ */` closes once, not twice
+    strings              [open, close] regions whose contents are CODE, not comment
+      multiline          may cross a newline; without it a bad open self-heals at end of line
+      docstring          opening a line makes it a doc comment (Python, Elixir)
+      char_literal       only a string if it closes within a few chars on the same line
+    hash_raw_strings     r"..." and r#"..."# raw strings
+    heredoc              <<WORD and <<-'WORD' bodies are code until a line equal to WORD
+    prose                measured by doc-length, never by comment-ratio
+    embed / embed_use    a region holding another language, inline or from [embed_sets]
+      open / close       delimiters; one starting with `<` is a tag, body starts past the `>`
+      default            the child language when no attribute names one
+      attrs / map        tag attributes that may name the child, and value -> language
+      at_start           matches only at byte zero, which is what makes a `---` fence safe
+      balanced           ends at the `close` balancing this `open`, not the first one
+      skip               text after `open` that cancels the match: `{#if` is a directive
+
+SEE ALSO
+  .comment-crusher.toml            the repo's budget and its allowances"##;
 
 #[derive(Copy, Clone, PartialEq, Eq, ValueEnum)]
 pub enum Format {
+    /// Findings one per line, then a summary.
     Human,
+    /// One envelope an agent can branch on.
     Json,
 }
 
 #[derive(Parser)]
 #[command(
     name = "comment-crusher",
-    version,
+    disable_version_flag = true,
     about = "Language-agnostic comment budget.",
-    long_about = "Measures the comment characters, the longest single comment, and the length of \
-every document under the paths given, and fails the ones over budget.\n\n\
+    long_about = "Measures the comment characters, the longest single comment, and the length \
+of every document under the paths given, and fails the ones over budget.\n\n\
 The budget lives in .comment-crusher.toml, found by walking up from the target, so one repo \
 answer holds whether the tool runs in CI, in a pre-commit hook, or against a single file an \
-agent just edited."
+agent just edited.",
+    after_long_help = AFTER_HELP
 )]
 pub struct Cli {
     /// Files or directories to measure.
@@ -44,16 +108,63 @@ pub struct Cli {
     #[arg(long, value_name = "DIR")]
     pub root: Option<PathBuf>,
 
+    /// How to render the report.
     #[arg(long, value_enum, default_value_t = Format::Human)]
     pub format: Format,
 
-    /// Print per-language totals instead of findings.
+    /// Print per-language totals instead of findings. Human format only; JSON always carries
+    /// them under `data.languages`.
     #[arg(long)]
     pub stats: bool,
 
     /// Exit nonzero on a warning as well as an error.
-    #[arg(short = 'W', long)]
+    #[arg(long)]
     pub warnings_as_errors: bool,
+}
+
+#[derive(Serialize)]
+struct ErrorBody {
+    code: String,
+    message: String,
+}
+
+/// Per collection, because one `has_more` shared between two says nothing about either. A
+/// run reports whole trees, so neither is ever truncated.
+#[derive(Serialize)]
+struct Page {
+    count: usize,
+    has_more: bool,
+}
+
+#[derive(Serialize)]
+struct Meta {
+    files: Page,
+    diagnostics: Page,
+}
+
+#[derive(Serialize)]
+struct LanguageTotal<'a> {
+    language: &'a str,
+    files: usize,
+    lines: usize,
+    comment_chars: usize,
+    code_chars: usize,
+}
+
+#[derive(Serialize)]
+struct Data<'a> {
+    files: &'a [FileStat],
+    languages: Vec<LanguageTotal<'a>>,
+    diagnostics: &'a [crate::Diagnostic],
+}
+
+#[derive(Serialize)]
+struct Envelope<'a> {
+    status: &'static str,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    error: Option<ErrorBody>,
+    data: Data<'a>,
+    meta: Meta,
 }
 
 impl Cli {
@@ -68,38 +179,181 @@ impl Cli {
             .collect())
     }
 
-    pub fn run(&self) -> Result<i32> {
-        let root = self.root.clone().map_or_else(std::env::current_dir, Ok)?;
+    /// Renders its own failures, so a JSON caller gets an envelope on stdout rather than prose
+    /// on stderr it cannot parse.
+    pub fn run(&self) -> i32 {
+        match self.report() {
+            Ok(report) => self.print(&report),
+            Err((code, e)) => self.print_error(code, &format!("{e:#}")),
+        }
+    }
+
+    pub fn version_only(json: bool) -> i32 {
+        let version = env!("CARGO_PKG_VERSION");
+        if json {
+            println!(
+                "{}",
+                serde_json::json!({
+                    "status": "success",
+                    "data": { "name": "comment-crusher", "version": version },
+                    "meta": { "files": {"count": 0, "has_more": false},
+                             "diagnostics": {"count": 0, "has_more": false} },
+                })
+            );
+        } else {
+            println!("comment-crusher {version}");
+        }
+        0
+    }
+
+    fn report(&self) -> Result<Report, (&'static str, anyhow::Error)> {
         for p in &self.paths {
             if !p.exists() {
-                bail!("no such path: {}", p.display());
+                return Err((
+                    "not_found",
+                    anyhow::anyhow!("no such path: {}", p.display()),
+                ));
             }
         }
-        let anchor = self.paths.first().cloned().unwrap_or_else(|| root.clone());
-        let config = Config::load(&anchor, self.config.as_deref(), &self.allowances()?)?;
-        let report = Engine::new(&config, &root).run(&self.paths)?;
-        self.print(&report);
-        Ok(self.exit_code(&report))
+        let allow = self.allowances().map_err(|e| ("validation_error", e))?;
+        let anchor = self
+            .paths
+            .first()
+            .cloned()
+            .unwrap_or_else(|| PathBuf::from("."));
+        let config = Config::load(&anchor, self.config.as_deref(), &allow)
+            .map_err(|e| ("validation_error", e))?;
+        Ok(Engine::new(&config, self.root.as_deref()).run(&self.paths))
     }
 
-    fn print(&self, report: &Report) {
-        match (self.format, self.stats) {
-            (Format::Json, _) => println!(
-                "{}",
-                serde_json::to_string_pretty(report).unwrap_or_else(|_| "{}".into())
-            ),
-            (Format::Human, true) => print_stats(report),
-            (Format::Human, false) => print_findings(report),
+    fn print(&self, report: &Report) -> i32 {
+        let rejected = match report.worst() {
+            Some(Level::Deny) => true,
+            Some(Level::Warn) => self.warnings_as_errors,
+            _ => false,
+        };
+        match self.format {
+            Format::Json => self.print_json(report, rejected),
+            Format::Human if self.stats => {
+                print_stats(report);
+                i32::from(rejected) * EXIT_VALIDATION
+            }
+            Format::Human => {
+                print_findings(report);
+                i32::from(rejected) * EXIT_VALIDATION
+            }
         }
     }
 
-    fn exit_code(&self, report: &Report) -> i32 {
-        match report.worst() {
-            Some(Level::Deny) => 1,
-            Some(Level::Warn) if self.warnings_as_errors => 1,
-            _ => 0,
+    fn print_json(&self, report: &Report, rejected: bool) -> i32 {
+        let envelope = Envelope {
+            status: if rejected { "error" } else { "success" },
+            error: rejected.then(|| {
+                let n = report
+                    .diagnostics
+                    .iter()
+                    .filter(|d| d.level == Level::Deny || self.warnings_as_errors)
+                    .count();
+                ErrorBody {
+                    code: "validation_error".to_string(),
+                    message: format!("{n} findings over budget"),
+                }
+            }),
+            data: Data {
+                files: &report.files,
+                languages: language_totals(report),
+                diagnostics: &report.diagnostics,
+            },
+            meta: Meta {
+                files: Page {
+                    count: report.files.len(),
+                    has_more: false,
+                },
+                diagnostics: Page {
+                    count: report.diagnostics.len(),
+                    has_more: false,
+                },
+            },
+        };
+        match serde_json::to_string_pretty(&envelope) {
+            Ok(text) => {
+                println!("{text}");
+                i32::from(rejected) * EXIT_VALIDATION
+            }
+            Err(e) => self.print_error("internal_error", &e.to_string()),
         }
     }
+
+    /// Every channel a caller reads is stdout, including this one.
+    fn print_error(&self, code: &'static str, message: &str) -> i32 {
+        match self.format {
+            Format::Human => println!("comment-crusher: {message}"),
+            Format::Json => println!("{}", error_json(code, message)),
+        }
+        match code {
+            "not_found" => EXIT_NOT_FOUND,
+            "bad_arguments" => EXIT_BAD_ARGS,
+            "validation_error" => EXIT_VALIDATION,
+            _ => EXIT_INTERNAL,
+        }
+    }
+}
+
+/// The one producer of a failed envelope, so `data` is present on every reply the contract
+/// in `--help` describes, whatever went wrong.
+pub fn error_json(code: &str, message: &str) -> String {
+    let envelope = Envelope {
+        status: "error",
+        error: Some(ErrorBody {
+            code: code.to_string(),
+            message: message.to_string(),
+        }),
+        data: Data {
+            files: &[],
+            languages: Vec::new(),
+            diagnostics: &[],
+        },
+        meta: Meta {
+            files: Page {
+                count: 0,
+                has_more: false,
+            },
+            diagnostics: Page {
+                count: 0,
+                has_more: false,
+            },
+        },
+    };
+    serde_json::to_string_pretty(&envelope).unwrap_or_else(|_| {
+        String::from(
+            r#"{"status":"error","error":{"code":"internal_error","message":"envelope failed to serialize"},"data":{"files":[],"languages":[],"diagnostics":[]},"meta":{"files":{"count":0,"has_more":false},"diagnostics":{"count":0,"has_more":false}}}"#,
+        )
+    })
+}
+
+fn language_totals(report: &Report) -> Vec<LanguageTotal<'_>> {
+    let mut names: Vec<&str> = report.files.iter().map(|f| f.language.as_str()).collect();
+    names.sort_unstable();
+    names.dedup();
+    names
+        .into_iter()
+        .map(|language| {
+            let (files, lines, comment_chars, code_chars) = report
+                .files
+                .iter()
+                .filter(|f| f.language == language)
+                .fold((0, 0, 0, 0), |(n, l, c, k), f| {
+                    (n + 1, l + f.lines, c + f.comment_chars, k + f.code_chars)
+                });
+            LanguageTotal {
+                language,
+                files,
+                lines,
+                comment_chars,
+                code_chars,
+            }
+        })
+        .collect()
 }
 
 fn print_findings(report: &Report) {
@@ -112,36 +366,35 @@ fn print_findings(report: &Report) {
     }
     let (comment, code) = report.totals();
     let total = comment + code;
-    let pct = percent(comment, total);
     println!(
-        "\n{} files, {pct:.1}% comment ({comment}/{total} chars), {} findings",
+        "\n{} files, {:.1}% comment ({comment}/{total} chars), {} findings",
         report.files.len(),
+        percent(comment, total),
         report.diagnostics.len()
     );
 }
 
 fn print_stats(report: &Report) {
-    let mut langs: Vec<&str> = report.files.iter().map(|f| f.language.as_str()).collect();
-    langs.sort_unstable();
-    langs.dedup();
     println!(
         "{:<16} {:>6} {:>7} {:>10} {:>10} {:>7}",
         "language", "files", "lines", "comment", "code", "share"
     );
-    for lang in langs {
-        let files: Vec<_> = report.files.iter().filter(|f| f.language == lang).collect();
-        let prose = files.first().is_some_and(|f| f.prose);
-        let (lines, comment, code) = files.iter().fold((0, 0, 0), |(l, c, k), f| {
-            (l + f.lines, c + f.comment_chars, k + f.code_chars)
-        });
+    for t in language_totals(report) {
+        let prose = report
+            .files
+            .iter()
+            .any(|f| f.language == t.language && f.prose);
         let share = if prose {
             "  prose".to_string()
         } else {
-            format!("{:>6.1}%", percent(comment, comment + code))
+            format!(
+                "{:>6.1}%",
+                percent(t.comment_chars, t.comment_chars + t.code_chars)
+            )
         };
         println!(
-            "{lang:<16} {:>6} {lines:>7} {comment:>10} {code:>10} {share}",
-            files.len()
+            "{:<16} {:>6} {:>7} {:>10} {:>10} {share}",
+            t.language, t.files, t.lines, t.comment_chars, t.code_chars
         );
     }
 }

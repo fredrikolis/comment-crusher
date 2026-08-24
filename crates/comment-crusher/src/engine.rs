@@ -10,13 +10,19 @@ use serde::Serialize;
 use crate::config::Config;
 use crate::diagnostic::{Diagnostic, Level};
 use crate::scan::scan_in;
+use crate::syntax::Syntax;
+
+/// A NUL in the head is what no text encoding produces and every binary does.
+fn is_binary(bytes: &[u8]) -> bool {
+    bytes.iter().take(8192).any(|b| *b == 0)
+}
 
 #[derive(Debug, Clone, Serialize)]
 pub struct FileStat {
     pub path: PathBuf,
     pub language: String,
     pub lines: usize,
-    /// A prose document has no code, so its whole weight is reported here and no ratio is taken.
+    /// A prose document has no code, so no ratio is taken.
     pub prose: bool,
     pub code_chars: usize,
     pub comment_chars: usize,
@@ -33,8 +39,7 @@ impl Report {
         self.diagnostics.iter().map(|d| d.level).max()
     }
 
-    /// Comment and code characters across the code files only. A document has no code, so
-    /// including one would make the ratio a statement about how much prose the repo ships.
+    /// Code files only: including a document would make this a statement about prose volume.
     pub fn totals(&self) -> (usize, usize) {
         self.files
             .iter()
@@ -49,27 +54,27 @@ pub struct Engine<'a> {
 }
 
 impl<'a> Engine<'a> {
-    pub fn new(config: &'a Config, root: &Path) -> Self {
+    /// Without `--root` the budget's own directory is the base, so one repo answer holds.
+    pub fn new(config: &'a Config, override_root: Option<&Path>) -> Self {
+        let root = override_root.unwrap_or_else(|| config.root());
         Self {
             config,
             root: root.canonicalize().unwrap_or_else(|_| root.to_path_buf()),
         }
     }
 
-    pub fn run(&self, targets: &[PathBuf]) -> Result<Report> {
-        let mut report = self
+    pub fn run(&self, targets: &[PathBuf]) -> Report {
+        let checked: Vec<_> = self
             .collect(targets)
             .par_iter()
             .filter_map(|f| self.check(f))
-            .fold(Report::default, |mut acc, (stat, diags)| {
+            .collect();
+        let mut report = checked
+            .into_iter()
+            .fold(Report::default(), |mut acc, (stat, diags)| {
                 acc.files.push(stat);
                 acc.diagnostics.extend(diags);
                 acc
-            })
-            .reduce(Report::default, |mut a, b| {
-                a.files.extend(b.files);
-                a.diagnostics.extend(b.diagnostics);
-                a
             });
         report.files.sort_by(|a, b| a.path.cmp(&b.path));
         report.diagnostics.sort_by(|a, b| {
@@ -78,11 +83,10 @@ impl<'a> Engine<'a> {
                 .then(a.line.cmp(&b.line))
                 .then(a.rule.cmp(b.rule))
         });
-        Ok(report)
+        report
     }
 
-    /// A named file is measured whatever the walk would have said about it: pointing the tool
-    /// at one path is an explicit instruction, not a suggestion.
+    /// A named file is measured whatever the walk would have said: naming it is an instruction.
     fn collect(&self, targets: &[PathBuf]) -> Vec<PathBuf> {
         let mut out = Vec::new();
         for t in targets {
@@ -112,6 +116,43 @@ impl<'a> Engine<'a> {
         })
     }
 
+    /// Never fatal: one bad file must not cost the whole report.
+    fn unreadable(
+        &self,
+        file: &Path,
+        syn: &Syntax,
+        error: &std::io::Error,
+    ) -> (FileStat, Vec<Diagnostic>) {
+        let rel = self.relative(file);
+        let (rules, _) = self.config.rules_for(&rel);
+        let diags = crate::rules::unreadable::check(&rules.unreadable, &rel, error)
+            .into_iter()
+            .collect();
+        (Self::empty_stat(rel, syn), diags)
+    }
+
+    fn binary(&self, file: &Path, syn: &Syntax) -> (FileStat, Vec<Diagnostic>) {
+        let rel = self.relative(file);
+        let (rules, _) = self.config.rules_for(&rel);
+        let diags = crate::rules::unreadable::binary(&rules.unreadable, &rel)
+            .into_iter()
+            .collect();
+        (Self::empty_stat(rel, syn), diags)
+    }
+
+    fn empty_stat(path: PathBuf, syn: &Syntax) -> FileStat {
+        FileStat {
+            path,
+            language: syn.name.clone(),
+            prose: syn.prose,
+            lines: 0,
+            code_chars: 0,
+            comment_chars: 0,
+        }
+    }
+
+    /// Relative to the budget's directory; a path outside it is returned whole and matches
+    /// no allowance, because no budget in this tree governs it.
     fn relative(&self, path: &Path) -> PathBuf {
         path.canonicalize()
             .ok()
@@ -120,16 +161,29 @@ impl<'a> Engine<'a> {
     }
 
     fn check(&self, file: &Path) -> Option<(FileStat, Vec<Diagnostic>)> {
-        let content = std::fs::read_to_string(file).ok()?;
-        let syn = self.config.language(file).or_else(|| {
-            self.config
-                .language_of_shebang(content.lines().next().unwrap_or_default())
-        })?;
+        // A resolved path must be read or reported; an unresolved one is only a candidate.
+        let (syn, content) = if let Some(syn) = self.config.language(file) {
+            match std::fs::read(file) {
+                Ok(bytes) if is_binary(&bytes) => return Some(self.binary(file, syn)),
+                // Lossy on purpose: legacy-encoded source is still source, and markers are ASCII.
+                Ok(bytes) => (syn, String::from_utf8_lossy(&bytes).into_owned()),
+                Err(e) => return Some(self.unreadable(file, syn, &e)),
+            }
+        } else {
+            let bytes = std::fs::read(file).ok()?;
+            if is_binary(&bytes) {
+                return None;
+            }
+            let text = String::from_utf8(bytes).ok()?;
+            let head = text.lines().next().unwrap_or_default();
+            let syn = self.config.language_of_shebang(head)?;
+            (syn, text)
+        };
         if !syn.measurable() {
             return None;
         }
         let rel = self.relative(file);
-        let (rules, reasons) = self.config.rules_for(&rel).ok()?;
+        let (rules, reasons) = self.config.rules_for(&rel);
         let result = scan_in(&content, syn, self.config);
         let allowance = (!reasons.is_empty()).then(|| reasons.join("; "));
         let stat = FileStat {

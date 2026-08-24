@@ -10,10 +10,12 @@ git agent-verdict "$1" standards --standard programming --standard testing \
 	--rule "This is a synchronous single-process CLI. Blocking file IO is correct here; a new blocking API is not a finding." \
 	--rule "There are deliberately no test fixture files. A finding that a construct lacks a fixture is wrong; it belongs in an inline snippet in scan_tests.rs or in a corpus repository pinned in corpus.toml." \
 	--path .
-git agent-verdict "$1" budget --doc docs/budget-policy.md \
+git agent-verdict "$1" budget \
+	--rule "A threshold widened, or an allowance granted, because a file currently fails is a finding: the bound is the detector and that file is what it detected." \
+	--rule "Every [languages.*] entry must be proved against real source — a repository pinned in corpus.toml when it introduces a scanner construct, an inline snippet in scan_tests.rs when it only recombines proved ones." \
 	--path .comment-crusher.toml --path crates/comment-crusher/src/default_config.toml --path corpus.toml
 git agent-verdict "$1" cli --simple --standard cli \
 	--path crates/comment-crusher/src/cli.rs --path crates/comment-crusher/src/main.rs
 git agent-verdict "$1" prose --simple --standard human-communication \
-	--path README.md --path docs
+	--path README.md
 git agent-verdict "$1" changelog --simple --standard terse-log --path crates/comment-crusher/CHANGELOG.md

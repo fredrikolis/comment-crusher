@@ -25,11 +25,107 @@ lines = 148
 comment_chars = 0
 code_chars = 2936
 
+["astro-paper".astro]
+files = 27
+lines = 2261
+comment_chars = 1787
+code_chars = 49733
+
+["astro-paper".css]
+files = 3
+lines = 211
+comment_chars = 247
+code_chars = 3362
+
+["astro-paper".docker]
+files = 1
+lines = 17
+comment_chars = 84
+code_chars = 260
+
+["astro-paper".html]
+files = 25
+lines = 193
+comment_chars = 0
+code_chars = 15252
+
+["astro-paper".javascript]
+files = 2
+lines = 91
+comment_chars = 653
+code_chars = 1367
+
+["astro-paper".jsonc]
+files = 1
+lines = 11
+comment_chars = 0
+code_chars = 208
+
+["astro-paper".markdown]
+files = 27
+lines = 3924
+comment_chars = 1102
+code_chars = 146311
+
+["astro-paper".typescript]
+files = 25
+lines = 1285
+comment_chars = 4973
+code_chars = 21671
+
+["astro-paper".yaml]
+files = 7
+lines = 6769
+comment_chars = 0
+code_chars = 188179
+
+["casper".css]
+files = 4
+lines = 3622
+comment_chars = 4967
+code_chars = 105317
+
+["casper".handlebars]
+files = 25
+lines = 796
+comment_chars = 3873
+code_chars = 30155
+
+["casper".html]
+files = 1
+lines = 1
+comment_chars = 0
+code_chars = 1442
+
+["casper".javascript]
+files = 9
+lines = 527
+comment_chars = 1282
+code_chars = 107460
+
+["casper".markdown]
+files = 2
+lines = 117
+comment_chars = 0
+code_chars = 3995
+
+["casper".yaml]
+files = 3
+lines = 6917
+comment_chars = 340
+code_chars = 209903
+
 ["chalk".html]
 files = 1
 lines = 1
 comment_chars = 0
 code_chars = 69494
+
+["chalk".ini]
+files = 1
+lines = 12
+comment_chars = 0
+code_chars = 147
 
 ["chalk".javascript]
 files = 13
@@ -55,6 +151,222 @@ lines = 25
 comment_chars = 0
 code_chars = 382
 
+["coffeescript".coffee]
+files = 146
+lines = 45460
+comment_chars = 154660
+code_chars = 629555
+
+["coffeescript".css]
+files = 6
+lines = 2306
+comment_chars = 10023
+code_chars = 24679
+
+["coffeescript".html]
+files = 49
+lines = 96946
+comment_chars = 49928
+code_chars = 2934534
+
+["coffeescript".javascript]
+files = 27
+lines = 19823
+comment_chars = 2143920
+code_chars = 771965
+
+["coffeescript".markdown]
+files = 178
+lines = 2101
+comment_chars = 3159
+code_chars = 130300
+
+["coffeescript".yaml]
+files = 1
+lines = 44
+comment_chars = 378
+code_chars = 699
+
+["cowlib".asciidoc]
+files = 7
+lines = 397
+comment_chars = 0
+code_chars = 7465
+
+["cowlib".erlang]
+files = 29
+lines = 23149
+comment_chars = 75675
+code_chars = 781769
+
+["cowlib".make]
+files = 2
+lines = 5085
+comment_chars = 15173
+code_chars = 120517
+
+["cowlib".markdown]
+files = 1
+lines = 100
+comment_chars = 0
+code_chars = 3004
+
+["cowlib".yaml]
+files = 1
+lines = 36
+comment_chars = 72
+code_chars = 378
+
+["d-yaml".d]
+files = 43
+lines = 17793
+comment_chars = 80280
+code_chars = 284907
+
+["d-yaml".html]
+files = 1
+lines = 147
+comment_chars = 52
+code_chars = 5737
+
+["d-yaml".ini]
+files = 2
+lines = 137
+comment_chars = 2427
+code_chars = 926
+
+["d-yaml".markdown]
+files = 6
+lines = 807
+comment_chars = 0
+code_chars = 19729
+
+["d-yaml".plaintext]
+files = 1
+lines = 23
+comment_chars = 0
+code_chars = 1123
+
+["d-yaml".yaml]
+files = 8
+lines = 280
+comment_chars = 430
+code_chars = 5119
+
+["dart-collection".dart]
+files = 49
+lines = 12553
+comment_chars = 82896
+code_chars = 215039
+
+["dart-collection".markdown]
+files = 3
+lines = 428
+comment_chars = 0
+code_chars = 11842
+
+["dart-collection".yaml]
+files = 7
+lines = 174
+comment_chars = 737
+code_chars = 3104
+
+["dexador".docker]
+files = 1
+lines = 11
+comment_chars = 0
+code_chars = 381
+
+["dexador".html]
+files = 1
+lines = 10
+comment_chars = 0
+code_chars = 152
+
+["dexador".ini]
+files = 1
+lines = 16
+comment_chars = 0
+code_chars = 219
+
+["dexador".lisp]
+files = 13
+lines = 3254
+comment_chars = 4864
+code_chars = 93033
+
+["dexador".make]
+files = 1
+lines = 9
+comment_chars = 0
+code_chars = 139
+
+["dexador".markdown]
+files = 1
+lines = 430
+comment_chars = 39
+code_chars = 13478
+
+["dexador".plaintext]
+files = 2
+lines = 2
+comment_chars = 0
+code_chars = 326
+
+["dexador".shell]
+files = 1
+lines = 24
+comment_chars = 22
+code_chars = 454
+
+["dexador".yaml]
+files = 3
+lines = 127
+comment_chars = 88
+code_chars = 2342
+
+["gleam-stdlib".erlang]
+files = 5
+lines = 709
+comment_chars = 298
+code_chars = 17202
+
+["gleam-stdlib".gleam]
+files = 42
+lines = 19293
+comment_chars = 89731
+code_chars = 292207
+
+["gleam-stdlib".ini]
+files = 1
+lines = 22
+comment_chars = 205
+code_chars = 231
+
+["gleam-stdlib".javascript]
+files = 5
+lines = 2123
+comment_chars = 11402
+code_chars = 34083
+
+["gleam-stdlib".markdown]
+files = 2
+lines = 1042
+comment_chars = 0
+code_chars = 36338
+
+["gleam-stdlib".toml]
+files = 1
+lines = 14
+comment_chars = 0
+code_chars = 334
+
+["gleam-stdlib".yaml]
+files = 2
+lines = 93
+comment_chars = 0
+code_chars = 1570
+
 ["go-errors".go]
 files = 10
 lines = 2108
@@ -78,6 +390,60 @@ files = 2
 lines = 42
 comment_chars = 208
 code_chars = 411
+
+["hspec".css]
+files = 4
+lines = 320
+comment_chars = 1689
+code_chars = 4639
+
+["hspec".haskell]
+files = 77
+lines = 3620
+comment_chars = 6868
+code_chars = 81810
+
+["hspec".html]
+files = 1
+lines = 43
+comment_chars = 214
+code_chars = 1543
+
+["hspec".javascript]
+files = 2
+lines = 228
+comment_chars = 1183
+code_chars = 4497
+
+["hspec".make]
+files = 1
+lines = 26
+comment_chars = 23
+code_chars = 314
+
+["hspec".markdown]
+files = 13
+lines = 1137
+comment_chars = 0
+code_chars = 27200
+
+["hspec".ruby]
+files = 2
+lines = 121
+comment_chars = 199
+code_chars = 3404
+
+["hspec".shell]
+files = 1
+lines = 6
+comment_chars = 0
+code_chars = 117
+
+["hspec".yaml]
+files = 2
+lines = 27
+comment_chars = 0
+code_chars = 395
 
 ["inspect-lua".lua]
 files = 4
@@ -109,6 +475,54 @@ lines = 43
 comment_chars = 0
 code_chars = 686
 
+["json-fortran".cmake]
+files = 6
+lines = 637
+comment_chars = 4168
+code_chars = 17716
+
+["json-fortran".fortran]
+files = 61
+lines = 26230
+comment_chars = 244960
+code_chars = 444417
+
+["json-fortran".html]
+files = 2
+lines = 302
+comment_chars = 0
+code_chars = 8804
+
+["json-fortran".markdown]
+files = 15
+lines = 1983
+comment_chars = 208
+code_chars = 118453
+
+["json-fortran".perl]
+files = 1
+lines = 519
+comment_chars = 5633
+code_chars = 7940
+
+["json-fortran".shell]
+files = 1
+lines = 399
+comment_chars = 4443
+code_chars = 5807
+
+["json-fortran".toml]
+files = 1
+lines = 17
+comment_chars = 0
+code_chars = 337
+
+["json-fortran".yaml]
+files = 2
+lines = 175
+comment_chars = 934
+code_chars = 3230
+
 ["json-java".groovy]
 files = 1
 lines = 147
@@ -139,11 +553,197 @@ lines = 320
 comment_chars = 809
 code_chars = 8411
 
+["julia-json".julia]
+files = 21
+lines = 6506
+comment_chars = 45288
+code_chars = 146449
+
+["julia-json".markdown]
+files = 7
+lines = 1443
+comment_chars = 0
+code_chars = 50550
+
+["julia-json".toml]
+files = 3
+lines = 48
+comment_chars = 0
+code_chars = 1123
+
+["julia-json".yaml]
+files = 5
+lines = 176
+comment_chars = 311
+code_chars = 2783
+
+["mono-basic".batch]
+files = 24
+lines = 991
+comment_chars = 6385
+code_chars = 25237
+
+["mono-basic".csharp]
+files = 252
+lines = 58527
+comment_chars = 277048
+code_chars = 1149156
+
+["mono-basic".html]
+files = 2
+lines = 31112
+comment_chars = 161
+code_chars = 2246504
+
+["mono-basic".make]
+files = 37
+lines = 782
+comment_chars = 382
+code_chars = 20676
+
+["mono-basic".markdown]
+files = 3
+lines = 45
+comment_chars = 0
+code_chars = 2059
+
+["mono-basic".perl]
+files = 3
+lines = 709
+comment_chars = 214
+code_chars = 9793
+
+["mono-basic".plaintext]
+files = 59
+lines = 1071
+comment_chars = 0
+code_chars = 42903
+
+["mono-basic".shell]
+files = 17
+lines = 655
+comment_chars = 4176
+code_chars = 10873
+
+["mono-basic".vb]
+files = 4742
+lines = 272287
+comment_chars = 1640000
+code_chars = 4947836
+
+["neslib-json".markdown]
+files = 1
+lines = 287
+comment_chars = 0
+code_chars = 9304
+
+["neslib-json".pascal]
+files = 10
+lines = 9351
+comment_chars = 31354
+code_chars = 179901
+
+["neslib-json".plaintext]
+files = 1
+lines = 26
+comment_chars = 0
+code_chars = 1225
+
+["nimble".batch]
+files = 2
+lines = 58
+comment_chars = 582
+code_chars = 738
+
+["nimble".ini]
+files = 4
+lines = 28
+comment_chars = 15
+code_chars = 718
+
+["nimble".markdown]
+files = 5
+lines = 724
+comment_chars = 0
+code_chars = 26303
+
+["nimble".nim]
+files = 397
+lines = 33192
+comment_chars = 222132
+code_chars = 741914
+
+["nimble".plaintext]
+files = 3
+lines = 27
+comment_chars = 0
+code_chars = 1324
+
+["nimble".shell]
+files = 1
+lines = 66
+comment_chars = 559
+code_chars = 1361
+
+["nimble".yaml]
+files = 8
+lines = 646
+comment_chars = 1880
+code_chars = 11519
+
+["nixpkgs-fmt".html]
+files = 1
+lines = 153
+comment_chars = 782
+code_chars = 3023
+
+["nixpkgs-fmt".markdown]
+files = 8
+lines = 622
+comment_chars = 37
+code_chars = 15574
+
+["nixpkgs-fmt".nix]
+files = 164
+lines = 2396
+comment_chars = 3121
+code_chars = 26884
+
+["nixpkgs-fmt".rust]
+files = 14
+lines = 3366
+comment_chars = 10551
+code_chars = 65060
+
+["nixpkgs-fmt".shell]
+files = 4
+lines = 105
+comment_chars = 299
+code_chars = 1156
+
+["nixpkgs-fmt".toml]
+files = 5
+lines = 84
+comment_chars = 209
+code_chars = 1304
+
+["nixpkgs-fmt".yaml]
+files = 4
+lines = 74
+comment_chars = 93
+code_chars = 1151
+
 ["nvm".docker]
 files = 1
 lines = 112
-comment_chars = 789
-code_chars = 1781
+comment_chars = 720
+code_chars = 1850
+
+["nvm".ini]
+files = 1
+lines = 35
+comment_chars = 0
+code_chars = 573
 
 ["nvm".javascript]
 files = 1
@@ -180,6 +780,108 @@ files = 19
 lines = 1768
 comment_chars = 4433
 code_chars = 35016
+
+["pester".csharp]
+files = 52
+lines = 5200
+comment_chars = 41556
+code_chars = 99983
+
+["pester".jsonc]
+files = 1
+lines = 25
+comment_chars = 92
+code_chars = 385
+
+["pester".markdown]
+files = 12
+lines = 1403
+comment_chars = 1662
+code_chars = 63921
+
+["pester".plaintext]
+files = 3
+lines = 388
+comment_chars = 0
+code_chars = 12286
+
+["pester".powershell]
+files = 264
+lines = 61608
+comment_chars = 384781
+code_chars = 1367218
+
+["pester".yaml]
+files = 11
+lines = 618
+comment_chars = 4258
+code_chars = 13000
+
+["pug".coffee]
+files = 3
+lines = 6
+comment_chars = 0
+code_chars = 96
+
+["pug".css]
+files = 1
+lines = 5
+comment_chars = 0
+code_chars = 34
+
+["pug".html]
+files = 127
+lines = 1025
+comment_chars = 285
+code_chars = 17594
+
+["pug".ini]
+files = 1
+lines = 10
+comment_chars = 0
+code_chars = 135
+
+["pug".javascript]
+files = 72
+lines = 9918
+comment_chars = 14060
+code_chars = 175714
+
+["pug".jsonc]
+files = 2
+lines = 25
+comment_chars = 0
+code_chars = 415
+
+["pug".markdown]
+files = 33
+lines = 2541
+comment_chars = 446
+code_chars = 82445
+
+["pug".pug]
+files = 460
+lines = 3248
+comment_chars = 1430
+code_chars = 40855
+
+["pug".stylus]
+files = 4
+lines = 6
+comment_chars = 0
+code_chars = 74
+
+["pug".typescript]
+files = 2
+lines = 422
+comment_chars = 47
+code_chars = 7777
+
+["pug".yaml]
+files = 4
+lines = 115
+comment_chars = 380
+code_chars = 1688
 
 ["requests".batch]
 files = 1
@@ -247,6 +949,36 @@ lines = 465
 comment_chars = 2028
 code_chars = 7433
 
+["scopt".ini]
+files = 2
+lines = 17
+comment_chars = 169
+code_chars = 242
+
+["scopt".markdown]
+files = 19
+lines = 842
+comment_chars = 0
+code_chars = 24272
+
+["scopt".plaintext]
+files = 1
+lines = 1
+comment_chars = 0
+code_chars = 15
+
+["scopt".scala]
+files = 29
+lines = 4690
+comment_chars = 9788
+code_chars = 99378
+
+["scopt".yaml]
+files = 1
+lines = 55
+comment_chars = 49
+code_chars = 1077
+
 ["sds".c]
 files = 4
 lines = 1626
@@ -264,6 +996,30 @@ files = 1
 lines = 892
 comment_chars = 0
 code_chars = 25510
+
+["serde-json".markdown]
+files = 2
+lines = 434
+comment_chars = 0
+code_chars = 13185
+
+["serde-json".rust]
+files = 71
+lines = 23220
+comment_chars = 98061
+code_chars = 403126
+
+["serde-json".toml]
+files = 3
+lines = 136
+comment_chars = 1628
+code_chars = 2272
+
+["serde-json".yaml]
+files = 1
+lines = 157
+comment_chars = 0
+code_chars = 4076
 
 ["sinatra".asciidoc]
 files = 1
@@ -409,11 +1165,89 @@ lines = 1677
 comment_chars = 0
 code_chars = 45140
 
+["swift-argparse".cmake]
+files = 12
+lines = 331
+comment_chars = 616
+code_chars = 9387
+
+["swift-argparse".fish]
+files = 3
+lines = 318
+comment_chars = 0
+code_chars = 16239
+
+["swift-argparse".ini]
+files = 5
+lines = 19
+comment_chars = 0
+code_chars = 333
+
+["swift-argparse".markdown]
+files = 38
+lines = 4931
+comment_chars = 1534
+code_chars = 142992
+
+["swift-argparse".plaintext]
+files = 2
+lines = 231
+comment_chars = 0
+code_chars = 9104
+
+["swift-argparse".shell]
+files = 8
+lines = 1249
+comment_chars = 5712
+code_chars = 24259
+
+["swift-argparse".swift]
+files = 165
+lines = 32929
+comment_chars = 221669
+code_chars = 575165
+
+["swift-argparse".yaml]
+files = 4
+lines = 94
+comment_chars = 132
+code_chars = 2397
+
+["terraform-vpc".ini]
+files = 1
+lines = 30
+comment_chars = 166
+code_chars = 311
+
+["terraform-vpc".markdown]
+files = 24
+lines = 5388
+comment_chars = 608
+code_chars = 405925
+
+["terraform-vpc".terraform]
+files = 77
+lines = 12795
+comment_chars = 21392
+code_chars = 321679
+
+["terraform-vpc".yaml]
+files = 6
+lines = 358
+comment_chars = 1974
+code_chars = 8081
+
 ["type-fest".html]
 files = 1
 lines = 13
 comment_chars = 0
 code_chars = 43420
+
+["type-fest".ini]
+files = 1
+lines = 12
+comment_chars = 0
+code_chars = 147
 
 ["type-fest".javascript]
 files = 17
@@ -444,6 +1278,60 @@ files = 8
 lines = 219
 comment_chars = 699
 code_chars = 4230
+
+["uri-perl".html]
+files = 5
+lines = 573
+comment_chars = 0
+code_chars = 14574
+
+["uri-perl".ini]
+files = 1
+lines = 219
+comment_chars = 703
+code_chars = 3911
+
+["uri-perl".markdown]
+files = 2
+lines = 1026
+comment_chars = 0
+code_chars = 31596
+
+["uri-perl".perl]
+files = 73
+lines = 7442
+comment_chars = 13651
+code_chars = 129754
+
+["uri-perl".plaintext]
+files = 4
+lines = 11489
+comment_chars = 0
+code_chars = 351520
+
+["uri-perl".shell]
+files = 1
+lines = 57
+comment_chars = 796
+code_chars = 992
+
+["uri-perl".toml]
+files = 2
+lines = 48
+comment_chars = 452
+code_chars = 895
+
+["uri-perl".yaml]
+files = 5
+lines = 213
+comment_chars = 153
+code_chars = 3668
+
+["uuid-php".ini]
+files = 1
+lines = 16
+comment_chars = 83
+code_chars = 151
 
 ["uuid-php".make]
 files = 1
@@ -510,3 +1398,51 @@ files = 8
 lines = 750
 comment_chars = 375
 code_chars = 11872
+
+["yojson".make]
+files = 2
+lines = 27
+comment_chars = 0
+code_chars = 294
+
+["yojson".markdown]
+files = 1
+lines = 48
+comment_chars = 0
+code_chars = 1369
+
+["yojson".ocaml]
+files = 21
+lines = 2318
+comment_chars = 13474
+code_chars = 32832
+
+["yojson".shell]
+files = 1
+lines = 5
+comment_chars = 0
+code_chars = 131
+
+["zig-http".make]
+files = 1
+lines = 22
+comment_chars = 0
+code_chars = 482
+
+["zig-http".markdown]
+files = 1
+lines = 1143
+comment_chars = 0
+code_chars = 40355
+
+["zig-http".yaml]
+files = 1
+lines = 21
+comment_chars = 0
+code_chars = 456
+
+["zig-http".zig]
+files = 28
+lines = 10631
+comment_chars = 38955
+code_chars = 221566

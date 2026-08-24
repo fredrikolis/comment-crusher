@@ -1,5 +1,7 @@
 // Concern: the resolved per-language token table a scan matches against, longest token first | Non-concern: reading it from TOML (config.rs) or using it (scan.rs) | IO: none
 
+use crate::embed::EmbedSpec;
+
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum CommentKind {
     Plain,
@@ -23,21 +25,9 @@ pub enum Opener {
     Str(usize),
 }
 
-/// Resolves a language name, so an embedded region can be scanned.
 pub trait Resolve {
     fn language_named(&self, name: &str) -> Option<&Syntax>;
 }
-
-/// For callers with no language table: every embedded region stays code.
-pub struct NoEmbeds;
-
-impl Resolve for NoEmbeds {
-    fn language_named(&self, _name: &str) -> Option<&Syntax> {
-        None
-    }
-}
-
-use crate::embed::EmbedSpec;
 
 #[derive(Debug, Clone)]
 pub struct Syntax {
@@ -47,21 +37,29 @@ pub struct Syntax {
     pub hash_raw_strings: bool,
     pub heredoc: bool,
     pub strings: Vec<StringSpec>,
-    /// Longest token first, so `///` is matched before `//`.
     pub openers: Vec<(String, Opener)>,
-    /// Cancels a line comment when the marker is followed by it: `#[` is a PHP attribute.
-    pub line_exceptions: Vec<String>,
+    /// Cancels a comment: `#[` is a PHP attribute, `{$` a Pascal directive.
+    pub exceptions: Vec<String>,
+    /// What stops `url(https://x)` opening a comment where there are no strings to hide in.
+    pub line_anchored: bool,
     pub embeds: Vec<EmbedSpec>,
 }
 
 impl Syntax {
-    pub fn match_opener(&self, rest: &str) -> Option<(&str, &Opener)> {
+    /// More than one can match: `/**/` is `/*` `*/`, not an unterminated `/**`.
+    pub fn matching_openers(
+        &self,
+        rest: &str,
+        own_line: bool,
+    ) -> impl Iterator<Item = (&str, &Opener)> {
         self.openers
             .iter()
-            .find(|(tok, op)| {
+            .filter(move |(tok, op)| {
+                let comment = matches!(op, Opener::Line(_) | Opener::Block { .. });
+                let anchored = self.line_anchored && matches!(op, Opener::Line(_));
                 rest.starts_with(tok.as_str())
-                    && !(matches!(op, Opener::Line(_))
-                        && self.line_exceptions.iter().any(|e| rest.starts_with(e)))
+                    && !(comment && self.exceptions.iter().any(|e| rest.starts_with(e)))
+                    && (own_line || !anchored)
             })
             .map(|(tok, op)| (tok.as_str(), op))
     }

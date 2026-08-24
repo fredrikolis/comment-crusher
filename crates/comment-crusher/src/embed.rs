@@ -7,8 +7,7 @@ pub struct EmbedSpec {
     pub open: String,
     pub close: String,
     pub default: String,
-    /// In priority order. Every field below is documented for an author in the `[languages]`
-    /// legend of `default_config.toml`, which is where they are written.
+    /// In priority order.
     pub attrs: Vec<String>,
     pub map: HashMap<String, String>,
     pub at_start: bool,
@@ -17,7 +16,6 @@ pub struct EmbedSpec {
 }
 
 impl EmbedSpec {
-    /// An opener beginning `<` is a tag, so its body starts past the `>`.
     pub fn is_tag(&self) -> bool {
         self.open.starts_with('<')
     }
@@ -34,7 +32,6 @@ impl EmbedSpec {
     }
 }
 
-/// The value of `name="…"`, `name='…'` or unquoted `name=…` in a tag's attribute text.
 fn attr_value(attrs: &str, name: &str) -> Option<String> {
     let mut rest = attrs;
     while let Some(at) = rest.to_ascii_lowercase().find(name) {

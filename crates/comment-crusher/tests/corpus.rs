@@ -5,7 +5,7 @@
     reason = "a failed expectation in a test is a failed test"
 )]
 
-use std::collections::BTreeMap;
+use std::collections::{BTreeMap, BTreeSet};
 use std::fmt::Write as _;
 use std::path::{Path, PathBuf};
 
@@ -13,12 +13,21 @@ use comment_crusher::{Config, Engine};
 
 const SNAPSHOT: &str = "../../corpus-expected.toml";
 
+/// Absent corpus is a failure, not a skip. `CORPUS_OPTIONAL=1` opts out.
 fn corpus_root() -> Option<PathBuf> {
     let root = std::env::var_os("CORPUS_DIR").map_or_else(
         || Path::new(env!("CARGO_MANIFEST_DIR")).join("../../target/corpus"),
         PathBuf::from,
     );
-    root.is_dir().then_some(root)
+    if root.is_dir() {
+        return Some(root);
+    }
+    assert!(
+        std::env::var_os("CORPUS_OPTIONAL").is_some(),
+        "no corpus at {}: run ./scripts/fetch-corpus.sh, or set CORPUS_OPTIONAL=1 to skip",
+        root.display()
+    );
+    None
 }
 
 fn repos(root: &Path) -> Vec<(String, PathBuf)> {
@@ -38,22 +47,31 @@ type Totals = BTreeMap<String, [usize; 4]>;
 
 fn measure(dir: &Path) -> (Totals, Vec<String>) {
     let config = Config::defaults().expect("built-in defaults load");
-    let report = Engine::new(&config, dir)
-        .run(std::slice::from_ref(&dir.to_path_buf()))
-        .expect("engine runs");
+    let report = Engine::new(&config, Some(dir)).run(std::slice::from_ref(&dir.to_path_buf()));
+
+    // A file the tool declined to measure has no partition to check.
+    let declined: BTreeSet<PathBuf> = report
+        .diagnostics
+        .iter()
+        .filter(|d| d.rule == "unreadable")
+        .map(|d| d.file.clone())
+        .collect();
 
     let mut totals = Totals::new();
     let mut mismatches = Vec::new();
     for f in &report.files {
+        if declined.contains(&f.path) {
+            continue;
+        }
         let e = totals.entry(f.language.clone()).or_insert([0; 4]);
         e[0] += 1;
         e[1] += f.lines;
         e[2] += f.comment_chars;
         e[3] += f.code_chars;
 
-        // Every visible character is either comment or code. A scanner that loses one has
-        // silently dropped a region; one that double-counts has left a state it entered.
-        let text = std::fs::read_to_string(dir.join(&f.path)).unwrap_or_default();
+        // Lose a character and a region was dropped; gain one and a state was left entered.
+        let bytes = std::fs::read(dir.join(&f.path)).unwrap_or_default();
+        let text = String::from_utf8_lossy(&bytes);
         let visible = text.chars().filter(|c| !c.is_whitespace()).count();
         if f.comment_chars + f.code_chars != visible {
             mismatches.push(format!(
@@ -70,7 +88,6 @@ fn measure(dir: &Path) -> (Totals, Vec<String>) {
 #[test]
 fn corpus_partitions_every_file_into_comment_and_code() {
     let Some(root) = corpus_root() else {
-        eprintln!("skipping: run scripts/fetch-corpus.sh first");
         return;
     };
     let mut all = Vec::new();
@@ -89,7 +106,6 @@ fn corpus_partitions_every_file_into_comment_and_code() {
 #[test]
 fn corpus_totals_match_the_pinned_snapshot() {
     let Some(root) = corpus_root() else {
-        eprintln!("skipping: run scripts/fetch-corpus.sh first");
         return;
     };
     let snapshot_path = Path::new(env!("CARGO_MANIFEST_DIR")).join(SNAPSHOT);
@@ -128,4 +144,119 @@ Non-concern: choosing the corpus (corpus.toml) or asserting over it (tests/corpu
         }
     }
     out
+}
+
+/// Not "its language appears in the corpus": the token itself must have fired on real source.
+/// Only real code shows whether a marker set is complete, which is how a Pascal compiler
+/// directive and a fixed-form Fortran comment were both found mis-declared.
+#[test]
+fn every_comment_marker_has_fired_on_real_source() {
+    let Some(root) = corpus_root() else {
+        return;
+    };
+    let config = Config::defaults().expect("defaults");
+    let fired = markers_that_opened_a_comment(&root, &config);
+    let strings_seen = string_delimiters_seen(&root, &config);
+
+    let mut unfired: Vec<String> = Vec::new();
+    let mut unused_exemptions: Vec<&str> = snippet_only();
+    for syn in config.languages() {
+        for (token, opener) in &syn.openers {
+            if let comment_crusher::syntax::Opener::Str(_) = opener {
+                let key = format!("{} {token}", syn.name);
+                if !strings_seen.contains(&key)
+                    && !strings_seen
+                        .iter()
+                        .any(|f| f.ends_with(&format!(" {token}")))
+                {
+                    unfired.push(format!("{key} (string delimiter)"));
+                }
+                continue;
+            }
+            let key = format!("{} {token}", syn.name);
+            // The same token in another language is the same scanner path.
+            if fired.contains(&key) || fired.iter().any(|f| f.ends_with(&format!(" {token}"))) {
+                continue;
+            }
+            if let Some(i) = unused_exemptions.iter().position(|e| *e == key) {
+                unused_exemptions.remove(i);
+                continue;
+            }
+            unfired.push(key);
+        }
+    }
+    assert!(
+        unfired.is_empty(),
+        "markers no pinned repository ever opened a comment with. Pin a repository that uses \
+         one, drop the marker, or add it to snippet-only.txt:\n{}",
+        unfired.join("\n")
+    );
+    assert!(
+        unused_exemptions.is_empty(),
+        "snippet-only.txt names markers that are now proved or no longer declared; remove \
+         them:\n{}",
+        unused_exemptions.join("\n")
+    );
+}
+
+/// Which declared markers actually opened a comment in real source.
+fn markers_that_opened_a_comment(root: &Path, config: &Config) -> BTreeSet<String> {
+    let mut fired = BTreeSet::new();
+    for (_, dir) in repos(root) {
+        let report = Engine::new(config, Some(&dir)).run(std::slice::from_ref(&dir));
+        for f in &report.files {
+            let Some(syn) = config.language(&dir.join(&f.path)) else {
+                continue;
+            };
+            let Ok(text) = std::fs::read_to_string(dir.join(&f.path)) else {
+                continue;
+            };
+            for region in comment_crusher::scan_in(&text, syn, config).regions {
+                let Some(rest) = text.get(region.start..) else {
+                    continue;
+                };
+                if let Some((token, _)) = syn
+                    .openers
+                    .iter()
+                    .find(|(t, _)| rest.starts_with(t.as_str()))
+                {
+                    fired.insert(format!("{} {token}", syn.name));
+                }
+            }
+        }
+    }
+    fired
+}
+
+/// Which declared string delimiters actually appear in real source of their own language.
+fn string_delimiters_seen(root: &Path, config: &Config) -> BTreeSet<String> {
+    let mut seen = BTreeSet::new();
+    for (_, dir) in repos(root) {
+        let report = Engine::new(config, Some(&dir)).run(std::slice::from_ref(&dir));
+        for f in &report.files {
+            let Some(syn) = config.language(&dir.join(&f.path)) else {
+                continue;
+            };
+            let Ok(text) = std::fs::read_to_string(dir.join(&f.path)) else {
+                continue;
+            };
+            for spec in &syn.strings {
+                if text.contains(&spec.open) {
+                    seen.insert(format!("{} {}", syn.name, spec.open));
+                }
+            }
+        }
+    }
+    seen
+}
+
+/// Correct but rare forms no pinned repository happens to use. One home, read by this test
+/// and by `scan_tests.rs`, which asserts a snippet exercises each of them.
+const SNIPPET_ONLY_LIST: &str = include_str!("../snippet-only.txt");
+
+fn snippet_only() -> Vec<&'static str> {
+    SNIPPET_ONLY_LIST
+        .lines()
+        .filter(|l| !l.is_empty())
+        .collect()
 }

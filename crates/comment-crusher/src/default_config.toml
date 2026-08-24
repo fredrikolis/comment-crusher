@@ -1,66 +1,49 @@
 # Concern: the shipped thresholds and the per-language comment, string and heredoc markers | Non-concern: resolving these against the config layers (config.rs) | IO: none
-# Precedence (low -> high): these defaults < ~/.config/comment-crusher/config.toml
-# < ./.comment-crusher.toml (nearest ancestor of the target) < --allow.
 # Every threshold ships ON and DENYING: a budget nobody enables measures nothing.
 
 [global]
 # Directory names pruned from every walk, on top of .gitignore.
 exclude = ["target", "node_modules", "vendor", "dist", "build", ".venv"]
 
-# --- Rules -----------------------------------------------------------------
-
 [rules.comment-ratio]
-# Comment characters as a fraction of all non-whitespace characters in a code file.
-# Characters, not lines: a trailing `// why` and a wall of prose then cost what they
-# actually occupy, and no language's line shape distorts the comparison.
+# Characters, not lines, so a trailing `// why` costs what it occupies.
 level = "deny"
-max_ratio = 0.25
-# Doc comments (`///`, `/** */`, a Python docstring) count too. At file scope they are
-# usually the larger share, and an API doc is still a comment somebody has to keep true.
+# Measured: the 38 pinned corpus repositories run to a median of 15.5% (1.3% to 44.8%).
+max_ratio = 0.15
+# Doc comments count too; at file scope they are usually the larger share.
 count_doc_comments = true
-# Files below this many non-whitespace characters are skipped, so a stub is never
-# trivially "100% comments". Roughly ten lines of code.
+# Below this, a stub would be trivially "100% comments".
 min_chars = 200
-# Exempt one leading comment block — licence banner, SPDX header, file annotation.
-# It is a fixed per-file cost the body should not be charged for.
+# A fixed per-file cost the body is not charged for; header_max_lines bounds the banner itself.
 skip_header = true
 
 [rules.comment-block]
-# The longest single comment a file may carry: one block comment, or one unbroken run
-# of adjacent line comments. This is the multi-line bound.
+# One block comment, or one unbroken run of adjacent line comments.
 level = "deny"
-max_lines = 5
-# A doc comment on a public item earns more room than a remark inside a body does.
+# Policy, not a measurement: the corpus trips this 13089 times at 1, still 4309 at 5.
+max_lines = 1
 doc_max_lines = 10
-# The leading banner — licence, SPDX, file annotation — is a fixed per-file cost.
 header_max_lines = 30
 max_chars = 400
+
+# A file whose language resolved but whose bytes are not text.
+[rules.unreadable]
+level = "deny"
 
 [rules.doc-length]
 # Applies to `prose = true` languages only. Code files are bounded by comment-ratio.
 level = "deny"
-max_lines = 400
+# Measured: the 75th percentile of the corpus's 668 prose documents. Their median is 22.
+max_lines = 77
 
-# --- Languages -------------------------------------------------------------
-# A file resolves to a language by extension, else by exact filename, else by the
-# interpreter on a `#!` line. Nothing else is measured: an unrecognized file is not
-# guessed at, it is skipped.
-#
-# Per language:
-#   line / doc_line      line-comment markers; doc_line wins when both match (longest first)
-#   line_exceptions      text that cancels a line comment — `#[` opens a PHP attribute
-#   block / doc_block    [open, close] pairs
-#   nested_block         `/* /* */ */` closes once, not twice
-#   strings              [open, close] regions whose contents are CODE, not comment
-#     multiline          may cross a newline; without it a bad open self-heals at end of line
-#     docstring          when it opens a line, count it as a doc comment (Python, Elixir)
-#     char_literal       only a string if it closes within a few chars on the same line,
-#                        so a Rust lifetime or a Ruby symbol is not read as an open quote
-#   hash_raw_strings     `r"..."` / `r#"..."#`
-#   heredoc              `<<WORD` / `<<-'WORD'` bodies are code until a line equal to WORD
-#   prose                measured by doc-length, never by comment-ratio
-#   embed                a region holding another language; its knobs are documented at [languages.html]
-# This legend is the one place a knob is explained; the structs mirroring it carry no prose.
+# Every knob below is documented under LANGUAGE TABLE in `comment-crusher --help`.
+
+# Referenced by `embed_use`. One home for the pair every HTML-family entry shares.
+[embed_sets]
+web = [
+  { open = "<script", close = "</script", default = "javascript", attrs = ["type", "lang"], map = { ts = "typescript", tsx = "typescript", typescript = "typescript", "text/typescript" = "typescript", "application/typescript" = "typescript", js = "javascript", jsx = "javascript", module = "javascript", "text/babel" = "javascript", "application/json" = "json", "application/ld+json" = "json", importmap = "json", speculationrules = "json", "text/x-template" = "html" } },
+  { open = "<style", close = "</style", default = "css", attrs = ["lang"], map = { scss = "css", sass = "css", less = "css", postcss = "css", stylus = "stylus", styl = "stylus" } },
+]
 
 [languages.rust]
 extensions = [".rs"]
@@ -185,8 +168,7 @@ strings = [{ open = '"', close = '"' }, { open = "'", close = "'" }]
 [languages.php]
 extensions = [".php"]
 line = ["//", "#"]
-# `#[Attr]` is a PHP 8 attribute, not a comment.
-line_exceptions = ["#["]
+exceptions = ["#["]
 block = [["/*", "*/"]]
 doc_block = [["/**", "*/"]]
 heredoc = true
@@ -204,7 +186,6 @@ heredoc = true
 strings = [{ open = '"', close = '"', multiline = true }, { open = "'", close = "'", multiline = true }]
 
 [languages.fish]
-# No heredoc, so `<<` is never an opener here.
 extensions = [".fish"]
 interpreters = ["fish"]
 line = ["#"]
@@ -316,60 +297,40 @@ block = [["/*", "*/"]]
 strings = [{ open = '"', close = '"' }, { open = "'", close = "'" }]
 
 [languages.html]
-# `<script>` and `<style>` hold another language, and its comments are comments. The child is
-# NAMED by the tag, never guessed: `type="application/json"` resolves to `json`, which is not
-# a language here, so that body stays code. Matching the literal `</script` is what the HTML
-# spec's own script-data state does, so no HTML parser buys anything here.
-#   open / close       delimiters; one starting with `<` is a tag, so its body starts past `>`
-#   default            the child language when no attribute names one
-#   attrs / map        tag attributes that may name the child, and the value -> language map
-#   at_start           matches only at byte zero, which is what makes a `---` fence safe
-#   balanced           ends at the `close` balancing this `open`, not the first one
-#   skip               text after `open` that cancels the match: `{#if` is a directive
+# NAMED by the tag, never guessed: `type="application/json"` is `json`, absent here, so code.
 extensions = [".html", ".htm", ".xml", ".xhtml", ".svg"]
 block = [["<!--", "-->"]]
 strings = [{ open = '"', close = '"' }, { open = "'", close = "'" }]
-embed = [
-  { open = "<script", close = "</script", default = "javascript", attrs = ["type", "lang"], map = { ts = "typescript", tsx = "typescript", typescript = "typescript", "text/typescript" = "typescript", "application/typescript" = "typescript", js = "javascript", jsx = "javascript", module = "javascript", "text/babel" = "javascript", "application/json" = "json", "application/ld+json" = "json", importmap = "json", speculationrules = "json", "text/x-template" = "html" } },
-  { open = "<style", close = "</style", default = "css", attrs = ["lang"], map = { scss = "css", sass = "css", less = "css", postcss = "css", stylus = "stylus", styl = "stylus" } },
-]
+embed_use = ["web"]
 
 [languages.vue]
 extensions = [".vue"]
 block = [["<!--", "-->"]]
 strings = [{ open = '"', close = '"' }, { open = "'", close = "'" }]
+embed_use = ["web"]
 embed = [
-  { open = "<script", close = "</script", default = "javascript", attrs = ["type", "lang"], map = { ts = "typescript", tsx = "typescript", typescript = "typescript", "text/typescript" = "typescript", "application/typescript" = "typescript", js = "javascript", jsx = "javascript", module = "javascript", "text/babel" = "javascript", "application/json" = "json", "application/ld+json" = "json", importmap = "json", speculationrules = "json", "text/x-template" = "html" } },
-  { open = "<style", close = "</style", default = "css", attrs = ["lang"], map = { scss = "css", sass = "css", less = "css", postcss = "css", stylus = "stylus", styl = "stylus" } },
   { open = "<template", close = "</template", default = "html", attrs = ["lang"], map = { pug = "pug", jade = "pug" } },
-  # `{{ x }}` interpolation. A lone `{` is ordinary text in a Vue template, so only the
-  # doubled form is an expression.
+  # A lone `{` is ordinary text in a Vue template, so only the doubled form is an expression.
   { open = "{{", close = "}}", default = "javascript" },
 ]
 
 [languages.svelte]
-# Most of a component's logic lives in `{...}` markup expressions rather than in `<script>`,
-# so without the last entry a Svelte file reads as having no comments at all. A literal brace
-# in Svelte text must be escaped, which is what makes matching a bare `{` safe here.
+# A literal brace in Svelte text must be escaped, which is what makes a bare `{` safe here.
 extensions = [".svelte"]
 block = [["<!--", "-->"]]
 strings = [{ open = '"', close = '"' }, { open = "'", close = "'" }]
+embed_use = ["web"]
 embed = [
-  { open = "<script", close = "</script", default = "javascript", attrs = ["type", "lang"], map = { ts = "typescript", tsx = "typescript", typescript = "typescript", "text/typescript" = "typescript", "application/typescript" = "typescript", js = "javascript", jsx = "javascript", module = "javascript", "text/babel" = "javascript", "application/json" = "json", "application/ld+json" = "json", importmap = "json", speculationrules = "json", "text/x-template" = "html" } },
-  { open = "<style", close = "</style", default = "css", attrs = ["lang"], map = { scss = "css", sass = "css", less = "css", postcss = "css", stylus = "stylus", styl = "stylus" } },
   { open = "{", close = "}", default = "javascript", balanced = true, skip = ["#", ":", "/", "@"] },
 ]
 
 [languages.astro]
-# The `---` frontmatter fence is matched only at byte zero, so the same three characters in
-# the markup below it stay content.
 extensions = [".astro"]
 block = [["<!--", "-->"]]
 strings = [{ open = '"', close = '"' }, { open = "'", close = "'" }]
+embed_use = ["web"]
 embed = [
   { open = "---", close = "---", default = "typescript", at_start = true },
-  { open = "<script", close = "</script", default = "javascript", attrs = ["type", "lang"], map = { ts = "typescript", tsx = "typescript", typescript = "typescript", "text/typescript" = "typescript", "application/typescript" = "typescript", js = "javascript", jsx = "javascript", module = "javascript", "text/babel" = "javascript", "application/json" = "json", "application/ld+json" = "json", importmap = "json", speculationrules = "json", "text/x-template" = "html" } },
-  { open = "<style", close = "</style", default = "css", attrs = ["lang"], map = { scss = "css", sass = "css", less = "css", postcss = "css", stylus = "stylus", styl = "stylus" } },
   { open = "{", close = "}", default = "typescript", balanced = true },
 ]
 
@@ -384,7 +345,9 @@ line = ["#"]
 strings = [{ open = '"', close = '"' }, { open = "'", close = "'" }]
 
 [languages.ini]
-extensions = [".ini", ".cfg", ".conf", ".properties", ".editorconfig"]
+extensions = [".ini", ".cfg", ".conf", ".properties"]
+filenames = [".editorconfig"]
+line_anchored = true
 line = ["#", ";"]
 
 [languages.make]
@@ -395,6 +358,7 @@ line = ["#"]
 [languages.docker]
 extensions = [".dockerfile"]
 filenames = ["Dockerfile"]
+line_anchored = true
 line = ["#"]
 
 [languages.terraform]
@@ -415,16 +379,9 @@ extensions = [".graphql", ".gql"]
 line = ["#"]
 strings = [{ open = '"""', close = '"""', multiline = true }, { open = '"', close = '"' }]
 
-[languages.vim]
-extensions = [".vim"]
-line = ['"']
-
-
-# --- C-family and object languages ---
 
 [languages.objc]
-# `.m` is shared with MATLAB. Objective-C is the far more common `.m` in source
-# repositories, and a MATLAB project overrides this table like any other.
+# `.m` is shared with MATLAB; Objective-C is the far more common one in source repositories.
 extensions = [".m", ".mm"]
 line = ["//"]
 block = [["/*", "*/"]]
@@ -496,8 +453,6 @@ extensions = [".glsl", ".frag", ".vert", ".comp", ".geom", ".hlsl", ".wgsl", ".m
 line = ["//"]
 block = [["/*", "*/"]]
 
-# --- ML and Lisp families ---
-
 [languages.fsharp]
 extensions = [".fs", ".fsi", ".fsx"]
 line = ["//"]
@@ -513,7 +468,6 @@ nested_block = true
 strings = [{ open = '"', close = '"' }]
 
 [languages.lisp]
-# Common Lisp, Scheme, Racket and Emacs Lisp share `;` and the nestable `#| |#`.
 extensions = [".lisp", ".lsp", ".cl", ".el", ".scm", ".ss", ".rkt", ".fnl"]
 line = [";"]
 block = [["#|", "|#"]]
@@ -548,8 +502,6 @@ line = ["#"]
 heredoc = true
 strings = [{ open = '"', close = '"' }, { open = "'", close = "'", char_literal = true }]
 
-# --- Hardware, numeric and legacy ---
-
 [languages.verilog]
 extensions = [".v", ".sv", ".svh", ".vh"]
 line = ["//"]
@@ -562,7 +514,8 @@ line = ["--"]
 strings = [{ open = '"', close = '"' }]
 
 [languages.fortran]
-extensions = [".f90", ".f95", ".f03", ".f08", ".f", ".for", ".ftn"]
+# Free-form only. Fixed-form `.f`/`.for` marks a comment by column 1, which a marker cannot say.
+extensions = [".f90", ".f95", ".f03", ".f08"]
 line = ["!"]
 strings = [{ open = "'", close = "'" }, { open = '"', close = '"' }]
 
@@ -572,7 +525,9 @@ line = ["--"]
 strings = [{ open = '"', close = '"' }]
 
 [languages.pascal]
+# `{$MODE}` and `(*$…*)` are compiler directives, not comments.
 extensions = [".pas", ".pp", ".dpr", ".lpr"]
+exceptions = ["{$", "(*$"]
 line = ["//"]
 block = [["{", "}"], ["(*", "*)"]]
 strings = [{ open = "'", close = "'" }]
@@ -588,8 +543,9 @@ line = ["#"]
 block = [["/*", "*/"]]
 strings = [{ open = '"', close = '"' }]
 
+# No `.inc`: assembly, Fortran, PHP and Pascal all use it, so it is not resolvable.
 [languages.asm]
-extensions = [".asm", ".nasm", ".inc"]
+extensions = [".asm", ".nasm"]
 line = [";"]
 strings = [{ open = '"', close = '"' }, { open = "'", close = "'" }]
 
@@ -614,9 +570,12 @@ strings = [{ open = '"', close = '"' }]
 extensions = [".coffee"]
 line = ["#"]
 block = [["###", "###"]]
-strings = [{ open = '"', close = '"' }, { open = "'", close = "'" }]
-
-# --- Build, infrastructure and data ---
+strings = [
+  { open = "'''", close = "'''", multiline = true },
+  { open = '"""', close = '"""', multiline = true },
+  { open = '"', close = '"' },
+  { open = "'", close = "'" },
+]
 
 [languages.cmake]
 extensions = [".cmake"]
@@ -684,28 +643,26 @@ strings = [{ open = "'''", close = "'''", multiline = true }, { open = "'", clos
 [languages.dotenv]
 extensions = [".env"]
 filenames = [".env", ".env.example", ".env.local", ".env.sample"]
+line_anchored = true
 line = ["#"]
-
-# --- Templates and styling ---
 
 [languages.stylus]
 extensions = [".styl"]
+line_anchored = true
 line = ["//"]
 block = [["/*", "*/"]]
 
 [languages.pug]
 extensions = [".pug", ".jade"]
+line_anchored = true
 line = ["//-", "//"]
 
 [languages.handlebars]
 extensions = [".hbs", ".handlebars", ".mustache"]
 block = [["{{!--", "--}}"], ["{{!", "}}"]]
 
-[languages.jinja]
-extensions = [".j2", ".jinja", ".jinja2", ".twig"]
-block = [["{#", "#}"]]
 
-# --- Prose ---
+# No `vim` (`"` is context-dependent) and no `jinja` (no repo exercises `{# #}`).
 
 [languages.markdown]
 extensions = [".md", ".markdown", ".mdx"]
@@ -716,8 +673,10 @@ prose = true
 extensions = [".rst"]
 prose = true
 
+# `//` opens a comment only at the start of a line here; mid-line it is a URL.
 [languages.asciidoc]
 extensions = [".adoc", ".asciidoc"]
+line_anchored = true
 line = ["//"]
 prose = true
 

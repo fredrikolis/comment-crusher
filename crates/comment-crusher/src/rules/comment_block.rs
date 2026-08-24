@@ -8,29 +8,16 @@ use crate::scan::{Region, Scan};
 use crate::syntax::CommentKind;
 
 pub const NAME: &str = "comment-block";
+const HELP: &str = "One line, or change the shape of what needed a paragraph.";
 
 #[derive(Debug, Clone, Deserialize)]
-#[serde(default, deny_unknown_fields)]
+#[serde(deny_unknown_fields)]
 pub struct Config {
     pub level: Level,
     pub max_lines: usize,
-    /// A doc comment on a public item earns more room than a remark inside a body does.
     pub doc_max_lines: usize,
-    /// A licence banner or file annotation is a fixed per-file cost, bounded on its own.
     pub header_max_lines: usize,
     pub max_chars: usize,
-}
-
-impl Default for Config {
-    fn default() -> Self {
-        Self {
-            level: Level::Deny,
-            max_lines: 5,
-            doc_max_lines: 10,
-            header_max_lines: 30,
-            max_chars: 400,
-        }
-    }
 }
 
 pub fn check(cfg: &Config, file: &Path, scan: &Scan) -> Vec<Diagnostic> {
@@ -47,8 +34,10 @@ pub fn check(cfg: &Config, file: &Path, scan: &Scan) -> Vec<Diagnostic> {
                     cfg.level,
                     file,
                     format!("{what} spans {} lines, budget is {limit}", r.lines()),
+                    HELP,
                 )
-                .at(r.start_line),
+                .at(r.start_line)
+                .spanning(r.start, r.end, r.end_line),
             );
         } else if cfg.max_chars > 0 && r.chars > cfg.max_chars {
             out.push(
@@ -57,8 +46,10 @@ pub fn check(cfg: &Config, file: &Path, scan: &Scan) -> Vec<Diagnostic> {
                     cfg.level,
                     file,
                     format!("{what} is {} chars, budget is {}", r.chars, cfg.max_chars),
+                    HELP,
                 )
-                .at(r.start_line),
+                .at(r.start_line)
+                .spanning(r.start, r.end, r.end_line),
             );
         }
     }
