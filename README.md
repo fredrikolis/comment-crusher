@@ -98,8 +98,9 @@ block = [["#[", "]#"]]
 nested_block = true
 ```
 
-The scanner handles nested block comments in five families, raw strings, heredocs, char
-literals against lifetimes, docstrings, and markers inside strings. It is held to a
+202 extensions, 32 exact filenames, 21 interpreters. Nested block comments in 16 languages
+(`/* */`, `#| |#`, `#[ ]#`, `{- -}`, `(* *)`, `/+ +/`), heredocs in 6, docstrings in 4, plus
+raw strings, char literals against lifetimes, and markers inside strings. Held to a
 **partition invariant** — comment chars plus code chars equal the file's visible chars — over
 a corpus of twelve pinned real-world repositories.
 
