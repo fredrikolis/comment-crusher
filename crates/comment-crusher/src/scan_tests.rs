@@ -173,6 +173,24 @@ fn a_markup_expression_is_scanned_as_code_and_its_braces_are_balanced() {
 }
 
 #[test]
+fn an_unmapped_tag_attribute_names_a_language_rather_than_falling_back() {
+    // `default` applies only when no attribute names anything at all.
+    let named = run(
+        "html",
+        "<script type=\"text/x-handlebars\">\n// not js\n</script>\n",
+    );
+    assert_eq!(
+        named.regions.len(),
+        0,
+        "an unmapped type must not read as the default"
+    );
+    let bare = run("html", "<script>\n// js\n</script>\n");
+    assert_eq!(bare.regions.len(), 1);
+    let mapped = run("html", "<script lang=\"ts\">\n// ts\n</script>\n");
+    assert_eq!(mapped.regions.len(), 1);
+}
+
+#[test]
 fn an_embedded_region_in_no_known_language_stays_code() {
     // JSON has no comments, so `//` inside one is data, not prose.
     let src = "<script type=\"application/json\">\n{\"a\": \"//b\"}\n</script>\n";

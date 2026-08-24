@@ -12,7 +12,7 @@ use crate::diagnostic::{Diagnostic, Level};
 use crate::scan::scan_in;
 use crate::syntax::Syntax;
 
-/// A NUL in the head is what no text encoding produces and every binary does.
+/// A NUL means an encoding this tool does not read: a binary, or UTF-16, which is text.
 fn is_binary(bytes: &[u8]) -> bool {
     bytes.iter().take(8192).any(|b| *b == 0)
 }
@@ -151,8 +151,7 @@ impl<'a> Engine<'a> {
         }
     }
 
-    /// Relative to the budget's directory; a path outside it is returned whole and matches
-    /// no allowance, because no budget in this tree governs it.
+    /// A path outside the budget's directory is returned whole and matches no allowance.
     fn relative(&self, path: &Path) -> PathBuf {
         path.canonicalize()
             .ok()

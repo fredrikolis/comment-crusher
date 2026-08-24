@@ -252,8 +252,8 @@ impl Config {
     }
 
     /// The base rules with every matching allowance applied, and the reasons that widened
-    /// them. `build_allowances` deserialized each one already, so the fallback below is
-    /// defence in depth rather than a path a caller can reach.
+    /// them. If a combination ever failed to deserialize, the unwidened base applies, which
+    /// is stricter than any allowance could make it and so can never under-report.
     pub fn rules_for(&self, rel: &Path) -> (Rules, Vec<String>) {
         let matched = self.matching(rel);
         if matched.is_empty() {

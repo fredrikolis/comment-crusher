@@ -212,7 +212,7 @@ impl<'a> Scanner<'a> {
         self.advance_to(body_start);
 
         let body = &self.src[body_start..end];
-        match self.resolve.language_named(spec.language_of(attrs)) {
+        match self.resolve.language_named(&spec.language_of(attrs)) {
             Some(child) => {
                 let inner = scan_at(body, child, self.resolve, self.depth + 1);
                 let (offset, line) = (body_start, self.line);

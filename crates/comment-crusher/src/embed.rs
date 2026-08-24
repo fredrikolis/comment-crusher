@@ -20,15 +20,15 @@ impl EmbedSpec {
         self.open.starts_with('<')
     }
 
-    pub fn language_of(&self, attrs: &str) -> &str {
+    /// An attribute that is present but unmapped names a language this table does not have,
+    /// so the body stays code. Falling back to `default` there would guess.
+    pub fn language_of(&self, attrs: &str) -> String {
         for name in &self.attrs {
-            if let Some(value) = attr_value(attrs, name)
-                && let Some(lang) = self.map.get(&value)
-            {
-                return lang;
+            if let Some(value) = attr_value(attrs, name) {
+                return self.map.get(&value).cloned().unwrap_or(value);
             }
         }
-        &self.default
+        self.default.clone()
     }
 }
 

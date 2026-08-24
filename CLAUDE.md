@@ -12,19 +12,19 @@
 5. **One repo answer.** The same budget must hold in CI, in a hook, and against a single file.
 6. **Simplicity is king.** Least complexity. Adding a language is configuration, not code.
 
-## Layout
+## Layout, relative to `crates/comment-crusher/src/`
 
 | Path | Role |
 |---|---|
-| `src/default_config.toml` | the language table and the shipped thresholds |
-| `src/syntax.rs` | the resolved token table a scan matches against |
-| `src/embed.rs` | where one language inside another ends, and which it is |
-| `src/scan.rs` | the scanner: text + syntax -> comment regions and code |
-| `src/config.rs` | layered config, allowances, language resolution |
-| `src/rules/` | one module per rule, each owning its `Config` and check |
-| `src/engine.rs` | walking, parallelism, per-file dispatch |
-| `src/cli.rs` | the CLI surface, the report, and the `--help` legend |
-| `corpus.toml` / `corpus-expected.toml` | the pinned repos, and their totals |
+| `default_config.toml` | the language table and the shipped thresholds |
+| `syntax.rs` | the resolved token table a scan matches against |
+| `embed.rs` | where one language inside another ends, and which it is |
+| `scan.rs` | the scanner: text + syntax -> comment regions and code |
+| `config.rs` | layered config, allowances, language resolution |
+| `rules/` | one module per rule, each owning its `Config` and check |
+| `engine.rs` | walking, parallelism, per-file dispatch |
+| `cli.rs` | the CLI surface, the report, and the `--help` legend |
+| `../../../corpus.toml` + `corpus-expected.toml` | the pinned repos and their totals |
 
 ## Before every change
 
@@ -47,8 +47,8 @@ gitignored `target/corpus/`. Three assertions over them:
 
 ## Adding a language
 
-`src/default_config.toml` is the table; knobs are documented under LANGUAGE TABLE in `--help`
-(`src/cli.rs`). A recombination of proved constructs needs a snippet in `src/scan_tests.rs`,
+`default_config.toml` is the table; knobs are documented under LANGUAGE TABLE in `--help`
+(`src/cli.rs`). A recombination of proved constructs needs a snippet in `scan_tests.rs`,
 written in the language's real syntax; a new construct needs a corpus repo.
 
 ## Gates
@@ -61,10 +61,10 @@ commits go through [git-agent-verdict](https://github.com/fredrikolis/git-agent-
 
 ## Invariants worth knowing
 
-- **Partition.** Comment chars plus code chars equal a file's visible chars, always, checked
-  over the whole corpus. A merged run of whole-line comments must never span code.
-- **An embedded region is named, never guessed.** An unresolved child leaves the body code,
-  which under-reports rather than inventing comments. Nesting stops at depth 3.
+- **Partition.** Comment chars plus code chars equal a file's visible chars, checked over the
+  whole corpus. A merged run of whole-line comments must never span code.
+- **An embedded region is named, never guessed**, including a tag attribute that is present
+  but unmapped. An unresolved child leaves the body code. Nesting stops at depth 3.
 - **Every knob has one home**: the LANGUAGE TABLE in `--help` (`src/cli.rs`). The table and
   the structs mirroring it carry no prose.
 

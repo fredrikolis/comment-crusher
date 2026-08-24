@@ -21,7 +21,7 @@ pub fn binary(cfg: &Config, file: &Path) -> Option<Diagnostic> {
             NAME,
             cfg.level,
             file,
-            "is binary, so nothing in it is measured".to_string(),
+            "is not UTF-8 or Latin-1 text, so nothing in it is measured".to_string(),
             HELP,
         )
     })

@@ -166,8 +166,8 @@ code_chars = 24679
 ["coffeescript".html]
 files = 49
 lines = 96946
-comment_chars = 49928
-code_chars = 2934534
+comment_chars = 54311
+code_chars = 2930151
 
 ["coffeescript".javascript]
 files = 27
@@ -832,8 +832,8 @@ code_chars = 34
 ["pug".html]
 files = 127
 lines = 1025
-comment_chars = 285
-code_chars = 17594
+comment_chars = 254
+code_chars = 17625
 
 ["pug".ini]
 files = 1
