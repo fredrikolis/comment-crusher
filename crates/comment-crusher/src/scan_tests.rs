@@ -16,7 +16,7 @@ fn run(ext: &str, src: &str) -> Scan {
 
 fn split(ext: &str, src: &str) -> (usize, usize) {
     let s = run(ext, src);
-    (s.comment_chars(true, false), s.code_chars)
+    (s.charged_chars(true, None), s.code_chars)
 }
 
 fn visible(src: &str) -> usize {
@@ -145,7 +145,7 @@ fn an_embedded_child_is_counted_exactly_once() {
     ] {
         let scan = run(ext, src);
         assert_eq!(
-            scan.comment_chars(true, false) + scan.code_chars,
+            scan.charged_chars(true, None) + scan.code_chars,
             visible(src),
             "{ext}: {src:?}"
         );
@@ -219,7 +219,7 @@ fn an_empty_block_comment_does_not_swallow_the_file() {
         assert_eq!(scan.regions.len(), 1, "{ext}");
         assert_eq!(scan.regions[0].chars, 4, "{ext}: {:?}", scan.regions[0]);
         assert_eq!(
-            scan.comment_chars(true, false) + scan.code_chars,
+            scan.charged_chars(true, None) + scan.code_chars,
             visible(src),
             "{ext}"
         );
@@ -489,7 +489,7 @@ fn real_source_in_every_language_yields_the_comments_it_contains() {
             scan.regions.iter().map(|r| r.chars).collect::<Vec<_>>()
         );
         assert_eq!(
-            scan.comment_chars(true, false) + scan.code_chars,
+            scan.charged_chars(true, None) + scan.code_chars,
             visible(src),
             "{}: partition",
             syn.name
@@ -544,17 +544,21 @@ fn a_header_is_exempt_only_up_to_the_size_a_banner_really_is() {
     let body = "fn f() -> u32 { 1 }\n";
     let small = run("rs", &format!("{banner}{body}"));
     assert_eq!(
-        small.header_excess(true, 400),
+        small.charged_chars(true, Some(400)),
         0,
         "a real banner is covered"
     );
 
     let essay: String = std::iter::repeat_n("// essay essay essay essay essay\n", 30).collect();
     let big = run("rs", &format!("{essay}{body}"));
+    let charged = big.charged_chars(true, Some(400));
     assert!(
-        big.header_excess(true, 400) > 0,
+        charged > 0,
         "an essay under a banner's name is charged for the excess"
     );
-    // Without the exemption there is no excess to add; it was all counted already.
-    assert_eq!(big.header_excess(false, 400), 0);
+    assert_eq!(
+        big.charged_chars(true, None),
+        charged + 400,
+        "without the exemption the same essay is charged in full"
+    );
 }

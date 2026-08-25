@@ -171,7 +171,7 @@ impl Config {
                 .unwrap_or_default(),
         )?;
 
-        let allowances = build_allowances(table, cli_allow)?;
+        let allowances = build_allowances(table, cli_allow, &base)?;
 
         let sets: HashMap<String, Vec<RawEmbed>> = section(table, "embed_sets")?;
         let raw_langs: HashMap<String, RawLanguage> = section(table, "languages")?;
@@ -278,7 +278,11 @@ impl Resolve for Config {
     }
 }
 
-fn build_allowances(table: &Table, cli_allow: &[(String, String)]) -> Result<Vec<Allowance>> {
+fn build_allowances(
+    table: &Table,
+    cli_allow: &[(String, String)],
+    base: &Rules,
+) -> Result<Vec<Allowance>> {
     let declared: Vec<RawAllow> = table
         .get("allow")
         .cloned()
@@ -295,7 +299,7 @@ fn build_allowances(table: &Table, cli_allow: &[(String, String)]) -> Result<Vec
             set: raw
                 .set
                 .iter()
-                .map(|s| parse_setting(s))
+                .map(|s| parse_setting(s, base))
                 .collect::<Result<_>>()?,
         });
     }
@@ -303,7 +307,7 @@ fn build_allowances(table: &Table, cli_allow: &[(String, String)]) -> Result<Vec
         allowances.push(Allowance {
             reason: "--allow".to_string(),
             globs: build_globs(std::slice::from_ref(glob))?,
-            set: vec![parse_setting(setting)?],
+            set: vec![parse_setting(setting, base)?],
         });
     }
 
@@ -476,6 +480,26 @@ impl Widenable {
         (doc_length::NAME, "max_lines", Self::DocLines, f64::INFINITY),
     ];
 
+    /// An allowance may widen a bound a hundredfold. Past that it is not widening it, it is
+    /// removing it: the corpus's longest document is 3419 lines against a shipped 77.
+    const CEILING: f64 = 100.0;
+
+    /// The shipped value, which the ceiling is relative to.
+    #[expect(
+        clippy::cast_precision_loss,
+        reason = "shipped line counts are two-digit numbers"
+    )]
+    const fn shipped(self, base: &Rules) -> f64 {
+        match self {
+            Self::CommentRatio => base.comment_ratio.max_ratio,
+            Self::BlockLines => base.comment_block.max_lines as f64,
+            Self::BlockDocLines => base.comment_block.doc_max_lines as f64,
+            Self::BlockHeaderLines => base.comment_block.header_max_lines as f64,
+            Self::BlockChars => base.comment_block.max_chars as f64,
+            Self::DocLines => base.doc_length.max_lines as f64,
+        }
+    }
+
     #[expect(
         clippy::cast_possible_truncation,
         clippy::cast_sign_loss,
@@ -495,7 +519,7 @@ impl Widenable {
 }
 
 /// `comment-ratio.max_ratio=0.4` -> the dotted path and its typed value.
-fn parse_setting(s: &str) -> Result<(Widenable, f64)> {
+fn parse_setting(s: &str, base: &Rules) -> Result<(Widenable, f64)> {
     let Some((path, raw)) = s.split_once('=') else {
         bail!("`{s}` is not <rule>.<field>=<value>");
     };
@@ -514,8 +538,12 @@ fn parse_setting(s: &str) -> Result<(Widenable, f64)> {
     let Ok(value) = raw.trim().parse::<f64>() else {
         bail!("`{s}` is not a number");
     };
-    if value <= 0.0 || value >= *limit {
+    if !value.is_finite() || value <= 0.0 || value >= *limit {
         bail!("`{s}` would leave the path exempt; an allowance only ever widens a bound");
+    }
+    let ceiling = field.shipped(base) * Widenable::CEILING;
+    if value > ceiling {
+        bail!("`{s}` exceeds {ceiling:.0}, a hundred times what ships; that removes the bound");
     }
     Ok((*field, value))
 }

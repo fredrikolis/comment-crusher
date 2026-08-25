@@ -192,7 +192,7 @@ impl<'a> Engine<'a> {
             prose: syn.prose,
             lines: result.total_lines,
             code_chars: result.code_chars,
-            comment_chars: result.comment_chars(true, false),
+            comment_chars: result.charged_chars(true, None),
         };
         let diags = rules
             .check(&rel, syn, &result)

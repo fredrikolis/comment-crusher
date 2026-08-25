@@ -232,6 +232,10 @@ fn an_allowance_cannot_exempt_a_file_only_widen_its_bound() {
         // A ratio can never exceed 1, so the rule could never fire.
         "comment-ratio.max_ratio=1",
         "comment-ratio.max_ratio=2",
+        // Past a hundredfold a bound is not widened, it is gone.
+        "doc-length.max_lines=1e30",
+        "doc-length.max_lines=99999999999",
+        "doc-length.max_lines=7701",
         // Not a bound at all.
         "comment-ratio.count_doc_comments=false",
         "comment-ratio.skip_header=true",
@@ -387,4 +391,33 @@ fn a_broken_config_arrives_as_a_located_diagnostic() {
     );
     assert!(!d["message"].as_str().unwrap_or_default().contains('\n'));
     assert_eq!(code(&out), 3);
+}
+
+/// A file the scanner cannot read is reported as that, under its own code — never counted
+/// as if it were empty.
+#[test]
+fn a_file_that_cannot_be_read_says_so_under_its_own_code() {
+    let dir = tempfile::tempdir().expect("tempdir");
+    std::fs::write(dir.path().join("blob.rs"), b"fn f() {}\0\0\0").expect("write");
+    let out = run(dir.path(), &["blob.rs", "--format", "json"]);
+    assert_eq!(code(&out), 3);
+    assert!(
+        stdout(&out).contains("unreadable.binary"),
+        "{}",
+        stdout(&out)
+    );
+
+    #[cfg(unix)]
+    {
+        use std::os::unix::fs::PermissionsExt as _;
+        let locked = dir.path().join("locked.rs");
+        std::fs::write(&locked, "fn f() {}\n").expect("write");
+        std::fs::set_permissions(&locked, std::fs::Permissions::from_mode(0o000)).expect("chmod");
+        // Root reads it anyway, and then there is nothing to assert.
+        if std::fs::read(&locked).is_err() {
+            let out = run(dir.path(), &["locked.rs", "--format", "json"]);
+            assert_eq!(code(&out), 3);
+            assert!(stdout(&out).contains("unreadable.io"), "{}", stdout(&out));
+        }
+    }
 }

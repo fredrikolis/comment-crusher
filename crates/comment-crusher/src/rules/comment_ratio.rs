@@ -30,8 +30,10 @@ pub fn check(cfg: &Config, file: &Path, scan: &Scan) -> Option<Diagnostic> {
     if cfg.level == Level::Allow || cfg.max_ratio <= 0.0 {
         return None;
     }
-    let comment = scan.comment_chars(cfg.count_doc_comments, cfg.skip_header)
-        + scan.header_excess(cfg.skip_header, cfg.header_max_chars);
+    let comment = scan.charged_chars(
+        cfg.count_doc_comments,
+        cfg.skip_header.then_some(cfg.header_max_chars),
+    );
     let total = comment + scan.code_chars;
     if total < cfg.min_chars {
         return None;

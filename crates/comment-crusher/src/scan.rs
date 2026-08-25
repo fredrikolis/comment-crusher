@@ -12,7 +12,7 @@ pub struct Region {
     pub start_line: usize,
     pub end_line: usize,
     pub chars: usize,
-    /// 1-based, of the region's first and last character.
+    /// 1-based; `end_column` is exclusive, as `end` is.
     pub start_column: usize,
     pub end_column: usize,
     pub kind: CommentKind,
@@ -42,23 +42,15 @@ pub struct Scan {
 }
 
 impl Scan {
-    /// Header characters past what the exemption covers.
-    pub fn header_excess(&self, skip_header: bool, allowed: usize) -> usize {
-        if !skip_header {
-            return 0;
-        }
-        self.regions
-            .first()
-            .filter(|r| r.header)
-            .map_or(0, |r| r.chars.saturating_sub(allowed))
-    }
-
-    pub fn comment_chars(&self, count_doc: bool, skip_header: bool) -> usize {
+    /// `None` charges a header in full, not just its excess.
+    pub fn charged_chars(&self, count_doc: bool, header_allowance: Option<usize>) -> usize {
         self.regions
             .iter()
             .filter(|r| count_doc || r.kind == CommentKind::Plain)
-            .filter(|r| !(skip_header && r.header))
-            .map(|r| r.chars)
+            .map(|r| match header_allowance {
+                Some(allowed) if r.header => r.chars.saturating_sub(allowed),
+                _ => r.chars,
+            })
             .sum()
     }
 }
