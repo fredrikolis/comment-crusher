@@ -1,9 +1,7 @@
-# Concern: opens and lands the release pull request, tagging from the conventional-commit history | Non-concern: the checks a commit must clear (ci.yml) | IO: (pushes to main) -> release PR, tag
+# Concern: opens and lands the release pull request, on request only | Non-concern: the checks a commit must clear (ci.yml) | IO: (a manual run) -> release PR, tag
 name: Release Please
 
 on:
-  push:
-    branches: [main]
   workflow_dispatch:
 
 permissions:
