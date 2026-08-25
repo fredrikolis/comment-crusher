@@ -229,9 +229,9 @@ fn snippet_only() -> Vec<&'static str> {
         .collect()
 }
 
-/// Snippets alone cannot prove depth-counting, so this records that no pinned repo writes one.
+/// Snippets alone cannot prove depth-counting, so a pinned repository has to write one.
 #[test]
-fn nesting_is_the_one_construct_no_pinned_repository_writes() {
+fn a_pinned_repository_nests_a_block_comment() {
     let root = corpus_root();
     let config = Config::defaults().expect("defaults");
     let mut found: Vec<String> = Vec::new();
@@ -253,13 +253,13 @@ fn nesting_is_the_one_construct_no_pinned_repository_writes() {
             if comment_crusher::scan_in(&text, syn, &config).code_chars
                 != comment_crusher::scan_in(&text, &flat, &config).code_chars
             {
-                found.push(format!("{name}/{}", f.path.display()));
+                found.push(format!("{name}/{} ({})", f.path.display(), syn.name));
             }
         }
     }
     assert!(
-        found.is_empty(),
-        "a pinned repository nests a block comment. Assert over it in place of this test:\n{}",
-        found.join("\n")
+        !found.is_empty(),
+        "no pinned repository nests a block comment, so the 16 languages that declare it \
+         rest on snippets alone. Pin one that does."
     );
 }

@@ -464,7 +464,11 @@ const CASES: &[(&str, &str, usize)] = &[
     ("svelte", "<!-- b -->\n<p>x</p>\n", 1),
     ("swift", "// n\nlet x = 1\n/* b */\nlet y = 2\n", 2),
     ("tcl", "# n\nset s \"first\n# not a comment\nlast\"\n", 1),
-    ("tf", "# n\nx = 1\n// also\ny = 2\n/* b */\nz = 3\n", 3),
+    (
+        "tf",
+        "# n\nx = 1\n// also\ny = 2\n/* b */\nuser_data = <<-EOT\n# not a comment\nEOT\n",
+        3,
+    ),
     (
         "thrift",
         "// n\nstruct S {}\n# also\nstruct T {}\n/* b */\nstruct U {}\n",

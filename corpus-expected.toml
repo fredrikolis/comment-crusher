@@ -601,6 +601,48 @@ lines = 176
 comment_chars = 311
 code_chars = 2783
 
+["lwt".c]
+files = 137
+lines = 10993
+comment_chars = 77739
+code_chars = 167000
+
+["lwt".make]
+files = 2
+lines = 110
+comment_chars = 395
+code_chars = 1858
+
+["lwt".markdown]
+files = 6
+lines = 556
+comment_chars = 0
+code_chars = 17773
+
+["lwt".ocaml]
+files = 114
+lines = 35045
+comment_chars = 267597
+code_chars = 536961
+
+["lwt".python]
+files = 1
+lines = 83
+comment_chars = 117
+code_chars = 1702
+
+["lwt".shell]
+files = 1
+lines = 24
+comment_chars = 38
+code_chars = 556
+
+["lwt".yaml]
+files = 3
+lines = 132
+comment_chars = 26
+code_chars = 2728
+
 ["mono-basic".batch]
 files = 24
 lines = 991

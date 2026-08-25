@@ -1,7 +1,7 @@
 <!-- Concern: what comment-crusher is, what it measures, and how to configure it | Non-concern: the exhaustive flag reference (--help owns it) or how this repo is developed (CLAUDE.md) | IO: none -->
 # comment-crusher
 
-Across 90 languages from one binary, comment-crusher fails a file whose comment-to-code ratio
+Across 91 languages from one binary, comment-crusher fails a file whose comment-to-code ratio
 is over budget, whose single comment runs too long, or whose document is longer than allowed.
 
 ```
@@ -30,12 +30,12 @@ Generated trees are not measured: `.gitignore` applies, plus `target`, `node_mod
 ## Use
 
 ```sh
+cargo install --git https://github.com/fredrikolis/comment-crusher
 comment-crusher src/parser.rs  # one file, the agent-hook path; add --format json
 ```
 
-Install with `cargo install --git https://github.com/fredrikolis/comment-crusher`. The budget
-lives in `.comment-crusher.toml`, found by walking up from the target, so one answer holds in
-CI, in a hook, and against a file an agent just wrote. Exit codes:
+The budget lives in `.comment-crusher.toml`, found by walking up from the target, so one
+answer holds in CI, in a hook, and against a file an agent just wrote. Exit codes:
 
 | 0 | 1 | 2 | 3 | 24 |
 |---|---|---|---|---|
@@ -50,7 +50,7 @@ CI, in a hook, and against a file an agent just wrote. Exit codes:
 | `doc-length` | a prose document (`.md`, `.rst`, `.adoc`, `.txt`, and kin) | 77 lines |
 | `unreadable` | a resolved file that is binary or cannot be read | deny |
 
-Across the 41 repositories the tests measure, the median comment share is 15.5%, and 77 lines
+Across the 42 repositories the tests measure, the median comment share is 15.6%, and 77 lines
 is under their documents' p75 of 87. `comment-block` is policy, not a measurement.
 
 **Comment** is markers, their delimiters, doc comments and docstrings. **Code** is strings,
@@ -70,8 +70,8 @@ adding one is a row in `default_config.toml`.
   which is what a scanner that only matched `//` and `/*` would miscount.
 - `<script>` and `<style>` scanned as the language their tag names, across HTML, Vue, Svelte
   and Astro; named, never guessed, so a `type=` the table does not map leaves its body code.
-- Nothing is measured on trust: comment plus code equals the file's visible chars over 41
-  pinned repositories, and every declared marker has opened a real comment in one, bar the
-  rare forms `snippet-only.txt` names and snippets cover.
+- Comment plus code equals the file's visible chars over 42 pinned repositories, and every
+  declared marker has opened a real comment in one, bar the rare forms `snippet-only.txt`
+  names and snippets cover.
 
 MIT licence.

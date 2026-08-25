@@ -8,7 +8,7 @@ exclude = ["target", "node_modules", "vendor", "dist", "build", ".venv"]
 [rules.comment-ratio]
 # Characters, not lines, so a trailing `// why` costs what it occupies.
 level = "deny"
-# Measured where this rule applies, prose excluded: per-repo median of the 41 pinned, 15.5%.
+# Measured where this rule applies, prose excluded: per-repo median of the 42 pinned, 15.6%.
 max_ratio = 0.15
 # Doc comments count too; at file scope they are usually the larger share.
 count_doc_comments = true
@@ -16,7 +16,7 @@ count_doc_comments = true
 min_chars = 200
 # A fixed per-file cost the body is not charged for, bounded by header_max_chars.
 skip_header = true
-# Measured: p90 of the 47 corpus languages' median header, whose own median is 84 chars.
+# Measured: p90 of the 47 corpus languages' median header, whose own median is 86 chars.
 header_max_chars = 344
 
 [rules.comment-block]
@@ -38,7 +38,7 @@ level = "deny"
 [rules.doc-length]
 # Applies to `prose = true` languages only. Code files are bounded by comment-ratio.
 level = "deny"
-# Measured: the corpus's 723 prose documents run to a median of 25 lines, p75 of 87.
+# Measured: the corpus's 729 prose documents run to a median of 25 lines, p75 of 87.
 max_lines = 77
 
 # Every knob below is documented under LANGUAGE TABLE in `comment-crusher --help`.

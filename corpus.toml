@@ -247,3 +247,9 @@ name = "stylus"
 language = "stylus"
 url = "https://github.com/stylus/stylus"
 rev = "1086c6c1fbd7a7fd0ce9ad94f6cf4a62fc79a6e9" # 0.64.0
+
+[[repo]]
+name = "lwt"
+language = "ocaml"
+url = "https://github.com/ocsigen/lwt"
+rev = "da71600f47a9a1561ddf2585937aeaaf42bceaf1" # 6.1.2
