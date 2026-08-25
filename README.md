@@ -51,16 +51,16 @@ CI, in a hook, and against a file an agent just wrote. Exit codes:
 | `doc-length` | a prose document (`.md`, `.rst`, `.adoc`, `.txt`, and kin) | 77 lines |
 | `unreadable` | a resolved file that is binary or cannot be read | deny |
 
-Where the numbers come from: across the 38 real repositories the tests measure, the median
-comment share is 15.5% and the 75th-percentile document is 77 lines. `comment-block` is policy.
+Where the numbers come from: across the 41 repositories the tests measure, the median comment
+share is 15.5% and 77 lines is under their documents' p75 of 87. `comment-block` is policy.
 
 **Comment** is markers, their delimiters, doc comments and docstrings. **Code** is strings,
 heredoc bodies, the shebang, and fenced examples in a doc comment. The two are counted in
 characters and sum to the whole file, so a trailing `// why` costs what it occupies.
 
 A doc comment gets more room than a remark, and a banner more still: it is exempt from the
-ratio, so a small file can carry a mandated licence line and still have room for a comment.
-Only up to `header_max_chars`, past which it is charged like anything else.
+ratio up to `header_max_chars`, so a small file can carry a mandated licence line and still
+have room for a comment. Past that it is charged like anything else.
 
 ## Languages
 
@@ -71,7 +71,7 @@ adding one is a row in `default_config.toml`.
 - Nested blocks in 16 languages, heredocs in 6, docstrings in 4, raw strings, char literals:
   what a naive scanner miscounts, and a miscount is a budget that does not hold.
 - `<script>` and `<style>` scanned as the language their tag names, across HTML, Vue, Svelte
-  and Astro; named, never guessed, so an unmapped `type="application/json"` leaves its body code.
-- Nothing is measured on trust: comment plus code equals the file's visible chars over 38
+  and Astro; named, never guessed, so a `type=` the table does not map leaves its body code.
+- Nothing is measured on trust: comment plus code equals the file's visible chars over 41
   pinned repositories, and every declared marker has opened a real comment in one, bar the
   rare forms `snippet-only.txt` names and snippets cover. MIT licence.

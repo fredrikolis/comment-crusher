@@ -8,7 +8,7 @@ exclude = ["target", "node_modules", "vendor", "dist", "build", ".venv"]
 [rules.comment-ratio]
 # Characters, not lines, so a trailing `// why` costs what it occupies.
 level = "deny"
-# Measured where this rule applies, prose excluded: per-repo median of the 38 pinned, 15.5%.
+# Measured where this rule applies, prose excluded: per-repo median of the 41 pinned, 15.5%.
 max_ratio = 0.15
 # Doc comments count too; at file scope they are usually the larger share.
 count_doc_comments = true
@@ -16,16 +16,19 @@ count_doc_comments = true
 min_chars = 200
 # A fixed per-file cost the body is not charged for, up to the size a banner really is.
 skip_header = true
-# Measured: p90 of the 45 corpus languages' median header, whose own median is 90 chars.
-header_max_chars = 400
+# Measured: p90 of the 47 corpus languages' median header, whose own median is 84 chars.
+header_max_chars = 344
 
 [rules.comment-block]
 # One block comment, or one unbroken run of adjacent line comments.
 level = "deny"
-# Policy, not a measurement: the corpus trips this 13311 times at 1, still 4337 at 5.
+# Policy, not a measurement: the corpus runs past this 19820 times at 1, still 6317 at 5.
 max_lines = 1
+# Measured: corpus doc comments run to 8 lines at p75 and 14 at p90; their median is 4.
 doc_max_lines = 10
+# Measured: corpus headers run to 18 lines at p75 and 24 at p90; their median is 4.
 header_max_lines = 16
+# A backstop, not a target: corpus comments run to 223 chars at p90 and 983 at p99.
 max_chars = 400
 
 # A file whose language resolved but whose bytes are not text.
@@ -35,7 +38,7 @@ level = "deny"
 [rules.doc-length]
 # Applies to `prose = true` languages only. Code files are bounded by comment-ratio.
 level = "deny"
-# Measured: the 75th percentile of the corpus's 668 prose documents; their median is 22.
+# Measured: the corpus's 723 prose documents run to a median of 25 lines, p75 of 87.
 max_lines = 77
 
 # Every knob below is documented under LANGUAGE TABLE in `comment-crusher --help`.
