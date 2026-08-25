@@ -88,8 +88,7 @@ OUTPUT (--format json)
   A budget file that is not TOML is `config.syntax`, carrying the byte range the parser
   pointed at; one the tool refuses afterwards is `config.rejected`.
   `error` appears only when status is error. A field with no value is omitted, never null,
-  except `next_cursor`: the standard names it in every collection, and one reply answers
-  about every file, so there is never a page after it.
+  except `next_cursor`: the standard names it, and one reply leaves no page after it.
   `comment_chars` counts every comment in a file; a rule may judge a subset and says so.
   `location.span` is a byte offset and length; `location.start`/`end` are 1-based line and
   character column.
@@ -390,12 +389,13 @@ impl Cli {
             .first()
             .cloned()
             .unwrap_or_else(|| PathBuf::from("."));
+        // Or every reported path is measured against something else, glob included.
         if let Some(root) = &self.root
-            && !root.is_dir()
+            && !root.canonicalize().is_ok_and(|r| r.is_dir())
         {
             return Err((
                 Failure::NotFound,
-                anyhow::anyhow!("no such directory: {}", root.display()),
+                anyhow::anyhow!("not a directory --root can resolve: {}", root.display()),
             ));
         }
         // A directory is as much "not a config file" as a missing one.
@@ -416,9 +416,10 @@ impl Cli {
                     LoadFailure::Syntax(e, s) => (SYNTAX_RULE, e, Some(s)),
                     other => (REJECTED_RULE, other.into_error(), None),
                 };
-                // Relative to where the run was invoked, as every file finding is.
+                // Relative to the root, as every file finding is.
+                let root = self.root.clone().unwrap_or_else(|| anchor.clone());
                 let path = Config::source_path(&anchor, self.config.as_deref())
-                    .map_or_else(|| PathBuf::from(CONFIG_FILE), |p| relative_to_cwd(&p));
+                    .map_or_else(|| PathBuf::from(CONFIG_FILE), |p| relative_to(&root, &p));
                 return Ok(Report {
                     files: Vec::new(),
                     diagnostics: vec![config_diagnostic(code, &path, &format!("{e:#}"), span)],
@@ -515,10 +516,10 @@ impl Cli {
     }
 }
 
-fn relative_to_cwd(path: &Path) -> PathBuf {
-    std::env::current_dir()
+fn relative_to(root: &Path, path: &Path) -> PathBuf {
+    root.canonicalize()
         .ok()
-        .and_then(|cwd| path.strip_prefix(&cwd).ok().map(Path::to_path_buf))
+        .and_then(|r| path.strip_prefix(&r).ok().map(Path::to_path_buf))
         .unwrap_or_else(|| path.to_path_buf())
 }
 

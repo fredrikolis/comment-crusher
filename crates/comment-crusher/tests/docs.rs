@@ -114,3 +114,31 @@ fn the_readme_and_help_list_the_exit_codes_the_binary_returns() {
         );
     }
 }
+
+/// Every numeric bound a rule ships must be one an allowance can widen, or adding a field to
+/// a rule leaves it silently unreachable from `[[allow]]`.
+#[test]
+fn every_shipped_bound_is_widenable() {
+    let t = defaults();
+    let rules = t["rules"].as_table().expect("rules");
+    let mut missing = Vec::new();
+    for (rule, body) in rules {
+        for (field, value) in body.as_table().expect("rule table") {
+            // `level` is not a bound, and a floor decides whether a rule applies at all.
+            if value.as_integer().is_none() && value.as_float().is_none() {
+                continue;
+            }
+            if matches!(field.as_str(), "min_chars" | "header_free_chars") {
+                continue;
+            }
+            let path = format!("{rule}.{field}");
+            if !comment_crusher::config::widenable(&path) {
+                missing.push(path);
+            }
+        }
+    }
+    assert!(
+        missing.is_empty(),
+        "shipped bounds no allowance can widen: {missing:?}"
+    );
+}

@@ -13,10 +13,10 @@ error: src/parser.rs [comment-ratio] 41% comment (2104/5117 chars), budget is 15
 
 ## No file is exempt
 
-An allowance widens a bound for the paths it names. It cannot remove one or switch a rule off,
-and it stops at a hundredfold, or at whatever the field itself allows: a ratio never reaches 1.
-A gas expands to occupy whatever volume it is given; an LLM fills whatever space is available
-with words.
+An allowance **widens** a bound for the paths it names. It **cannot remove** one or switch a
+rule off, it **stops at a hundredfold** of what ships, and it **cannot pass what the field
+allows**: a ratio never reaches 1. A gas expands to occupy whatever volume it is given; an LLM
+fills whatever space is available with words.
 
 ```toml
 [[allow]]
@@ -51,7 +51,7 @@ answer holds in CI, in a hook, and against a file an agent just wrote. Exit code
 | Rule | Bounds | Default |
 |---|---|---|
 | `comment-ratio` | comment chars as a share of comment plus code | 15%, under 200 chars skipped |
-| `comment-block` | one block comment, or one run of whole-line comments | 1 line and 163 chars; 8 and 314 for a doc comment; 13 and 971 for a banner |
+| `comment-block` | one block comment, or one run of whole-line comments | 1 line and 164 chars; 8 and 314 for a doc comment; 13 and 971 for a banner |
 | `doc-length` | a prose document (`.md`, `.rst`, `.adoc`, `.txt`, and kin) | 90 lines |
 | `unreadable` | a resolved file that is binary or cannot be read | deny |
 

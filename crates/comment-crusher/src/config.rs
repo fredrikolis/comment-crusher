@@ -328,6 +328,12 @@ impl Resolve for Config {
     }
 }
 
+/// Whether `<rule>.<field>` is a bound an allowance may widen.
+#[must_use]
+pub fn widenable(path: &str) -> bool {
+    Widenable::ALL.iter().any(|b| b.path() == path)
+}
+
 fn shipped_table() -> Result<Table> {
     toml::from_str(DEFAULTS).context("built-in default config is invalid")
 }
