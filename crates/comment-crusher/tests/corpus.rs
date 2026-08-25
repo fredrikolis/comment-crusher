@@ -167,8 +167,7 @@ fn every_comment_marker_has_fired_on_real_source() {
                 continue;
             }
             let key = format!("{} {token}", syn.name);
-            // The same token elsewhere is the same scanner path, unless this language
-            // anchors it or cancels it: then only this language proves this language.
+            // The same token elsewhere is the same path, unless this language anchors it.
             let own = syn.line_anchored || !syn.exceptions.is_empty();
             let elsewhere = !own && fired.iter().any(|f| f.ends_with(&format!(" {token}")));
             if fired.contains(&key) || elsewhere {
