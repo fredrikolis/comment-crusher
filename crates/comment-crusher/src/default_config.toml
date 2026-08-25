@@ -14,10 +14,10 @@ max_ratio = 0.15
 count_doc_comments = true
 # Below this, a stub would be trivially "100% comments".
 min_chars = 200
-# A fixed per-file cost the body is not charged for, bounded by header_max_chars.
+# A fixed per-file cost the body is not charged for, up to header_free_chars.
 skip_header = true
 # Measured: p90 of the median header in the 48 corpus languages that carry one, itself 90.
-header_max_chars = 344
+header_free_chars = 344
 
 [rules.comment-block]
 # One block comment, or one unbroken run of adjacent line comments.
