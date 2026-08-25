@@ -624,3 +624,33 @@ fn the_allowance_ceiling_does_not_compound_with_the_repo_budget() {
     assert_eq!(code(&out), 3, "{}", stdout(&out));
     assert!(stdout(&out).contains("9000"), "{}", stdout(&out));
 }
+
+/// Every path in a report is relative to the root it is about, and a file named twice is
+/// measured once.
+#[test]
+fn one_path_convention_and_no_file_counted_twice() {
+    let dir = tempfile::tempdir().expect("tempdir");
+    write(dir.path(), "repo/src/a.rs", &lean_rust());
+    write(dir.path(), "outside/b.rs", &lean_rust());
+    let repo = dir.path().join("repo");
+    let outside = dir.path().join("outside/b.rs");
+
+    let out = Command::new(BIN)
+        .args([
+            ".".as_ref(),
+            "../outside/b.rs".as_ref(),
+            outside.as_os_str(),
+            "--format".as_ref(),
+            "json".as_ref(),
+        ])
+        .current_dir(&repo)
+        .output()
+        .expect("binary runs");
+    let v: serde_json::Value =
+        serde_json::from_str(&String::from_utf8_lossy(&out.stdout)).expect("valid JSON");
+    let paths: Vec<&str> = v["data"]["files"]
+        .as_array()
+        .map(|a| a.iter().filter_map(|f| f["path"].as_str()).collect())
+        .unwrap_or_default();
+    assert_eq!(paths, vec!["../outside/b.rs", "src/a.rs"], "{paths:?}");
+}

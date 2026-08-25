@@ -510,9 +510,6 @@ impl Cli {
     }
 }
 
-/// A configuration failure is a finding about a file.
-///
-/// So it reaches an agent as one, not as a multi-line blob it must read as prose.
 fn relative_to_cwd(path: &Path) -> PathBuf {
     std::env::current_dir()
         .ok()
@@ -520,6 +517,9 @@ fn relative_to_cwd(path: &Path) -> PathBuf {
         .unwrap_or_else(|| path.to_path_buf())
 }
 
+/// A configuration failure is a finding about a file.
+///
+/// So it reaches an agent as one, not as a multi-line blob it must read as prose.
 fn config_diagnostic(
     rule: &'static str,
     path: &Path,

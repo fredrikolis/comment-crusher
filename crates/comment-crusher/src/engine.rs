@@ -139,6 +139,17 @@ impl<'a> Engine<'a> {
         }
         out.sort();
         out.dedup();
+        // One target cannot name a file twice, and resolving every walked path costs a
+        // syscall each. Two can, so those are deduplicated by what they resolve to.
+        if targets.len() > 1 {
+            let mut keyed: Vec<(PathBuf, PathBuf)> = out
+                .into_iter()
+                .map(|p| (p.canonicalize().unwrap_or_else(|_| p.clone()), p))
+                .collect();
+            keyed.sort();
+            keyed.dedup_by(|a, b| a.0 == b.0);
+            return keyed.into_iter().map(|(_, p)| p).collect();
+        }
         out
     }
 
@@ -177,8 +188,25 @@ impl<'a> Engine<'a> {
         }
     }
 
+    /// One convention for every path in a report: relative to the root it is about, with
+    /// `..` where a target lies outside it. A consumer joins root and path and gets the file.
     fn relative(&self, path: &Path) -> PathBuf {
-        self.rooted(path).unwrap_or_else(|| path.to_path_buf())
+        let Ok(abs) = path.canonicalize() else {
+            return path.to_path_buf();
+        };
+        if let Ok(inside) = abs.strip_prefix(&self.root) {
+            return inside.to_path_buf();
+        }
+        let shared = self
+            .root
+            .components()
+            .zip(abs.components())
+            .take_while(|(a, b)| a == b)
+            .count();
+        let mut out: PathBuf =
+            std::iter::repeat_n("..", self.root.components().count() - shared).collect();
+        out.extend(abs.components().skip(shared));
+        out
     }
 
     fn rooted(&self, path: &Path) -> Option<PathBuf> {
