@@ -647,13 +647,15 @@ fn every_tag_attribute_reaches_the_language_it_names() {
             .find(|s| s.map.contains_key(*value))
             .unwrap();
         let tag = spec.open.trim_start_matches('<');
+        // How HTML is written, not how the table stores it: `<script type>`, `<style lang>`.
+        let attr = if tag == "script" { "type" } else { "lang" };
         unseen.retain(|k| k != value);
         let body = match *marker {
             "/*" => "/* n */".to_string(),
             "<!--" => "<!-- n -->".to_string(),
             _ => format!("{marker} n"),
         };
-        let src = format!("<{tag} lang=\"{value}\" type=\"{value}\">\nx\n{body}\n</{tag}>\n");
+        let src = format!("<{tag} {attr}=\"{value}\">\nx\n{body}\n</{tag}>\n");
         assert_eq!(
             run("html", &src).regions.len(),
             *want,

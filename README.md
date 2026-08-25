@@ -1,7 +1,7 @@
 <!-- Concern: what comment-crusher is, what it measures, and how to configure it | Non-concern: the exhaustive flag reference (--help owns it) or how this repo is developed (CLAUDE.md) | IO: none -->
 # comment-crusher
 
-Across 91 languages from one binary, comment-crusher fails a file whose comment-to-code ratio
+Across 91 languages from one binary, comment-crusher fails a file whose comment share
 is over budget, whose single comment runs too long, or whose document is longer than allowed.
 
 ```
@@ -45,7 +45,7 @@ answer holds in CI, in a hook, and against a file an agent just wrote. Exit code
 
 | Rule | Bounds | Default |
 |---|---|---|
-| `comment-ratio` | comment chars as a share of a code file | 15%, under 200 chars skipped |
+| `comment-ratio` | comment chars as a share of comment plus code | 15%, under 200 chars skipped |
 | `comment-block` | one block comment, or one run of whole-line comments | 1 line, 10 for a doc comment, 16 for a banner, 400 chars |
 | `doc-length` | a prose document (`.md`, `.rst`, `.adoc`, `.txt`, and kin) | 77 lines |
 | `unreadable` | a resolved file that is binary or cannot be read | deny |

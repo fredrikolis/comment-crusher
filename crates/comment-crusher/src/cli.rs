@@ -382,8 +382,8 @@ impl Cli {
             Format::Json => self.print_json(report, rejected),
             Format::Human if self.stats => {
                 print_stats(report);
-                // A table beside a failing exit code says nothing a CI log can act on.
-                if rejected {
+                // A table alone drops whatever the run found, warnings included.
+                if !report.diagnostics.is_empty() {
                     println!();
                     print_findings(report);
                 }
