@@ -1,9 +1,16 @@
+asciidoc //
+awk #
 batch ::
 batch Rem 
 cmake #[[
+dotenv #
+gas #
+gas /*
 julia #=
 lisp #|
 lua --[[
 perl =pod
+php #
 ruby =begin
 rust /*!
+tcl #
