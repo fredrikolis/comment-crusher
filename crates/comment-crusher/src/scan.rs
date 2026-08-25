@@ -571,18 +571,8 @@ fn find_ci(haystack: &str, needle: &str) -> Option<usize> {
         .position(|w| w.eq_ignore_ascii_case(needle.as_bytes()))
 }
 
-/// The 1-based line and column a byte offset falls on.
-pub(crate) fn place(src: &str, offset: usize) -> (usize, usize) {
-    let before = &src[..offset.min(src.len())];
-    let line_start = before.rfind('\n').map_or(0, |n| n + 1);
-    (
-        before.matches('\n').count() + 1,
-        before[line_start..].chars().count() + 1,
-    )
-}
-
 fn column_of(src: &str, offset: usize) -> usize {
-    place(src, offset).1
+    crate::diagnostic::place(src, offset).1
 }
 
 fn count_visible(s: &str) -> usize {

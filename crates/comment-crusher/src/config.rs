@@ -764,8 +764,8 @@ impl Located {
         Self {
             offset: start,
             length: end.saturating_sub(start),
-            start: crate::scan::place(text, start),
-            end: crate::scan::place(text, end),
+            start: crate::diagnostic::place(text, start),
+            end: crate::diagnostic::place(text, end),
         }
     }
 }
