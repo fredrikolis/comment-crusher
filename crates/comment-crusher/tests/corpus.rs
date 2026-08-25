@@ -228,3 +228,40 @@ fn snippet_only() -> Vec<&'static str> {
         .filter(|l| !l.is_empty())
         .collect()
 }
+
+/// Nesting is depth-counting, a scanner construct, so `scan_tests.rs` snippets are not enough
+/// on their own: this records that no pinned repository writes one, and fails the day one does
+/// — at which point the construct is provable from real source and should be proved there.
+#[test]
+fn nesting_is_the_one_construct_no_pinned_repository_writes() {
+    let root = corpus_root();
+    let config = Config::defaults().expect("defaults");
+    let mut found: Vec<String> = Vec::new();
+    for (name, dir) in repos(&root) {
+        let report = Engine::new(&config, Some(&dir)).run(std::slice::from_ref(&dir));
+        for f in &report.files {
+            let path = dir.join(&f.path);
+            let Some(syn) = config.language(&path) else {
+                continue;
+            };
+            if !syn.nested_block {
+                continue;
+            }
+            let Ok(text) = std::fs::read_to_string(&path) else {
+                continue;
+            };
+            let mut flat = syn.clone();
+            flat.nested_block = false;
+            if comment_crusher::scan_in(&text, syn, &config).code_chars
+                != comment_crusher::scan_in(&text, &flat, &config).code_chars
+            {
+                found.push(format!("{name}/{}", f.path.display()));
+            }
+        }
+    }
+    assert!(
+        found.is_empty(),
+        "a pinned repository nests a block comment. Assert over it in place of this test:\n{}",
+        found.join("\n")
+    );
+}
