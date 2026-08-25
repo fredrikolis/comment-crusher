@@ -9,6 +9,7 @@ use std::collections::{BTreeMap, BTreeSet};
 use std::fmt::Write as _;
 use std::path::{Path, PathBuf};
 
+use comment_crusher::syntax::CommentKind;
 use comment_crusher::{Config, Engine};
 
 const SNAPSHOT: &str = "../../corpus-expected.toml";
@@ -40,6 +41,16 @@ fn repos(root: &Path) -> Vec<(String, PathBuf)> {
     out
 }
 
+/// A file the tool declined to measure has no partition to check and no figure to feed.
+fn declined(report: &comment_crusher::engine::Report) -> BTreeSet<PathBuf> {
+    report
+        .diagnostics
+        .iter()
+        .filter(|d| d.rule.starts_with("unreadable"))
+        .filter_map(|d| d.file.clone())
+        .collect()
+}
+
 /// Per-language totals for one repo, the shape the snapshot pins.
 type Totals = BTreeMap<String, [usize; 4]>;
 
@@ -47,13 +58,7 @@ fn measure(dir: &Path) -> (Totals, Vec<String>) {
     let config = Config::defaults().expect("built-in defaults load");
     let report = Engine::new(&config, Some(dir)).run(std::slice::from_ref(&dir.to_path_buf()));
 
-    // A file the tool declined to measure has no partition to check.
-    let declined: BTreeSet<PathBuf> = report
-        .diagnostics
-        .iter()
-        .filter(|d| d.rule.starts_with("unreadable"))
-        .filter_map(|d| d.file.clone())
-        .collect();
+    let declined = declined(&report);
 
     let mut totals = Totals::new();
     let mut mismatches = Vec::new();
@@ -161,7 +166,21 @@ fn every_comment_marker_has_fired_on_real_source() {
             // The same token elsewhere is the same path, unless this language changes it.
             let anchored =
                 syn.line_anchored && matches!(opener, comment_crusher::syntax::Opener::Line(_));
-            let own = anchored || !syn.exceptions.is_empty() || !syn.cancel_after.is_empty();
+            // A doc marker is the language's own claim: `cpp ///` is not proved by Rust's.
+            let own = anchored
+                || matches!(
+                    opener,
+                    comment_crusher::syntax::Opener::Line(CommentKind::Doc)
+                )
+                || matches!(
+                    opener,
+                    comment_crusher::syntax::Opener::Block {
+                        kind: CommentKind::Doc,
+                        ..
+                    }
+                )
+                || !syn.exceptions.is_empty()
+                || !syn.cancel_after.is_empty();
             let elsewhere = !own && fired.iter().any(|f| f.ends_with(&format!(" {token}")));
             if fired.contains(&key) || elsewhere {
                 continue;
@@ -281,12 +300,7 @@ impl Figures {
     )]
     fn gather(&mut self, config: &Config, dir: &PathBuf) {
         let report = Engine::new(config, Some(dir)).run(std::slice::from_ref(dir));
-        let declined: BTreeSet<PathBuf> = report
-            .diagnostics
-            .iter()
-            .filter(|d| d.rule.starts_with("unreadable"))
-            .filter_map(|d| d.file.clone())
-            .collect();
+        let declined = declined(&report);
         let (mut comment, mut code) = (0usize, 0usize);
         for f in report.files.iter().filter(|f| !declined.contains(&f.path)) {
             if f.prose {
@@ -311,7 +325,7 @@ impl Figures {
     }
 
     fn region(&mut self, r: &comment_crusher::scan::Region, language: &str) {
-        let n = r.end_line - r.start_line + 1;
+        let n = r.lines();
         self.over_1 += usize::from(n > 1);
         self.over_5 += usize::from(n > 5);
         let kind = if r.header {
@@ -346,18 +360,13 @@ derived from | Non-concern: which bound is chosen from them (default_config.toml
         );
         let _ = write!(
             out,
-            "repo_comment_share_median = {:.3}\nprose_documents = {}\nprose_lines_p50 = {}\n\
-prose_lines_p75 = {}\ncomments_over_1_line = {}\ncomments_over_5_lines = {}\n\
-header_languages = {}\nheader_chars_language_median_p50 = {}\n\
+            "repo_comment_share_median = {:.3}\nprose_lines_p75 = {}\n\
+comments_over_1_line = {}\ncomments_over_5_lines = {}\n\
 header_chars_language_median_p90 = {}\n",
             self.shares[self.shares.len() / 2],
-            self.docs.len(),
-            pct(&self.docs, 0.50),
             pct(&self.docs, 0.75),
             self.over_1,
             self.over_5,
-            medians.len(),
-            pct(&medians, 0.50),
             pct(&medians, 0.90),
         );
         for kind in ["remark", "doc", "header"] {
@@ -365,16 +374,11 @@ header_chars_language_median_p90 = {}\n",
             let mut c = self.chars.remove(kind).unwrap_or_default();
             l.sort_unstable();
             c.sort_unstable();
-            let _ = write!(
-                out,
-                "\n[{kind}]\nlines_p50 = {}\nlines_p75 = {}\nlines_p90 = {}\nchars_p90 = {}\n\
-chars_p99 = {}\n",
-                pct(&l, 0.50),
-                pct(&l, 0.75),
-                pct(&l, 0.90),
-                pct(&c, 0.90),
-                pct(&c, 0.99)
-            );
+            // Only what a threshold derives from; a remark's line bound is policy.
+            let _ = write!(out, "\n[{kind}]\nchars_p90 = {}\n", pct(&c, 0.90));
+            if kind != "remark" {
+                let _ = writeln!(out, "lines_p75 = {}", pct(&l, 0.75));
+            }
         }
         out
     }

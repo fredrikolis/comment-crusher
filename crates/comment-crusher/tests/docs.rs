@@ -1,4 +1,4 @@
-// Concern: holds the README and --help to the numbers that ship | Non-concern: whether a bound is right (default_config.toml argues that) | IO: (docs, config) -> pass/fail
+// Concern: holds the README, --help and every bound to the figures and defaults that ship | Non-concern: measuring the corpus (tests/corpus.rs) | IO: (docs, config, figures) -> pass/fail
 
 #![allow(
     clippy::expect_used,

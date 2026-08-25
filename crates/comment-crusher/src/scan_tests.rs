@@ -391,7 +391,11 @@ const CASES: &[(&str, &str, usize)] = &[
     ("clj", "; n\n(def x 1)\n", 1),
     ("cmake", "# n\nset(X 1)\n#[[ b ]]\nset(Y 2)\n", 2),
     ("coffee", "# n\nx = 1\n### b ###\ny = 2\n", 2),
-    ("cc", "// n\nint x = 1;\n/* b */\nauto s = \"// no\";\n", 2),
+    (
+        "cc",
+        "// n\nint x = 1;\n/* b */\nauto s = \"// no\";\n/// d\nint y = 2;\n/** e */\nint z = 3;\n",
+        4,
+    ),
     ("cr", "# n\ns = <<-TEXT\n  # not a comment\n  TEXT\n", 1),
     ("cs", "// n\nint x = 1;\n/* b */\nvar s = \"// no\";\n", 2),
     ("css", "/* b */\na { color: red; }\n", 1),
@@ -410,7 +414,11 @@ const CASES: &[(&str, &str, usize)] = &[
     ("erl", "% n\nf() -> ok.\n", 1),
     ("fish", "# n\nset x 1\n", 1),
     ("f90", "! n\nprint *, 1\n", 1),
-    ("fs", "// n\nlet x = 1\n(* b *)\nlet y = 2\n", 2),
+    (
+        "fs",
+        "// n\nlet x = 1\n(* b *)\nlet y = 2\n/// d\nlet z = 3\n",
+        3,
+    ),
     ("s", "# n\nmovq $1, %rax\n/* b */\nnop\n", 2),
     ("gleam", "// n\nfn f() { 1 }\n", 1),
     ("go", "// n\nvar x = 1\n/* b */\nvar s = `// no`\n", 2),
@@ -419,10 +427,18 @@ const CASES: &[(&str, &str, usize)] = &[
         "# n\n\"\"\"\n# not a comment\n\"\"\"\ntype Q { a: Int }\n",
         1,
     ),
-    ("groovy", "// n\ndef x = 1\n/* b */\ndef y = 2\n", 2),
+    (
+        "groovy",
+        "// n\ndef x = 1\n/* b */\ndef y = 2\n/** d */\ndef z = 3\n",
+        3,
+    ),
     ("hbs", "{{!-- b --}}\n<p>{{x}}</p>\n", 1),
     ("hs", "-- n\nx = 1\n{- b -}\ny = 2\n", 2),
-    ("hx", "// n\nvar x = 1;\n/* b */\nvar y = 2;\n", 2),
+    (
+        "hx",
+        "// n\nvar x = 1;\n/* b */\nvar y = 2;\n/** d */\nvar z = 3;\n",
+        3,
+    ),
     ("html", "<!-- b -->\n<p>x</p>\n", 1),
     ("ini", "# n\nkey = 1\n; also\nother = 2\n", 2),
     (
@@ -431,14 +447,18 @@ const CASES: &[(&str, &str, usize)] = &[
         2,
     ),
     ("js", "// n\nlet x = 1;\n/* b */\nlet s = \"// no\";\n", 2),
-    ("jsonc", "// n\n{ \"a\": 1 }\n", 1),
-    ("jsonnet", "// n\n{ a: 1 }\n# also\n{ b: 2 }\n", 2),
+    ("jsonc", "// n\n{ \"a\": 1 }\n/* b */\n{ \"c\": 2 }\n", 2),
+    (
+        "jsonnet",
+        "// n\n{ a: 1 }\n# also\n{ b: 2 }\n/* c */\n{ d: 3 }\n",
+        3,
+    ),
     ("jl", "# n\nx = 1\n#= b =#\ny = 2\n", 2),
     ("just", "# n\nbuild:\n", 1),
     (
         "kt",
-        "// n\nval x = 1\n/* b */\nval s = \"\"\"\n// not a comment\n\"\"\"\n",
-        2,
+        "// n\nval x = 1\n/* b */\nval s = \"\"\"\n// not a comment\n\"\"\"\n/** d */\nval y = 2\n",
+        3,
     ),
     ("lisp", "; n\n(defun f () 1)\n#| b |#\n(defun g () 2)\n", 2),
     ("lua", "-- n\nlocal x = 1\n--[[ b ]]\nlocal y = 2\n", 2),
@@ -446,7 +466,11 @@ const CASES: &[(&str, &str, usize)] = &[
     ("md", "<!-- b -->\ntext\n", 1),
     ("nim", "# n\nlet x = 1\n#[ b ]#\nlet y = 2\n", 2),
     ("nix", "# n\nx = 1;\n/* b */\ny = 2;\n", 2),
-    ("m", "// n\nint x = 1;\n/* b */\nid s = 0;\n", 2),
+    (
+        "m",
+        "// n\nint x = 1;\n/* b */\nid s = 0;\n/** d */\nint y = 2;\n",
+        3,
+    ),
     ("ml", "(* b *)\nlet x = 1\n", 1),
     ("odin", "// n\nx := 1\n/* b */\ny := 2\n", 2),
     (
@@ -475,12 +499,20 @@ const CASES: &[(&str, &str, usize)] = &[
     ("res", "// n\nlet x = 1\n/* b */\nlet y = 2\n", 2),
     ("rst", "plain text\n", 0),
     ("rb", "# n\nx = 1\n=begin\nb\n=end\ny = 2\n", 2),
-    ("rs", "// n\nfn f() {}\n/*! b */\nlet s = \"// no\";\n", 2),
+    (
+        "rs",
+        "// n\nfn f() {}\n/*! b */\nlet s = \"// no\";\n/** d */\nfn g() {}\n",
+        3,
+    ),
     ("scala", "// n\nval x = 1\n/* b */\nval y = 2\n", 2),
     ("glsl", "// n\nfloat x = 1.0;\n/* b */\nfloat y = 2.0;\n", 2),
     ("sh", "# n\nx=1\n", 1),
     ("sml", "(* b *)\nval x = 1\n", 1),
-    ("sol", "// n\nuint x = 1;\n/* b */\nuint y = 2;\n", 2),
+    (
+        "sol",
+        "// n\nuint x = 1;\n/* b */\nuint y = 2;\n/// d\nuint z = 3;\n/** e */\nuint w = 4;\n",
+        4,
+    ),
     ("sql", "-- n\nSELECT 1;\n/* b */\nSELECT 2;\n", 2),
     (
         "bzl",
@@ -493,7 +525,11 @@ const CASES: &[(&str, &str, usize)] = &[
         3,
     ),
     ("svelte", "<!-- b -->\n<p>x</p>\n", 1),
-    ("swift", "// n\nlet x = 1\n/* b */\nlet y = 2\n", 2),
+    (
+        "swift",
+        "// n\nlet x = 1\n/* b */\nlet y = 2\n/** d */\nlet z = 3\n",
+        3,
+    ),
     (
         "tcl",
         "# n\nset s \"first\n# not a comment\nlast\"\nset x 1 ;# t\n",
@@ -520,7 +556,7 @@ const CASES: &[(&str, &str, usize)] = &[
     ("vhd", "-- n\nsignal a : bit;\n", 1),
     ("vue", "<!-- b -->\n<p>x</p>\n", 1),
     ("yml", "# n\nkey: 1\n", 1),
-    ("zig", "// n\nconst x = 1;\n", 1),
+    ("zig", "// n\nconst x = 1;\n//! d\nconst y = 2;\n", 2),
 ];
 
 /// One case per language in the shipped table, written in that language's real syntax rather

@@ -393,19 +393,23 @@ impl Cli {
         if let Some(root) = &self.root
             && !root.canonicalize().is_ok_and(|r| r.is_dir())
         {
-            return Err((
-                Failure::NotFound,
-                anyhow::anyhow!("not a directory --root can resolve: {}", root.display()),
-            ));
+            let (why, how) = if root.exists() {
+                (Failure::BadArguments, "is not a directory")
+            } else {
+                (Failure::NotFound, "does not exist")
+            };
+            return Err((why, anyhow::anyhow!("--root {} {how}", root.display())));
         }
         // A directory is as much "not a config file" as a missing one.
         if let Some(path) = &self.config
             && !path.is_file()
         {
-            return Err((
-                Failure::NotFound,
-                anyhow::anyhow!("no such config file: {}", path.display()),
-            ));
+            let (why, how) = if path.exists() {
+                (Failure::BadArguments, "is not a file")
+            } else {
+                (Failure::NotFound, "does not exist")
+            };
+            return Err((why, anyhow::anyhow!("--config {} {how}", path.display())));
         }
         let config = match Config::load(&anchor, self.config.as_deref(), &allow) {
             Ok(config) => config,

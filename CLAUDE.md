@@ -25,7 +25,7 @@
 | `engine.rs` | walking, parallelism, per-file dispatch |
 | `cli.rs` | the CLI surface, the report, and the `--help` legend |
 | `diagnostic.rs`, `lib.rs`, `main.rs` | one finding and its two shapes; the crate; argv |
-| `../../../corpus.toml` + `corpus-expected.toml` | the pinned repos and their totals |
+| `../../../corpus.toml`, `corpus-expected.toml`, `corpus-figures.toml` | the pinned repos, their totals, and the statistics every threshold derives from |
 
 ## Before every change
 
@@ -36,7 +36,7 @@ budget: a change that cannot live inside `.comment-crusher.toml` needs a better 
 ## No fixtures
 
 `corpus.toml` pins real repositories by SHA; `scripts/fetch-corpus.sh` clones them into
-gitignored `target/corpus/`. Four assertions over them:
+gitignored `target/corpus/`. Five assertions over them:
 
 - **The partition invariant**: comment plus code equals a file's visible chars. Lose one and
   a region was dropped; gain one and a state was left entered.
@@ -44,7 +44,8 @@ gitignored `target/corpus/`. Four assertions over them:
   another language is the same scanner path, unless this one anchors or cancels it; rare
   forms no repo uses are in `snippet-only.txt`, asserted both ways.
 - **A pinned repository nests a block comment**, so depth counting rests on real source.
-- **`corpus-expected.toml`** per-language totals; movement is a scanner change. Re-record:
+- **`corpus-expected.toml`** per-language totals, and **`corpus-figures.toml`** the statistics
+  the thresholds derive from; movement in either is a scanner change. Re-record both with
   `UPDATE_CORPUS_SNAPSHOT=1 cargo test --test corpus`, then read the diff.
 
 ## Adding a language
