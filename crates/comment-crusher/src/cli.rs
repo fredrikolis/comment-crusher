@@ -63,8 +63,9 @@ OUTPUT (--format json)
 
   Two warnings are about the run, not about a file, and carry no `location.file`:
   `allowance.unused` for a --allow glob that matched none of the files measured, and
-  `target.outside_budget` for a target the budget's directory does not contain. A budget file that is not TOML is `config.syntax`, with
-  the byte range the parser pointed at; one the tool refuses is `config.rejected`.
+  `target.outside_budget` for a target the budget's directory does not contain.
+  A budget file that is not TOML is `config.syntax`, carrying the byte range the parser
+  pointed at; one the tool refuses afterwards is `config.rejected`.
   `error` appears only when status is error. A field with no value is omitted, never null.
   `comment_chars` counts every comment in a file; a rule may judge a subset and says so.
   `location.span` is a byte offset and length; `location.start`/`end` are 1-based line and
@@ -257,6 +258,15 @@ impl Cli {
 
     /// A word where an option's value goes is that value, not a flag of its own.
     fn scan() -> (bool, bool) {
+        // Clap owns each option's arity, so the pre-parse asks it rather than keeping a copy.
+        let command = <Self as clap::CommandFactory>::command();
+        let arity = |flag: &str| -> usize {
+            command
+                .get_arguments()
+                .find(|a| a.get_long().is_some_and(|l| format!("--{l}") == flag))
+                .and_then(clap::Arg::get_num_args)
+                .map_or(0, |n| n.min_values())
+        };
         let (mut json, mut version) = (false, false);
         let mut args = std::env::args_os()
             .skip(1)
@@ -272,14 +282,11 @@ impl Cli {
                 "--version" | "-V" => version = true,
                 "--format=json" => json = true,
                 "--format" => json = value(&mut args).as_deref() == Some("json"),
-                "--allow" => {
-                    value(&mut args);
-                    value(&mut args);
+                flag => {
+                    for _ in 0..arity(flag) {
+                        value(&mut args);
+                    }
                 }
-                "--config" | "--root" => {
-                    value(&mut args);
-                }
-                _ => {}
             }
         }
         (json, version)
@@ -372,6 +379,11 @@ impl Cli {
             Format::Json => self.print_json(report, rejected),
             Format::Human if self.stats => {
                 print_stats(report);
+                // A table beside a failing exit code says nothing a CI log can act on.
+                if rejected {
+                    println!();
+                    print_findings(report);
+                }
                 i32::from(rejected) * EXIT_VALIDATION
             }
             Format::Human => {
@@ -408,8 +420,7 @@ impl Cli {
         }
     }
 
-    /// Every channel a caller reads is stdout, this one and clap's rejection alike.
-    /// Nothing was measured when the configuration was rejected.
+    /// What the run rejected, ahead of the diagnostics that say it in full.
     fn rejection(&self, report: &Report) -> String {
         if report
             .diagnostics
@@ -432,6 +443,7 @@ impl Cli {
         }
     }
 
+    /// Every channel a caller reads is stdout, this one and clap's rejection alike.
     fn print_error(&self, failure: Failure, message: &str) -> i32 {
         match self.format {
             Format::Human => println!("comment-crusher: {message}"),
@@ -486,8 +498,9 @@ pub fn error_json(code: &str, message: &str) -> String {
         },
         meta: Meta::now(),
     };
-    // Every field is a string, number or bool, so this cannot fail.
-    serde_json::to_string(&envelope).unwrap_or_default()
+    serde_json::to_string(&envelope).unwrap_or_else(|e| {
+        format!(r#"{{"status":"error","error":{{"code":"internal_error","message":"{e}"}}}}"#)
+    })
 }
 
 fn language_totals(report: &Report) -> Vec<LanguageTotal<'_>> {

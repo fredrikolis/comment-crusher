@@ -59,6 +59,14 @@ fn wire_path_opt<S: serde::Serializer>(path: &Option<PathBuf>, s: S) -> Result<S
     }
 }
 
+impl Location {
+    /// Nothing locates a finding about the run itself, and an empty object says less than
+    /// no key at all.
+    const fn is_empty(&self) -> bool {
+        self.file.is_none() && self.span.is_none() && self.start.is_none() && self.end.is_none()
+    }
+}
+
 #[derive(Debug, Clone, Serialize)]
 struct Location {
     #[serde(
@@ -96,6 +104,7 @@ struct Wire<'a> {
     code: &'a str,
     severity: &'a str,
     message: &'a str,
+    #[serde(skip_serializing_if = "Location::is_empty")]
     location: Location,
     help: &'a str,
     docs_url: String,

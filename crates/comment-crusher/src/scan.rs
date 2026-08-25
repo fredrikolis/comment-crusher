@@ -562,7 +562,7 @@ fn find_ci(haystack: &str, needle: &str) -> Option<usize> {
 }
 
 /// How far past the last newline an offset sits, in characters, 1-based.
-pub fn place(src: &str, offset: usize) -> (usize, usize) {
+pub(crate) fn place(src: &str, offset: usize) -> (usize, usize) {
     let before = &src[..offset.min(src.len())];
     let line_start = before.rfind('\n').map_or(0, |n| n + 1);
     (

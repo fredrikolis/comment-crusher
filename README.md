@@ -39,14 +39,14 @@ answer holds in CI, in a hook, and against a file an agent just wrote. Exit code
 
 | 0 | 1 | 2 | 3 | 24 |
 |---|---|---|---|---|
-| nothing over budget | internal error | argv rejected, `--allow` included | over budget, or the budget file rejected | no such path |
+| nothing over budget | internal error | argv rejected, a bad `--allow` value included | over budget, or the budget file rejected | no such path |
 
 ## What it measures
 
 | Rule | Bounds | Default |
 |---|---|---|
 | `comment-ratio` | comment chars as a share of a code file | 15%, under 200 chars skipped |
-| `comment-block` | one block comment, or one run of whole-line comments | 1 line, 400 chars |
+| `comment-block` | one block comment, or one run of whole-line comments | 1 line, 10 for a doc comment, 16 for a banner, 400 chars |
 | `doc-length` | a prose document (`.md`, `.rst`, `.adoc`, `.txt`, and kin) | 77 lines |
 | `unreadable` | a resolved file that is binary or cannot be read | deny |
 
@@ -66,8 +66,7 @@ Resolved by exact filename, then extension, then the `#!` interpreter, so `CMake
 is CMake and a git hook is measured like anything else. Unknown languages are skipped;
 adding one is a row in `default_config.toml`.
 
-- Nested blocks in 16 languages, heredocs in 6, docstrings in 4, raw strings, char literals,
-  which is what a scanner that only matched `//` and `/*` would miscount.
+- Nested blocks in 16 languages, heredocs in 6, docstrings in 4, raw strings, char literals.
 - `<script>` and `<style>` scanned as the language their tag names, across HTML, Vue, Svelte
   and Astro; named, never guessed, so a `type=` the table does not map leaves its body code.
 - Comment plus code equals the file's visible chars over 42 pinned repositories, and every
