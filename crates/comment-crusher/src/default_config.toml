@@ -8,7 +8,7 @@ exclude = ["target", "node_modules", "vendor", "dist", "build", ".venv"]
 [rules.comment-ratio]
 # Characters, not lines, so a trailing `// why` costs what it occupies.
 level = "deny"
-# Measured: the 38 pinned corpus repositories run to a median of 15.5% (1.3% to 44.8%).
+# Measured where this rule applies, prose excluded: per-repo median of the 38 pinned, 15.5%.
 max_ratio = 0.15
 # Doc comments count too; at file scope they are usually the larger share.
 count_doc_comments = true
@@ -33,7 +33,7 @@ level = "deny"
 [rules.doc-length]
 # Applies to `prose = true` languages only. Code files are bounded by comment-ratio.
 level = "deny"
-# Measured: the 75th percentile of the corpus's 668 prose documents. Their median is 22.
+# Measured: the 75th percentile of the corpus's 668 prose documents; their median is 22.
 max_lines = 77
 
 # Every knob below is documented under LANGUAGE TABLE in `comment-crusher --help`.

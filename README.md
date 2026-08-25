@@ -49,8 +49,8 @@ so one answer holds in CI, in a hook, and against a file an agent just wrote.
 | `doc-length` | a prose document (`.md`, `.rst`, `.adoc`, `.txt`, and kin) | 77 lines |
 | `unreadable` | a resolved file that is binary or cannot be read | deny |
 
-A file over 15% comment is unusual: that is roughly the median of the 38 real repositories the
-tests measure, and 77 lines is their 75th-percentile document. `comment-block` is a policy, and
+A file over 15% comment is unusual: that is the median of the 38 real repositories the tests
+measure, counting only the files this rule judges. 77 lines is their 75th-percentile document. `comment-block` is a policy, and
 says so. Every visible character is
 either comment or code, and the two sum to the whole file: characters, not lines, so a trailing
 `// why` costs what it occupies. **Comment** is markers, their delimiters, doc comments and
