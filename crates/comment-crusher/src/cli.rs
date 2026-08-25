@@ -65,7 +65,7 @@ OUTPUT (--format json)
    "data":{"files":[{path,language,prose,lines,code_chars,comment_chars}],
            "languages":[{language,files,lines,comment_chars,code_chars}],
            "diagnostics":[{code,severity,message,location,help,docs_url,allowance}],
-           "pagination":{"files":{count,has_more,next_cursor},"languages":{...},"diagnostics":{...}}},
+           "pagination":{"files":{count,has_more},"languages":{...},"diagnostics":{...}}},
    "meta":{"request_id":..., "timestamp":...}}
 
   `allowance` names the reason a bound was widened for the file, when one was.
@@ -184,23 +184,19 @@ struct ErrorBody {
     message: String,
 }
 
-/// Per collection, because one `has_more` across three says nothing about any of them. A run
-/// reports whole trees, so none is ever truncated.
+/// Per collection: one `has_more` across three would say nothing about any of them.
 #[derive(Serialize)]
 struct Page {
     count: usize,
     has_more: bool,
-    /// Absent while `has_more` is false, which is always.
-    #[serde(skip_serializing_if = "Option::is_none")]
-    next_cursor: Option<String>,
 }
 
 impl Page {
+    /// No cursor because there is no next page: a run answers about every file.
     const fn whole(count: usize) -> Self {
         Self {
             count,
             has_more: false,
-            next_cursor: None,
         }
     }
 }

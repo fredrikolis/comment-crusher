@@ -249,7 +249,7 @@ fn an_allowance_cannot_exempt_a_file_only_widen_its_bound() {
         // Past a hundredfold a bound is not widened, it is gone.
         "doc-length.max_lines=1e30",
         "doc-length.max_lines=99999999999",
-        "doc-length.max_lines=7701",
+        "doc-length.max_lines=9001",
         // Not a bound at all.
         "comment-ratio.count_doc_comments=false",
         "comment-ratio.skip_header=true",

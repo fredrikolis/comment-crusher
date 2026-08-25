@@ -13,9 +13,9 @@ error: src/parser.rs [comment-ratio] 41% comment (2104/5117 chars), budget is 15
 
 ## No file is exempt
 
-An allowance widens a bound for the paths it names, up to a hundredfold. It cannot remove one
-or switch a rule off, and there is no `allowed` list. A gas expands to occupy whatever volume
-it is given; an LLM fills whatever space is available with words.
+An allowance widens a bound for the paths it names. It cannot remove one or switch a rule off,
+and it stops at a hundredfold, past which a bound is not widened but gone. A gas expands to
+occupy whatever volume it is given; an LLM fills whatever space is available with words.
 
 ```toml
 [[allow]]
@@ -47,11 +47,11 @@ answer holds in CI, in a hook, and against a file an agent just wrote. Exit code
 |---|---|---|
 | `comment-ratio` | comment chars as a share of comment plus code | 15%, under 200 chars skipped |
 | `comment-block` | one block comment, or one run of whole-line comments | 1 line, 10 for a doc comment, 16 for a banner, 400 chars |
-| `doc-length` | a prose document (`.md`, `.rst`, `.adoc`, `.txt`, and kin) | 77 lines |
+| `doc-length` | a prose document (`.md`, `.rst`, `.adoc`, `.txt`, and kin) | 90 lines |
 | `unreadable` | a resolved file that is binary or cannot be read | deny |
 
-Across the 43 repositories the tests measure, the median comment share is 15.6%, and 77 lines
-is under their documents' p75 of 90. `comment-block` is policy, not a measurement.
+Across the 43 repositories the tests measure, the median comment share is 15.6% and the
+75th-percentile document is 90 lines. `comment-block` is policy, not a measurement.
 
 **Comment** is markers, their delimiters, doc comments and docstrings. **Code** is strings,
 heredoc bodies, the shebang, and fenced examples in a doc comment. Counted in characters, the
