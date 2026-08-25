@@ -16,7 +16,6 @@ pub struct Region {
     pub start_column: usize,
     pub end_column: usize,
     pub kind: CommentKind,
-    /// The token actually matched, so nothing re-derives it.
     pub opener: String,
     pub own_line: bool,
     /// Only whole-line comments merge: one merging around trailing code would charge it prose.
@@ -43,6 +42,17 @@ pub struct Scan {
 }
 
 impl Scan {
+    /// Header characters past what the exemption covers.
+    pub fn header_excess(&self, skip_header: bool, allowed: usize) -> usize {
+        if !skip_header {
+            return 0;
+        }
+        self.regions
+            .first()
+            .filter(|r| r.header)
+            .map_or(0, |r| r.chars.saturating_sub(allowed))
+    }
+
     pub fn comment_chars(&self, count_doc: bool, skip_header: bool) -> usize {
         self.regions
             .iter()
@@ -121,7 +131,7 @@ fn is_fence(line: &str) -> bool {
     body.starts_with("```") || body.starts_with("~~~")
 }
 
-/// Adjacent whole-line comments of one kind are one comment, and bounded as one.
+/// Adjacent whole-line comments of one kind are one comment, bounded as one.
 fn merge(raw: Vec<Region>) -> Vec<Region> {
     let mut out: Vec<Region> = Vec::with_capacity(raw.len());
     for r in raw {

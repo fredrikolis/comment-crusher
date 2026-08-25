@@ -536,3 +536,25 @@ fn every_corpus_exemption_is_covered_by_a_snippet() {
         "snippet-only.txt exempts markers no case opens a comment with: {missing:?}"
     );
 }
+
+/// The banner exemption covers a banner, not whatever is written where one goes.
+#[test]
+fn a_header_is_exempt_only_up_to_the_size_a_banner_really_is() {
+    let banner = "// Concern: does one thing | Non-concern: another | IO: none\n";
+    let body = "fn f() -> u32 { 1 }\n";
+    let small = run("rs", &format!("{banner}{body}"));
+    assert_eq!(
+        small.header_excess(true, 400),
+        0,
+        "a real banner is covered"
+    );
+
+    let essay: String = std::iter::repeat_n("// essay essay essay essay essay\n", 30).collect();
+    let big = run("rs", &format!("{essay}{body}"));
+    assert!(
+        big.header_excess(true, 400) > 0,
+        "an essay under a banner's name is charged for the excess"
+    );
+    // Without the exemption there is no excess to add; it was all counted already.
+    assert_eq!(big.header_excess(false, 400), 0);
+}

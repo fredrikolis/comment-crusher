@@ -17,6 +17,9 @@ pub struct Config {
     pub count_doc_comments: bool,
     pub min_chars: usize,
     pub skip_header: bool,
+    /// How much of the header the exemption covers. Beyond it the header counts like any
+    /// other comment, so an essay cannot shelter under a banner's name.
+    pub header_max_chars: usize,
 }
 
 #[expect(
@@ -27,7 +30,8 @@ pub fn check(cfg: &Config, file: &Path, scan: &Scan) -> Option<Diagnostic> {
     if cfg.level == Level::Allow || cfg.max_ratio <= 0.0 {
         return None;
     }
-    let comment = scan.comment_chars(cfg.count_doc_comments, cfg.skip_header);
+    let comment = scan.comment_chars(cfg.count_doc_comments, cfg.skip_header)
+        + scan.header_excess(cfg.skip_header, cfg.header_max_chars);
     let total = comment + scan.code_chars;
     if total < cfg.min_chars {
         return None;

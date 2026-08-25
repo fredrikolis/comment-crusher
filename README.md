@@ -59,19 +59,19 @@ comment, because a doctest is code living in one.
 
 A doc comment gets more room than a remark, the banner more still, and that banner is exempt
 from the ratio so a small file can carry a mandated licence line and still have room for a
-comment; `header_max_lines` bounds the banner itself.
+comment. Bounded, though: past `header_max_chars` it is charged like anything else, because
+corpus headers run to a median of 137 characters, not to an essay.
 
 ## Languages
 
-Resolved by exact filename, then extension, then the `#!` interpreter, so `CMakeLists.txt` is
-CMake and a git hook is measured like anything else. A file in no known language is skipped;
-adding one is a row in `crates/comment-crusher/src/default_config.toml`, never code.
+Resolved by exact filename, then extension, then the `#!` interpreter, so `CMakeLists.txt`
+is CMake and a git hook is measured like anything else. Unknown languages are skipped;
+adding one is a row in `default_config.toml`.
 
-- Nested block comments in 16 languages, heredocs in 6, docstrings in 4, raw strings, char
-  literals held apart from lifetimes.
+- Nested blocks in 16 languages, heredocs in 6, docstrings in 4, raw strings, char literals.
 - `<script>` and `<style>` scanned as the language their tag names, across HTML, Vue, Svelte
   and Astro; the child is named, never guessed, so `type="application/json"` names a language
   the table lacks and that body stays code.
 - Two invariants over 38 pinned repositories: comment plus code equals the file's visible
   chars, and every declared marker has opened a real comment in one, bar the rare forms
-  `crates/comment-crusher/snippet-only.txt` names and snippets cover. MIT licence.
+  `snippet-only.txt` names and snippets cover. MIT licence.

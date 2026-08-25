@@ -14,8 +14,10 @@ max_ratio = 0.15
 count_doc_comments = true
 # Below this, a stub would be trivially "100% comments".
 min_chars = 200
-# A fixed per-file cost the body is not charged for; header_max_lines bounds the banner itself.
+# A fixed per-file cost the body is not charged for, up to the size a banner really is.
 skip_header = true
+# Measured: corpus headers run to a median of 137 characters, 434 at the 75th percentile.
+header_max_chars = 400
 
 [rules.comment-block]
 # One block comment, or one unbroken run of adjacent line comments.
@@ -23,7 +25,7 @@ level = "deny"
 # Policy, not a measurement: the corpus trips this 13311 times at 1, still 4337 at 5.
 max_lines = 1
 doc_max_lines = 10
-header_max_lines = 30
+header_max_lines = 16
 max_chars = 400
 
 # A file whose language resolved but whose bytes are not text.
