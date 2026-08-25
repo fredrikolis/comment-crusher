@@ -694,8 +694,8 @@ code_chars = 10873
 ["mono-basic".vb]
 files = 4742
 lines = 272287
-comment_chars = 1640000
-code_chars = 4947836
+comment_chars = 1683530
+code_chars = 4904306
 
 ["neslib-json".markdown]
 files = 1

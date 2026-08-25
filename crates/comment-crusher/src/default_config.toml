@@ -559,7 +559,8 @@ strings = [{ open = "'", close = "'" }]
 
 [languages.vb]
 extensions = [".vb", ".vbs", ".bas", ".frm"]
-line = ["'"]
+# `REM ` with the space, so a variable named REMOVE is not a comment.
+line = ["'", "REM ", "rem ", "Rem "]
 strings = [{ open = '"', close = '"' }]
 
 [languages.gas]

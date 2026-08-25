@@ -511,7 +511,11 @@ const CASES: &[(&str, &str, usize)] = &[
     ),
     ("toml", "# n\nkey = 1\n", 1),
     ("ts", "// n\nlet x: number = 1;\n/* b */\nlet y = 2;\n", 2),
-    ("vb", "' n\nDim x = 1\n", 1),
+    (
+        "vb",
+        "' n\nDim x = 1\nREM a remark\nDim y = 2\nrem another\nDim z = 3\nRem a third\nDim removed = 4\n",
+        4,
+    ),
     ("v", "// n\nwire a;\n/* b */\nwire b;\n", 2),
     ("vhd", "-- n\nsignal a : bit;\n", 1),
     ("vue", "<!-- b -->\n<p>x</p>\n", 1),
