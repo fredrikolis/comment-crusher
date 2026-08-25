@@ -25,7 +25,7 @@ set = ["doc-length.max_lines=2000"]           # only genuine upper bounds may be
 ```
 
 Generated trees are not measured: `.gitignore` applies, plus `target`, `node_modules`,
-`vendor`, `dist`, `build` and `.venv`.
+`vendor`, `dist`, `build` and `.venv`. `[global] exclude` adds to that list, never replaces it.
 
 ## Use
 

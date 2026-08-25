@@ -460,9 +460,12 @@ fn a_file_that_cannot_be_read_says_so_under_its_own_code() {
         let locked = dir.path().join("locked.rs");
         std::fs::write(&locked, "fn f() {}\n").expect("write");
         std::fs::set_permissions(&locked, std::fs::Permissions::from_mode(0o000)).expect("chmod");
-        // Root reads it anyway, and then there is nothing to assert.
-        if std::fs::read(&locked).is_err() {
-            let out = run(dir.path(), &["locked.rs", "--format", "json"]);
+        // Root reads it anyway. Say which of the two was asserted rather than passing mute.
+        let out = run(dir.path(), &["locked.rs", "--format", "json"]);
+        if std::fs::read(&locked).is_ok() {
+            println!("running as root: the io path was not exercised");
+            assert_eq!(code(&out), 0, "{}", stdout(&out));
+        } else {
             assert_eq!(code(&out), 3);
             assert!(stdout(&out).contains("unreadable.io"), "{}", stdout(&out));
         }

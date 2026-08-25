@@ -286,7 +286,6 @@ impl Config {
         self.langs.iter()
     }
 
-    /// A glob typed on argv that matched nothing widened nothing.
     pub fn argv_globs_matching_none(&self, measured: &[PathBuf]) -> Vec<String> {
         self.allowances
             .iter()
@@ -521,7 +520,6 @@ impl Widenable {
     /// hundredfold covers any real exception and nothing beyond one.
     const CEILING: f64 = 100.0;
 
-    /// The shipped value, which the ceiling is relative to.
     #[expect(
         clippy::cast_precision_loss,
         reason = "shipped line counts are two-digit numbers"

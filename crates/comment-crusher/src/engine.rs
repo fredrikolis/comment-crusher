@@ -153,7 +153,7 @@ impl<'a> Engine<'a> {
     }
 
     /// Never fatal: one bad file must not cost the whole report.
-    /// Nothing was measured, so the file counts for nothing but the diagnostic it earned.
+    /// Nothing was measured in it: the file is still counted, with zeroes for both totals.
     fn declined(
         &self,
         file: &Path,

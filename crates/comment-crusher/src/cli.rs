@@ -70,7 +70,7 @@ OUTPUT (--format json)
 
   `allowance` names the reason a bound was widened for the file, when one was.
 
-  Two warnings are about the run, not about a file, and carry no `location.file`:
+  Two warnings are about the run, not about a file, and carry no `location` at all:
   `allowance.unused` for a --allow glob that matched none of the files measured, and
   `target.outside_budget` for a target the budget's directory does not contain.
   A budget file that is not TOML is `config.syntax`, carrying the byte range the parser

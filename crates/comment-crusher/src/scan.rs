@@ -476,7 +476,7 @@ impl<'a> Scanner<'a> {
             if rest.starts_with(spec.close.as_str()) {
                 let end = j + spec.close.len();
                 // A char literal that ran long is a lifetime or a quoted word, not a string.
-                if spec.char_literal && end - self.i > 12 {
+                if spec.char_literal && self.src[self.i..end].chars().count() > 12 {
                     return None;
                 }
                 return Some(end);

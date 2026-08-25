@@ -16,7 +16,6 @@ pub struct Config {
     pub level: Level,
 }
 
-/// A file whose extension named a language but whose bytes are not text at all.
 pub fn binary(cfg: &Config, file: &Path) -> Option<Diagnostic> {
     (cfg.level != Level::Allow).then(|| {
         Diagnostic::new(
