@@ -139,8 +139,7 @@ impl<'a> Engine<'a> {
         }
         out.sort();
         out.dedup();
-        // One target cannot name a file twice, and resolving every walked path costs a
-        // syscall each. Two can, so those are deduplicated by what they resolve to.
+        // One target cannot name a file twice; two can, and resolving costs a syscall each.
         if targets.len() > 1 {
             let mut keyed: Vec<(PathBuf, PathBuf)> = out
                 .into_iter()
