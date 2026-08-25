@@ -13,8 +13,8 @@ use comment_crusher::{Config, Engine};
 
 const SNAPSHOT: &str = "../../corpus-expected.toml";
 
-/// No opt-out: these are the only assertions over real code, and an escape hatch that turned
-/// them into unconditional passes bought a convenience worth less than a green run means.
+/// No opt-out. `UPDATE_CORPUS_SNAPSHOT` re-records the totals, which still runs every walk;
+/// nothing turns these into a pass without measuring.
 fn corpus_root() -> PathBuf {
     let root = std::env::var_os("CORPUS_DIR").map_or_else(
         || Path::new(env!("CARGO_MANIFEST_DIR")).join("../../target/corpus"),

@@ -4,32 +4,9 @@ use clap::Parser;
 use clap::error::ErrorKind;
 use comment_crusher::cli::{Cli, EXIT_BAD_ARGS};
 
-fn wants_json() -> bool {
-    let mut args = std::env::args_os()
-        .skip(1)
-        .take_while(|a| a != "--")
-        .map(|a| a.to_string_lossy().into_owned());
-    while let Some(a) = args.next() {
-        if a == "--format" && args.next().as_deref() == Some("json") {
-            return true;
-        }
-        if a == "--format=json" {
-            return true;
-        }
-    }
-    false
-}
-
-fn version_request() -> bool {
-    std::env::args_os()
-        .skip(1)
-        .take_while(|a| a != "--")
-        .any(|a| a == "--version" || a == "-V")
-}
-
 fn main() -> std::process::ExitCode {
-    if version_request() {
-        return u8::try_from(Cli::version_only(wants_json()))
+    if Cli::version_request() {
+        return u8::try_from(Cli::version_only(Cli::wants_json()))
             .unwrap_or(1)
             .into();
     }
@@ -40,7 +17,7 @@ fn main() -> std::process::ExitCode {
             println!("{e}");
             0
         }
-        Err(e) if wants_json() => {
+        Err(e) if Cli::wants_json() => {
             let message = e.to_string();
             let first = message.lines().next().unwrap_or_default();
             println!(

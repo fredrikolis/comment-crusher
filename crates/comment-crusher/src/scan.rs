@@ -317,12 +317,7 @@ impl<'a> Scanner<'a> {
         match op {
             Opener::Line(kind) => self.consume_line_comment(&tok, kind),
             Opener::Block { close, kind } => self.consume_block(&tok, &close, kind),
-            Opener::Str(idx) => {
-                let Some(spec) = self.syn.strings.get(idx).cloned() else {
-                    return false;
-                };
-                return self.consume_string(&spec);
-            }
+            Opener::Str(spec) => return self.consume_string(&spec),
         }
         true
     }

@@ -122,8 +122,8 @@ pub struct Cli {
     #[arg(long)]
     pub warnings_as_errors: bool,
 
-    /// Print the version and exit. Read before any other argument, so a rejected invocation
-    /// can still say what it is; `main` answers it before clap runs.
+    /// Print the version and exit. Answered before clap runs, so a rejected invocation can
+    /// still say what it is.
     #[arg(short = 'V', long)]
     pub version: bool,
 }
@@ -174,6 +174,33 @@ struct Envelope<'a> {
 }
 
 impl Cli {
+    /// Read straight off argv, before clap: a rejected invocation still owes the caller an
+    /// answer in the shape it asked for, and a version request outranks everything.
+    pub fn wants_json() -> bool {
+        let mut args = Self::flags();
+        while let Some(a) = args.next() {
+            if a == "--format" && args.next().as_deref() == Some("json") {
+                return true;
+            }
+            if a == "--format=json" {
+                return true;
+            }
+        }
+        false
+    }
+
+    pub fn version_request() -> bool {
+        Self::flags().any(|a| a == "--version" || a == "-V")
+    }
+
+    /// Everything before `--`; after it every word is a path.
+    fn flags() -> impl Iterator<Item = String> {
+        std::env::args_os()
+            .skip(1)
+            .take_while(|a| a != "--")
+            .map(|a| a.to_string_lossy().into_owned())
+    }
+
     fn allowances(&self) -> Result<Vec<(String, String)>> {
         if !self.allow.len().is_multiple_of(2) {
             bail!("--allow takes two values: <GLOB> <RULE.FIELD=VALUE>");
@@ -320,13 +347,10 @@ impl Cli {
     }
 }
 
-/// The one producer of a failed envelope.
-///
-/// `data` is therefore present on every reply the `--help` contract describes.
 /// A configuration failure is a finding about a file.
 ///
 /// So it reaches an agent as one, not as a multi-line blob it must read as prose.
-pub fn config_diagnostic(path: &Path, message: &str) -> crate::Diagnostic {
+fn config_diagnostic(path: &Path, message: &str) -> crate::Diagnostic {
     let first = message.lines().next().unwrap_or(message);
     crate::Diagnostic::new(
         "config",
@@ -337,6 +361,9 @@ pub fn config_diagnostic(path: &Path, message: &str) -> crate::Diagnostic {
     )
 }
 
+/// The one producer of a failed envelope.
+///
+/// `data` is therefore present on every reply the `--help` contract describes.
 pub fn error_json(code: &str, message: &str) -> String {
     let envelope: Envelope<'_> = Envelope {
         status: "error",

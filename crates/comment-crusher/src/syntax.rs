@@ -22,7 +22,7 @@ pub struct StringSpec {
 pub enum Opener {
     Line(CommentKind),
     Block { close: String, kind: CommentKind },
-    Str(usize),
+    Str(StringSpec),
 }
 
 pub trait Resolve {

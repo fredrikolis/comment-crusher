@@ -9,7 +9,7 @@ use serde::Deserialize;
 use toml::{Table, Value};
 
 use crate::embed::EmbedSpec;
-use crate::rules::Rules;
+use crate::rules::{Rules, comment_block, comment_ratio, doc_length};
 use crate::syntax::{CommentKind, Opener, Resolve, StringSpec, Syntax};
 
 pub const CONFIG_FILE: &str = ".comment-crusher.toml";
@@ -362,8 +362,8 @@ fn resolve_syntax(
             docstring: s.docstring,
         })
         .collect();
-    for (i, s) in strings.iter().enumerate() {
-        openers.push((s.open.clone(), Opener::Str(i)));
+    for spec in &strings {
+        openers.push((spec.open.clone(), Opener::Str(spec.clone())));
     }
     if openers.iter().any(|(tok, _)| tok.is_empty()) {
         bail!("`{name}` declares an empty comment or string marker");
@@ -447,21 +447,33 @@ impl Widenable {
     /// `min_chars` decides whether a rule applies and `level` whether it runs, so setting
     /// either would exempt a path rather than widen it, and a ratio of 1 can never be
     /// exceeded. This list is what makes "no file is exempt" true.
-    const ALL: &'static [(&'static str, Self, f64)] = &[
-        ("comment-ratio.max_ratio", Self::CommentRatio, 1.0),
-        ("comment-block.max_lines", Self::BlockLines, f64::INFINITY),
+    const ALL: &'static [(&'static str, &'static str, Self, f64)] = &[
+        (comment_ratio::NAME, "max_ratio", Self::CommentRatio, 1.0),
         (
-            "comment-block.doc_max_lines",
+            comment_block::NAME,
+            "max_lines",
+            Self::BlockLines,
+            f64::INFINITY,
+        ),
+        (
+            comment_block::NAME,
+            "doc_max_lines",
             Self::BlockDocLines,
             f64::INFINITY,
         ),
         (
-            "comment-block.header_max_lines",
+            comment_block::NAME,
+            "header_max_lines",
             Self::BlockHeaderLines,
             f64::INFINITY,
         ),
-        ("comment-block.max_chars", Self::BlockChars, f64::INFINITY),
-        ("doc-length.max_lines", Self::DocLines, f64::INFINITY),
+        (
+            comment_block::NAME,
+            "max_chars",
+            Self::BlockChars,
+            f64::INFINITY,
+        ),
+        (doc_length::NAME, "max_lines", Self::DocLines, f64::INFINITY),
     ];
 
     #[expect(
@@ -488,10 +500,13 @@ fn parse_setting(s: &str) -> Result<(Widenable, f64)> {
         bail!("`{s}` is not <rule>.<field>=<value>");
     };
     let path = path.trim();
-    let Some((_, field, limit)) = Widenable::ALL.iter().find(|(p, _, _)| *p == path) else {
+    let Some((_, _, field, limit)) = Widenable::ALL
+        .iter()
+        .find(|(rule, key, _, _)| path == format!("{rule}.{key}"))
+    else {
         let names = Widenable::ALL
             .iter()
-            .map(|(p, _, _)| *p)
+            .map(|(rule, key, _, _)| format!("{rule}.{key}"))
             .collect::<Vec<_>>()
             .join(", ");
         bail!("`{path}` is not a bound an allowance may widen. One of: {names}");
