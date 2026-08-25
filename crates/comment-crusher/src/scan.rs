@@ -17,9 +17,9 @@ pub struct Region {
     pub end_column: usize,
     pub kind: CommentKind,
     pub opener: String,
-    pub own_line: bool,
+    own_line: bool,
     /// Only whole-line comments merge: one merging around trailing code would charge it prose.
-    pub ends_line: bool,
+    ends_line: bool,
     /// The leading comment above any code — a fixed per-file cost, budgeted apart.
     pub header: bool,
     /// Lifted from an embedded child scan, which already counted and merged it. Its
@@ -457,7 +457,8 @@ impl<'a> Scanner<'a> {
         let mut j = self.i + spec.open.len();
         while j < self.src.len() {
             let rest = &self.src[j..];
-            let ch = rest.chars().next()?;
+            // Unreachable: `j` is a boundary below the length.
+            let Some(ch) = rest.chars().next() else { break };
             if ch == '\n' && !spec.multiline {
                 return None;
             }

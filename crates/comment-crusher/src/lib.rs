@@ -1,4 +1,4 @@
-// Concern: the library surface — the config, scanner, rules and engine a caller composes | Non-concern: argv parsing or process exit (main.rs owns those) | IO: none
+// Concern: the library surface — the config, scanner, rules, engine and CLI a caller composes | Non-concern: running one (main.rs owns argv and the process exit) | IO: none
 
 pub mod cli;
 pub mod config;

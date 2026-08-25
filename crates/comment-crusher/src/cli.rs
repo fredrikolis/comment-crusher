@@ -10,10 +10,11 @@ use crate::config::{CONFIG_FILE, Config, LoadFailure, Located};
 use crate::diagnostic::Level;
 use crate::engine::{Engine, FileStat, Report};
 
-/// Exit codes an agent branches on, from the CLI standard.
 /// Not TOML, and TOML the tool refuses, are different mistakes with different repairs.
 const SYNTAX_RULE: &str = "config.syntax";
 const REJECTED_RULE: &str = "config.rejected";
+
+/// Exit codes an agent branches on, from the CLI standard.
 pub const EXIT_BAD_ARGS: i32 = 2;
 const EXIT_VALIDATION: i32 = 3;
 

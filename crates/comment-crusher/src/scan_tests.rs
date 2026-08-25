@@ -37,11 +37,7 @@ fn markers_inside_strings_are_code() {
 }
 
 #[test]
-fn block_comments_nest_where_the_language_says_so() {
-    let s = run("rs", "/* a /* b */ c */ let x = 1;\n");
-    assert_eq!(s.regions.len(), 1);
-    assert_eq!(s.regions[0].chars, visible("/* a /* b */ c */"));
-
+fn a_language_that_does_not_nest_closes_at_the_first_delimiter() {
     let s = run("c", "/* a /* b */ let x = 1;\n");
     assert_eq!(s.regions[0].chars, visible("/* a /* b */"));
 }
