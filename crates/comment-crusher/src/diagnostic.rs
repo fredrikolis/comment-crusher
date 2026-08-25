@@ -63,7 +63,6 @@ pub struct Diagnostic {
     pub file: PathBuf,
     pub line: Option<usize>,
     pub end_line: Option<usize>,
-    /// Byte offset and length of the region that tripped the rule, machine-exact.
     pub span: Option<(usize, usize)>,
     pub start_column: Option<usize>,
     pub end_column: Option<usize>,
@@ -116,7 +115,7 @@ const DOCS: &str = "https://github.com/fredrikolis/comment-crusher";
 
 impl Diagnostic {
     fn section(&self) -> &'static str {
-        match self.rule.split('.').next().unwrap_or(self.rule) {
+        match self.rule.split('.').next().unwrap_or_default() {
             "config" => "use",
             "allowance" => "no-file-is-exempt",
             _ => "what-it-measures",

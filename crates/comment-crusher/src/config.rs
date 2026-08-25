@@ -143,9 +143,8 @@ impl Config {
         Self::build(&table, PathBuf::from("."))
     }
 
-    /// Layer the built-in defaults, the user file, the nearest `.comment-crusher.toml` above
-    /// `root`, and any `--allow` given on the command line.
-    /// The file first, then argv, so a rejection names which of the two the caller must fix.
+    /// Defaults, then the nearest `.comment-crusher.toml` above `root`, then `--allow`: a
+    /// rejection names which of the two inputs the caller must fix.
     pub fn load(
         root: &Path,
         explicit: Option<&Path>,
@@ -679,22 +678,10 @@ impl Located {
         Self {
             offset: start,
             length: end.saturating_sub(start),
-            start: place(text, start),
-            end: place(text, end),
+            start: crate::scan::place(text, start),
+            end: crate::scan::place(text, end),
         }
     }
-}
-
-fn place(text: &str, offset: usize) -> (usize, usize) {
-    let before = text.get(..offset).unwrap_or(text);
-    let line = before.matches('\n').count() + 1;
-    let column = before
-        .rsplit_once('\n')
-        .map_or(before, |(_, l)| l)
-        .chars()
-        .count()
-        + 1;
-    (line, column)
 }
 
 impl LoadFailure {

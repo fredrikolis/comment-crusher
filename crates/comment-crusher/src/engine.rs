@@ -109,7 +109,7 @@ impl<'a> Engine<'a> {
             }
             let mut b = WalkBuilder::new(t);
             b.hidden(false).git_ignore(true).require_git(false);
-            // Pruned, not filtered afterwards: a committed vendor tree is never descended.
+            // Pruned, not filtered after: a committed vendor tree is never descended.
             let names: Vec<String> = self.config.exclude.clone();
             b.filter_entry(move |e| {
                 !e.file_type().is_some_and(|f| f.is_dir())
@@ -134,11 +134,11 @@ impl<'a> Engine<'a> {
     fn excluded(&self, path: &Path) -> bool {
         self.relative(path)
             .components()
-            .any(|c| self.pruned_name(c.as_os_str()))
+            .any(|c| Self::pruned_name(&self.config.exclude, c.as_os_str()))
     }
 
-    fn pruned_name(&self, name: &std::ffi::OsStr) -> bool {
-        name == ".git" || self.config.exclude.iter().any(|e| name == e.as_str())
+    fn pruned_name(exclude: &[String], name: &std::ffi::OsStr) -> bool {
+        name == ".git" || exclude.iter().any(|e| name == e.as_str())
     }
 
     /// Never fatal: one bad file must not cost the whole report.

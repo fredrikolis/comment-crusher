@@ -55,7 +55,7 @@ OUTPUT (--format json)
    "data":{"files":[{path,language,prose,lines,code_chars,comment_chars}],
            "languages":[{language,files,lines,comment_chars,code_chars}],
            "diagnostics":[{code,severity,message,location,help,docs_url,allowance}],
-           "pagination":{"files":{count,has_more},"diagnostics":{count,has_more}}},
+           "pagination":{"files":{count,has_more,next_cursor},"diagnostics":{...}}},
    "meta":{"request_id":..., "timestamp":...}}
 
   `allowance` names the reason a bound was widened for the file, when one was.
@@ -176,6 +176,19 @@ struct ErrorBody {
 struct Page {
     count: usize,
     has_more: bool,
+    /// Absent while `has_more` is false, which is always.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    next_cursor: Option<String>,
+}
+
+impl Page {
+    const fn whole(count: usize) -> Self {
+        Self {
+            count,
+            has_more: false,
+            next_cursor: None,
+        }
+    }
 }
 
 #[derive(Serialize)]
@@ -234,28 +247,36 @@ impl Cli {
     /// Read straight off argv, before clap: a rejected invocation still owes the caller an
     /// answer in the shape it asked for, and a version request outranks everything.
     pub fn wants_json() -> bool {
-        let mut args = Self::flags();
-        while let Some(a) = args.next() {
-            if a == "--format" && args.next().as_deref() == Some("json") {
-                return true;
-            }
-            if a == "--format=json" {
-                return true;
-            }
-        }
-        false
+        Self::scan().0
     }
 
     pub fn version_request() -> bool {
-        Self::flags().any(|a| a == "--version" || a == "-V")
+        Self::scan().1
     }
 
-    /// Everything before `--`; after it every word is a path.
-    fn flags() -> impl Iterator<Item = String> {
-        std::env::args_os()
+    /// A word standing where an option's value goes is that value, not a flag of its own.
+    fn scan() -> (bool, bool) {
+        let (mut json, mut version) = (false, false);
+        let mut args = std::env::args_os()
             .skip(1)
             .take_while(|a| a != "--")
-            .map(|a| a.to_string_lossy().into_owned())
+            .map(|a| a.to_string_lossy().into_owned());
+        while let Some(a) = args.next() {
+            match a.as_str() {
+                "--version" | "-V" => version = true,
+                "--format=json" => json = true,
+                "--format" => json = args.next().as_deref() == Some("json"),
+                "--allow" => {
+                    args.next();
+                    args.next();
+                }
+                "--config" | "--root" => {
+                    args.next();
+                }
+                _ => {}
+            }
+        }
+        (json, version)
     }
 
     fn allowances(&self) -> Result<Vec<(String, String)>> {
@@ -362,21 +383,15 @@ impl Cli {
             status: if rejected { "error" } else { "success" },
             error: rejected.then(|| ErrorBody {
                 code: "validation_error".to_string(),
-                message: self.rejection(report),
+                message: Self::rejection(report),
             }),
             data: Data {
                 files: &report.files,
                 languages: language_totals(report),
                 diagnostics: &report.diagnostics,
                 pagination: Pagination {
-                    files: Page {
-                        count: report.files.len(),
-                        has_more: false,
-                    },
-                    diagnostics: Page {
-                        count: report.diagnostics.len(),
-                        has_more: false,
-                    },
+                    files: Page::whole(report.files.len()),
+                    diagnostics: Page::whole(report.diagnostics.len()),
                 },
             },
             meta: Meta::now(),
@@ -392,7 +407,7 @@ impl Cli {
 
     /// Every channel a caller reads is stdout, this one and clap's rejection alike.
     /// Nothing was measured when the configuration was rejected, so nothing is over budget.
-    fn rejection(&self, report: &Report) -> String {
+    fn rejection(report: &Report) -> String {
         if report
             .diagnostics
             .iter()
@@ -403,9 +418,14 @@ impl Cli {
         let n = report
             .diagnostics
             .iter()
-            .filter(|d| d.level == Level::Deny || self.warnings_as_errors)
+            .filter(|d| d.level == Level::Deny)
             .count();
-        format!("{n} findings over budget")
+        let warnings = report.diagnostics.len() - n;
+        match (n, warnings) {
+            (0, w) => format!("{w} warnings, and warnings are errors"),
+            (n, 0) => format!("{n} findings over budget"),
+            (n, w) => format!("{n} findings over budget, and {w} warnings are errors"),
+        }
     }
 
     fn print_error(&self, failure: Failure, message: &str) -> i32 {
@@ -456,14 +476,8 @@ pub fn error_json(code: &str, message: &str) -> String {
             languages: Vec::new(),
             diagnostics: &[],
             pagination: Pagination {
-                files: Page {
-                    count: 0,
-                    has_more: false,
-                },
-                diagnostics: Page {
-                    count: 0,
-                    has_more: false,
-                },
+                files: Page::whole(0),
+                diagnostics: Page::whole(0),
             },
         },
         meta: Meta::now(),

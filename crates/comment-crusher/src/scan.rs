@@ -562,11 +562,17 @@ fn find_ci(haystack: &str, needle: &str) -> Option<usize> {
 }
 
 /// How far past the last newline an offset sits, in characters, 1-based.
+pub fn place(src: &str, offset: usize) -> (usize, usize) {
+    let before = &src[..offset.min(src.len())];
+    let line_start = before.rfind('\n').map_or(0, |n| n + 1);
+    (
+        before.matches('\n').count() + 1,
+        before[line_start..].chars().count() + 1,
+    )
+}
+
 fn column_of(src: &str, offset: usize) -> usize {
-    let start = src[..offset.min(src.len())]
-        .rfind('\n')
-        .map_or(0, |n| n + 1);
-    src[start..offset.min(src.len())].chars().count() + 1
+    place(src, offset).1
 }
 
 fn count_visible(s: &str) -> usize {
