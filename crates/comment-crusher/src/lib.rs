@@ -10,7 +10,6 @@ pub mod scan;
 pub mod syntax;
 
 pub use config::Config;
-pub use diagnostic::{Diagnostic, Level};
-pub use engine::{Engine, FileStat, Report};
-pub use scan::{Scan, scan_in};
-pub use syntax::Syntax;
+pub use diagnostic::Diagnostic;
+pub use engine::Engine;
+pub use scan::scan_in;

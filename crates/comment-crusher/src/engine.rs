@@ -85,11 +85,9 @@ impl<'a> Engine<'a> {
         });
         let measured: Vec<PathBuf> = report.files.iter().map(|f| f.path.clone()).collect();
         for glob in self.config.argv_globs_matching_none(&measured) {
-            // The tree that was measured, not the glob: `location.file` is a path to open.
-            report.diagnostics.push(Diagnostic::new(
+            report.diagnostics.push(Diagnostic::about_the_run(
                 "allowance.unused",
                 Level::Warn,
-                self.config.root(),
                 format!(
                     "--allow `{glob}` matched none of the files measured, so it widened nothing"
                 ),

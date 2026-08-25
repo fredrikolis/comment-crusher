@@ -6,9 +6,7 @@ use comment_crusher::cli::{Cli, EXIT_BAD_ARGS};
 
 fn main() -> std::process::ExitCode {
     if Cli::version_request() {
-        return u8::try_from(Cli::version_only(Cli::wants_json()))
-            .unwrap_or(1)
-            .into();
+        return u8::try_from(Cli::version_only()).unwrap_or(1).into();
     }
     let code = match Cli::try_parse() {
         Ok(cli) => cli.run(),

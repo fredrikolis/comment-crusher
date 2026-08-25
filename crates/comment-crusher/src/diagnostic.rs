@@ -47,7 +47,8 @@ struct Span {
 
 #[derive(Debug, Clone, Serialize)]
 struct Location {
-    file: PathBuf,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    file: Option<PathBuf>,
     #[serde(skip_serializing_if = "Option::is_none")]
     span: Option<Span>,
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -60,7 +61,8 @@ struct Location {
 pub struct Diagnostic {
     pub rule: &'static str,
     pub level: Level,
-    pub file: PathBuf,
+    /// Absent when the finding is about the invocation rather than about a file.
+    pub file: Option<PathBuf>,
     pub line: Option<usize>,
     pub end_line: Option<usize>,
     pub span: Option<(usize, usize)>,
@@ -132,7 +134,7 @@ impl Diagnostic {
         Self {
             rule,
             level,
-            file: file.to_path_buf(),
+            file: Some(file.to_path_buf()),
             line: None,
             end_line: None,
             span: None,
@@ -168,13 +170,25 @@ impl Diagnostic {
 
     pub fn human(&self) -> String {
         let at = self.line.map_or_else(String::new, |l| format!(":{l}"));
+        let where_ = self.file.as_ref().map_or_else(
+            || "comment-crusher".to_string(),
+            |f| f.display().to_string(),
+        );
         format!(
-            "{}: {}{} [{}] {}",
-            self.level,
-            self.file.display(),
-            at,
-            self.rule,
-            self.message
+            "{}: {where_}{at} [{}] {}",
+            self.level, self.rule, self.message
         )
+    }
+
+    /// A finding about the invocation, which no path locates.
+    pub fn about_the_run(
+        rule: &'static str,
+        level: Level,
+        message: String,
+        help: &'static str,
+    ) -> Self {
+        let mut d = Self::new(rule, level, Path::new(""), message, help);
+        d.file = None;
+        d
     }
 }

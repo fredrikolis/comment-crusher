@@ -52,7 +52,7 @@ fn measure(dir: &Path) -> (Totals, Vec<String>) {
         .diagnostics
         .iter()
         .filter(|d| d.rule.starts_with("unreadable"))
-        .map(|d| d.file.clone())
+        .filter_map(|d| d.file.clone())
         .collect();
 
     let mut totals = Totals::new();

@@ -231,7 +231,7 @@ struct Meta {
 }
 
 impl Meta {
-    /// The pid and the nanosecond: unique across runs, with no RNG dependency to get there.
+    /// The pid and the nanosecond: unique across runs, and no RNG to get there.
     fn now() -> Self {
         let since = std::time::SystemTime::now()
             .duration_since(std::time::UNIX_EPOCH)
@@ -254,24 +254,29 @@ impl Cli {
         Self::scan().1
     }
 
-    /// A word standing where an option's value goes is that value, not a flag of its own.
+    /// A word where an option's value goes is that value, not a flag of its own.
     fn scan() -> (bool, bool) {
         let (mut json, mut version) = (false, false);
         let mut args = std::env::args_os()
             .skip(1)
             .take_while(|a| a != "--")
-            .map(|a| a.to_string_lossy().into_owned());
+            .map(|a| a.to_string_lossy().into_owned())
+            .peekable();
+        // Clap refuses a hyphen-led value, so one here is still the flag it looks like.
+        let value = |it: &mut std::iter::Peekable<_>| -> Option<String> {
+            it.next_if(|a: &String| !a.starts_with('-'))
+        };
         while let Some(a) = args.next() {
             match a.as_str() {
                 "--version" | "-V" => version = true,
                 "--format=json" => json = true,
-                "--format" => json = args.next().as_deref() == Some("json"),
+                "--format" => json = value(&mut args).as_deref() == Some("json"),
                 "--allow" => {
-                    args.next();
-                    args.next();
+                    value(&mut args);
+                    value(&mut args);
                 }
                 "--config" | "--root" => {
-                    args.next();
+                    value(&mut args);
                 }
                 _ => {}
             }
@@ -299,8 +304,8 @@ impl Cli {
         }
     }
 
-    /// An envelope whatever the format: the CLI standard fixes this one reply's shape.
-    pub fn version_only(_json: bool) -> i32 {
+    /// An envelope whatever the format: the standard fixes this reply's shape.
+    pub fn version_only() -> i32 {
         let meta = Meta::now();
         println!(
             "{}",
@@ -404,7 +409,7 @@ impl Cli {
     }
 
     /// Every channel a caller reads is stdout, this one and clap's rejection alike.
-    /// Nothing was measured when the configuration was rejected, so nothing is over budget.
+    /// Nothing was measured when the configuration was rejected.
     fn rejection(report: &Report) -> String {
         if report
             .diagnostics
