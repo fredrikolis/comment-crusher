@@ -6,7 +6,7 @@ use anyhow::{Result, bail};
 use clap::{Parser, ValueEnum};
 use serde::Serialize;
 
-use crate::config::{CONFIG_FILE, Config, LoadFailure};
+use crate::config::{CONFIG_FILE, Config, LoadFailure, Located};
 use crate::diagnostic::Level;
 use crate::engine::{Engine, FileStat, Report};
 
@@ -421,7 +421,7 @@ fn config_diagnostic(
     rule: &'static str,
     path: &Path,
     message: &str,
-    span: Option<(usize, usize)>,
+    at: Option<Located>,
 ) -> crate::Diagnostic {
     let first = message.lines().next().unwrap_or(message);
     let d = crate::Diagnostic::new(
@@ -431,27 +431,12 @@ fn config_diagnostic(
         first.to_string(),
         "Fix the configuration, or point --config at one that parses.",
     );
-    let Some((offset, length)) = span else {
+    let Some(at) = at else {
         return d;
     };
-    let text = std::fs::read_to_string(path).unwrap_or_default();
-    let (start, end) = (place(&text, offset), place(&text, offset + length));
-    d.at(start.0)
-        .spanning(offset, offset + length, end.0)
-        .columns(start.1, end.1)
-}
-
-/// The 1-based line and column a byte offset falls on.
-fn place(text: &str, offset: usize) -> (usize, usize) {
-    let before = text.get(..offset).unwrap_or(text);
-    let line = before.matches('\n').count() + 1;
-    let column = before
-        .rsplit_once('\n')
-        .map_or(before, |(_, l)| l)
-        .chars()
-        .count()
-        + 1;
-    (line, column)
+    d.at(at.start.0)
+        .spanning(at.offset, at.offset + at.length, at.end.0)
+        .columns(at.start.1, at.end.1)
 }
 
 /// The envelope for a run that produced no report at all, so `data` is empty rather than

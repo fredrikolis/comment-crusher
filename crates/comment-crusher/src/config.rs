@@ -609,11 +609,11 @@ fn overlay(base: &mut Table, path: &Path) -> std::result::Result<(), LoadFailure
         .with_context(|| format!("reading {}", path.display()))
         .map_err(LoadFailure::Rejected)?;
     let layer: Table = toml::from_str(&text).map_err(|e| {
-        let span = e.span().map(|s| (s.start, s.end.saturating_sub(s.start)));
-        span.map_or_else(
-            || LoadFailure::Rejected(anyhow::anyhow!("parsing {}: {e}", path.display())),
-            |s| LoadFailure::Syntax(anyhow::anyhow!("parsing {}: {e}", path.display()), s),
-        )
+        let message = anyhow::anyhow!("parsing {}: {e}", path.display());
+        match e.span() {
+            Some(s) => LoadFailure::Syntax(message, Located::of(&text, s.start, s.end)),
+            None => LoadFailure::Rejected(message),
+        }
     })?;
     merge(base, layer);
     Ok(())
@@ -659,10 +659,42 @@ fn find_upward(from: &Path) -> Option<PathBuf> {
 #[derive(Debug)]
 pub enum LoadFailure {
     Argv(anyhow::Error),
-    /// The file is not TOML, with the byte offset and length the parser pointed at.
-    Syntax(anyhow::Error, (usize, usize)),
+    /// The file is not TOML, placed against the text the parser rejected.
+    Syntax(anyhow::Error, Located),
     /// The file is TOML but says something the tool refuses, which no byte range locates.
     Rejected(anyhow::Error),
+}
+
+/// Placed while the text is in hand: reading the file again invites a different file.
+#[derive(Debug, Clone, Copy)]
+pub struct Located {
+    pub offset: usize,
+    pub length: usize,
+    pub start: (usize, usize),
+    pub end: (usize, usize),
+}
+
+impl Located {
+    fn of(text: &str, start: usize, end: usize) -> Self {
+        Self {
+            offset: start,
+            length: end.saturating_sub(start),
+            start: place(text, start),
+            end: place(text, end),
+        }
+    }
+}
+
+fn place(text: &str, offset: usize) -> (usize, usize) {
+    let before = text.get(..offset).unwrap_or(text);
+    let line = before.matches('\n').count() + 1;
+    let column = before
+        .rsplit_once('\n')
+        .map_or(before, |(_, l)| l)
+        .chars()
+        .count()
+        + 1;
+    (line, column)
 }
 
 impl LoadFailure {
