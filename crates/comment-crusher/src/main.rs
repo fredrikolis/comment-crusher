@@ -4,9 +4,12 @@ use clap::Parser;
 use clap::error::ErrorKind;
 use comment_crusher::cli::{Cli, EXIT_BAD_ARGS};
 
-/// Off argv: clap has not run, and a rejection still owes an answer in the requested shape.
+/// Off argv: clap has not run, and a rejection still owes the requested shape.
 fn wants_json() -> bool {
-    let mut args = std::env::args_os().map(|a| a.to_string_lossy().into_owned());
+    let mut args = std::env::args_os()
+        .skip(1)
+        .take_while(|a| a != "--")
+        .map(|a| a.to_string_lossy().into_owned());
     while let Some(a) = args.next() {
         if a == "--format" && args.next().as_deref() == Some("json") {
             return true;
@@ -18,8 +21,12 @@ fn wants_json() -> bool {
     false
 }
 
+/// Before `--`; after it every word is a path.
 fn version_request() -> bool {
-    std::env::args_os().any(|a| a == "--version" || a == "-V")
+    std::env::args_os()
+        .skip(1)
+        .take_while(|a| a != "--")
+        .any(|a| a == "--version" || a == "-V")
 }
 
 fn main() -> std::process::ExitCode {

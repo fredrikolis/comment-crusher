@@ -5,11 +5,11 @@
 
 1. **The bound is the detector.** Never raise a threshold to make something pass. A tripped
    bound is a question about the shape of the code, not the number.
-2. **Measure size, claim nothing about quality.** The tool cannot tell a good comment from a
-   bad one, and no message, doc or README line may suggest otherwise.
+2. **Measure size, claim nothing about quality.** No message, doc or README line may suggest
+   the tool can tell a good comment from a bad one.
 3. **Skip, never guess.** A wrong number is worse than no number.
-4. **No fixtures.** Real code, pinned by SHA, or an inline snippet. Nothing invented.
-5. **One repo answer.** The same budget must hold in CI, in a hook, and against a single file.
+4. **No fixtures.** Real code pinned by SHA, or an inline snippet. Nothing invented.
+5. **One repo answer.** The same budget holds in CI, in a hook, and against a single file.
 6. **Simplicity is king.** Least complexity. Adding a language is configuration, not code.
 
 ## Layout, relative to `crates/comment-crusher/src/`
@@ -40,10 +40,10 @@ gitignored `target/corpus/`. Three assertions over them:
 
 - **The partition invariant** over every corpus file. Lose a character and a region was
   dropped; gain one and a state was left entered.
-- **Every declared marker has opened a real comment** in a pinned repo. Rare forms no repo
-  uses are listed in `snippet-only.txt`, asserted both ways so it cannot grow or go stale.
-- **`corpus-expected.toml`**, per-language totals. Revs are SHAs, so movement is a scanner
-  change. Re-record with `UPDATE_CORPUS_SNAPSHOT=1 cargo test --test corpus`; read the diff.
+- **Every declared marker has opened a real comment** in a pinned repo; rare forms no repo
+  uses are in `snippet-only.txt`, asserted both ways so it cannot grow or go stale.
+- **`corpus-expected.toml`** per-language totals; movement is a scanner change. Re-record with
+  `UPDATE_CORPUS_SNAPSHOT=1 cargo test --test corpus` and read the diff.
 
 ## Adding a language
 
@@ -61,17 +61,17 @@ commits go through [git-agent-verdict](https://github.com/fredrikolis/git-agent-
 
 ## Invariants worth knowing
 
-- **Partition.** Comment chars plus code chars equal a file's visible chars, checked over the
-  whole corpus. A merged run of whole-line comments must never span code.
-- **An embedded region is named, never guessed**, including a tag attribute that is present
-  but unmapped. An unresolved child leaves the body code. Nesting stops at depth 3.
-- **Every knob has one home**: the LANGUAGE TABLE in `--help` (`src/cli.rs`). The table and
-  the structs mirroring it carry no prose.
+- **Partition.** Comment plus code equals a file's visible chars, checked over the corpus. A
+  merged run of whole-line comments must never span code.
+- **Named, never guessed**: an embedded region, and a tag attribute present but unmapped. An
+  unresolved child leaves the body code. Nesting stops at depth 3.
+- **A marker with no strings to hide data in is line-anchored**, or a URL opens a comment.
+- **Every knob has one home**: the LANGUAGE TABLE in `--help` (`cli.rs`).
 
 ## Conventions
 
 - Commits: [Conventional Commits](https://www.conventionalcommits.org/), one change each.
 - Rule names are kebab-case; config fields are snake_case.
-- Every file carries a first-line annotation under 200 characters. Run
-  `annotated-tree --annotation-guide` before writing one.
+- Every file carries a first-line annotation under 200 characters; run
+  `annotated-tree --annotation-guide` first.
 - No `.unwrap()` or `.expect()` outside tests; clippy denies them.

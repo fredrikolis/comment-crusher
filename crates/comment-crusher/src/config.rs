@@ -28,8 +28,7 @@ struct RawAllow {
     paths: Vec<String>,
     #[serde(default)]
     set: Vec<String>,
-    #[serde(default)]
-    reason: Option<String>,
+    reason: String,
 }
 
 #[derive(Debug, Clone, Default, Deserialize)]
@@ -110,7 +109,7 @@ fn default_escape() -> String {
 /// A widened budget for the paths it names, and the reason it was widened. Every finding it
 /// suppresses is a decision someone recorded, not a threshold quietly raised for everyone.
 pub struct Allowance {
-    pub reason: Option<String>,
+    pub reason: String,
     globs: GlobSet,
     set: Vec<(String, Value)>,
 }
@@ -265,9 +264,7 @@ impl Config {
             for (path, value) in &a.set {
                 set_dotted(&mut table, path, value.clone());
             }
-            if let Some(r) = &a.reason {
-                reasons.push(r.clone());
-            }
+            reasons.push(a.reason.clone());
         }
         let rules = Rules::from_table(&table).unwrap_or_else(|_| self.base.clone());
         (rules, reasons)
@@ -307,7 +304,7 @@ fn build_allowances(
     }
     for (glob, setting) in cli_allow {
         allowances.push(Allowance {
-            reason: Some("--allow".to_string()),
+            reason: "--allow".to_string(),
             globs: build_globs(std::slice::from_ref(glob))?,
             set: vec![parse_setting(setting)?],
         });
@@ -519,11 +516,13 @@ fn set_dotted(table: &mut Table, path: &str, value: Value) {
         let entry = cursor
             .entry(part.to_string())
             .or_insert_with(|| Value::Table(Table::new()));
-        *entry = Value::Table(entry.as_table().cloned().unwrap_or_default());
-        let Some(table) = entry.as_table_mut() else {
-            return;
-        };
-        cursor = table;
+        if !entry.is_table() {
+            *entry = Value::Table(Table::new());
+        }
+        match entry {
+            Value::Table(table) => cursor = table,
+            _ => return,
+        }
     }
 }
 

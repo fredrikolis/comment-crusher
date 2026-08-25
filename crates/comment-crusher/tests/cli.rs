@@ -177,8 +177,8 @@ fn json_reports_every_file_measured_and_every_finding() {
     assert!(block["location"]["span"]["length"].as_u64().unwrap_or(0) > 0);
     assert!(block["location"]["end"]["line"].as_u64().unwrap_or(0) > 0);
     assert!(d["help"].as_str().is_some_and(|h| !h.is_empty()));
-    assert_eq!(v["meta"]["diagnostics"]["count"], 2);
-    assert_eq!(v["meta"]["files"]["count"], 1);
+    assert_eq!(v["data"]["pagination"]["diagnostics"]["count"], 2);
+    assert_eq!(v["data"]["pagination"]["files"]["count"], 1);
 }
 
 #[test]
@@ -199,6 +199,22 @@ fn a_shebang_names_the_language_of_a_file_with_no_extension() {
     let out = run(dir.path(), &["hook", "--format", "json"]);
     let v: serde_json::Value = serde_json::from_str(&stdout(&out)).expect("valid JSON");
     assert_eq!(v["data"]["files"][0]["language"], "shell");
+}
+
+/// A widened bound with no stated reason is a threshold raised in silence, which is the thing
+/// the allowance mechanism exists to prevent.
+#[test]
+fn an_allowance_without_a_reason_is_refused() {
+    let dir = tempfile::tempdir().expect("tempdir");
+    write(dir.path(), "docs/long.md", &"a line\n".repeat(500));
+    write(
+        dir.path(),
+        ".comment-crusher.toml",
+        "[[allow]]\npaths = [\"docs/**\"]\nset = [\"doc-length.max_lines=600\"]\n",
+    );
+    let out = run(dir.path(), &["docs"]);
+    assert_eq!(code(&out), 3);
+    assert!(stdout(&out).contains("reason"), "{}", stdout(&out));
 }
 
 #[test]
@@ -327,10 +343,7 @@ fn version_answers_in_the_requested_shape_whatever_else_is_wrong() {
     let v: serde_json::Value = serde_json::from_str(&stdout(&json)).expect("valid JSON");
     assert_eq!(v["status"], "success");
     assert_eq!(v["data"]["name"], "comment-crusher");
-    assert!(
-        v["meta"]["files"]["count"].is_number(),
-        "envelope carries meta"
-    );
+    assert!(v["data"]["version"].as_str().is_some(), "version envelope");
 
     // A version request outranks an argument clap would otherwise reject.
     assert_eq!(

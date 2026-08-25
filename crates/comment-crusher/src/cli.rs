@@ -27,10 +27,12 @@ OUTPUT (--format json)
    "error":{"code":..., "message":...},          only when status is error
    "data":{"files":[{path,language,prose,lines,code_chars,comment_chars}],
            "languages":[{language,files,lines,comment_chars,code_chars}],
-           "diagnostics":[{code,severity,message,location,help,allowance}]},
+           "diagnostics":[{code,severity,message,location,help}]},
+  A field with no value is omitted, never null: `allowance`, and `location.span`/`start`/`end`
+  on a finding that names no region.
   `comment_chars` counts every comment in the file; a rule may judge a subset of it,
   exempting the header or excluding doc comments, and says so in its own message.
-   "meta":{"files":{count,has_more},"diagnostics":{count,has_more}}}
+           "pagination":{"files":{count,has_more},"diagnostics":{count,has_more}}}}
 
 VERSION
   -V, --version                answered before any other argument is judged, so a broken
@@ -88,6 +90,7 @@ of every document under the paths given, and fails the ones over budget.\n\n\
 The budget lives in .comment-crusher.toml, found by walking up from the target, so one repo \
 answer holds whether the tool runs in CI, in a pre-commit hook, or against a single file an \
 agent just edited.",
+    after_help = AFTER_HELP,
     after_long_help = AFTER_HELP
 )]
 pub struct Cli {
@@ -120,6 +123,11 @@ pub struct Cli {
     /// Exit nonzero on a warning as well as an error.
     #[arg(long)]
     pub warnings_as_errors: bool,
+
+    /// Print the version and exit. Read before any other argument, so a rejected invocation
+    /// can still say what it is; `main` answers it before clap runs.
+    #[arg(short = 'V', long)]
+    pub version: bool,
 }
 
 #[derive(Serialize)]
@@ -137,7 +145,7 @@ struct Page {
 }
 
 #[derive(Serialize)]
-struct Meta {
+struct Pagination {
     files: Page,
     diagnostics: Page,
 }
@@ -156,6 +164,7 @@ struct Data<'a> {
     files: &'a [FileStat],
     languages: Vec<LanguageTotal<'a>>,
     diagnostics: &'a [crate::Diagnostic],
+    pagination: Pagination,
 }
 
 #[derive(Serialize)]
@@ -164,7 +173,6 @@ struct Envelope<'a> {
     #[serde(skip_serializing_if = "Option::is_none")]
     error: Option<ErrorBody>,
     data: Data<'a>,
-    meta: Meta,
 }
 
 impl Cli {
@@ -196,8 +204,6 @@ impl Cli {
                 serde_json::json!({
                     "status": "success",
                     "data": { "name": "comment-crusher", "version": version },
-                    "meta": { "files": {"count": 0, "has_more": false},
-                             "diagnostics": {"count": 0, "has_more": false} },
                 })
             );
         } else {
@@ -263,15 +269,15 @@ impl Cli {
                 files: &report.files,
                 languages: language_totals(report),
                 diagnostics: &report.diagnostics,
-            },
-            meta: Meta {
-                files: Page {
-                    count: report.files.len(),
-                    has_more: false,
-                },
-                diagnostics: Page {
-                    count: report.diagnostics.len(),
-                    has_more: false,
+                pagination: Pagination {
+                    files: Page {
+                        count: report.files.len(),
+                        has_more: false,
+                    },
+                    diagnostics: Page {
+                        count: report.diagnostics.len(),
+                        has_more: false,
+                    },
                 },
             },
         };
@@ -302,7 +308,7 @@ impl Cli {
 /// The one producer of a failed envelope, so `data` is present on every reply the contract
 /// in `--help` describes, whatever went wrong.
 pub fn error_json(code: &str, message: &str) -> String {
-    let envelope = Envelope {
+    let envelope: Envelope<'_> = Envelope {
         status: "error",
         error: Some(ErrorBody {
             code: code.to_string(),
@@ -312,22 +318,28 @@ pub fn error_json(code: &str, message: &str) -> String {
             files: &[],
             languages: Vec::new(),
             diagnostics: &[],
-        },
-        meta: Meta {
-            files: Page {
-                count: 0,
-                has_more: false,
-            },
-            diagnostics: Page {
-                count: 0,
-                has_more: false,
+            pagination: Pagination {
+                files: Page {
+                    count: 0,
+                    has_more: false,
+                },
+                diagnostics: Page {
+                    count: 0,
+                    has_more: false,
+                },
             },
         },
     };
-    serde_json::to_string_pretty(&envelope).unwrap_or_else(|_| {
-        String::from(
-            r#"{"status":"error","error":{"code":"internal_error","message":"envelope failed to serialize"},"data":{"files":[],"languages":[],"diagnostics":[]},"meta":{"files":{"count":0,"has_more":false},"diagnostics":{"count":0,"has_more":false}}}"#,
-        )
+    serde_json::to_string(&envelope).unwrap_or_else(|_| {
+        // The message is the only part that can fail to serialize, so drop it and retry.
+        let bare = Envelope {
+            error: Some(ErrorBody {
+                code: "internal_error".to_string(),
+                message: String::new(),
+            }),
+            ..envelope
+        };
+        serde_json::to_string(&bare).unwrap_or_default()
     })
 }
 

@@ -6,12 +6,15 @@ use crate::syntax::{CommentKind, Opener, Resolve, StringSpec, Syntax};
 /// A block comment, or a run of adjacent whole-line comments merged into one paragraph.
 #[derive(Debug, Clone)]
 pub struct Region {
-    /// Markers included, so a merged run can be re-read as the one comment it forms.
+    /// Markers included, so a merged run re-reads as the one comment it forms.
     pub start: usize,
     pub end: usize,
     pub start_line: usize,
     pub end_line: usize,
     pub chars: usize,
+    /// 1-based, of the region's first and last character.
+    pub start_column: usize,
+    pub end_column: usize,
     pub kind: CommentKind,
     pub own_line: bool,
     /// Only whole-line comments merge: one merging around trailing code would charge it prose.
@@ -74,6 +77,8 @@ fn scan_at(src: &str, syn: &Syntax, resolve: &dyn Resolve, depth: usize) -> Scan
     let mut regions = merge(s.raw);
     let mut code_chars = s.code_chars;
     for r in &mut regions {
+        r.start_column = column_of(src, r.start);
+        r.end_column = column_of(src, r.end);
         if r.nested {
             continue;
         }
@@ -105,7 +110,7 @@ fn count_body(text: &str) -> (usize, usize) {
     (prose, example)
 }
 
-/// The marker is stripped first: a fence is the one convention every doc dialect shares.
+/// The marker is stripped first; a fence is the one convention every doc dialect shares.
 fn is_fence(line: &str) -> bool {
     let body = line
         .trim_start()
@@ -114,7 +119,7 @@ fn is_fence(line: &str) -> bool {
     body.starts_with("```") || body.starts_with("~~~")
 }
 
-/// Adjacent whole-line comments of one kind read as one comment, so they are bounded as one.
+/// Adjacent whole-line comments of one kind are one comment, and bounded as one.
 fn merge(raw: Vec<Region>) -> Vec<Region> {
     let mut out: Vec<Region> = Vec::with_capacity(raw.len());
     for r in raw {
@@ -147,7 +152,7 @@ struct Scanner<'a> {
     line: usize,
     line_start: usize,
     code_chars: usize,
-    /// Not `code_chars > 0`: a shebang is code, but the comment under it is still the header.
+    /// Not `code_chars > 0`: a shebang is code, but the comment under it is still a header.
     saw_code: bool,
     raw: Vec<Region>,
 }
@@ -342,6 +347,8 @@ impl<'a> Scanner<'a> {
             start_line: start,
             end_line: self.line,
             chars: 0,
+            start_column: 1,
+            end_column: 1,
             kind,
             own_line,
             ends_line,
@@ -394,7 +401,7 @@ impl<'a> Scanner<'a> {
         self.push_region(span, start, own, kind);
     }
 
-    /// A string's contents are code. A docstring opening its own line is prose, and counted.
+    /// A string is code; a docstring opening its own line is prose.
     fn consume_string(&mut self, spec: &StringSpec) -> bool {
         let (start, own) = self.open_region();
         let Some(end) = self.string_end(spec) else {
@@ -412,7 +419,7 @@ impl<'a> Scanner<'a> {
         true
     }
 
-    /// Byte index just past the closing delimiter, or `None` when this is not a string here.
+    /// Past the closing delimiter, or `None` when this is not a string here.
     fn string_end(&self, spec: &StringSpec) -> Option<usize> {
         let mut j = self.i + spec.open.len();
         while j < self.src.len() {
@@ -464,7 +471,7 @@ impl<'a> Scanner<'a> {
         true
     }
 
-    /// `<<WORD`, `<<-'WORD'`, `<<~WORD`: the body is code until a line equal to WORD.
+    /// `<<WORD`, `<<-'WORD'`, `<<~WORD`: code until a line equal to WORD.
     fn take_heredoc(&mut self) -> bool {
         if !self.syn.heredoc || !self.rest().starts_with("<<") {
             return false;
@@ -521,6 +528,14 @@ fn find_ci(haystack: &str, needle: &str) -> Option<usize> {
         .position(|w| w.eq_ignore_ascii_case(needle.as_bytes()))
 }
 
+/// How far past the last newline an offset sits, in characters, 1-based.
+fn column_of(src: &str, offset: usize) -> usize {
+    let start = src[..offset.min(src.len())]
+        .rfind('\n')
+        .map_or(0, |n| n + 1);
+    src[start..offset.min(src.len())].chars().count() + 1
+}
+
 fn count_visible(s: &str) -> usize {
     s.chars().filter(|c| !c.is_whitespace()).count()
 }
@@ -532,7 +547,7 @@ fn prev_is_ident(before: &str) -> bool {
         .is_some_and(|c| c.is_alphanumeric() || c == '_')
 }
 
-/// The terminator of a heredoc opener, and whether its closing line may be indented.
+/// A heredoc's terminator, and whether its closing line may be indented.
 fn heredoc_word(after: &str) -> Option<(String, bool)> {
     let mut rest = after;
     let indented = rest.starts_with('-') || rest.starts_with('~');

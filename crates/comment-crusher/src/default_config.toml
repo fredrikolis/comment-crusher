@@ -290,8 +290,15 @@ strings = [
   { open = '"', close = '"' },
 ]
 
+# `//` is not CSS; it is SCSS and LESS, which get their own entry below.
 [languages.css]
-extensions = [".css", ".scss", ".sass", ".less"]
+extensions = [".css"]
+block = [["/*", "*/"]]
+strings = [{ open = '"', close = '"' }, { open = "'", close = "'" }]
+
+[languages.scss]
+extensions = [".scss", ".sass", ".less"]
+line_anchored = true
 line = ["//"]
 block = [["/*", "*/"]]
 strings = [{ open = '"', close = '"' }, { open = "'", close = "'" }]
@@ -539,6 +546,7 @@ strings = [{ open = '"', close = '"' }]
 
 [languages.gas]
 extensions = [".s"]
+line_anchored = true
 line = ["#"]
 block = [["/*", "*/"]]
 strings = [{ open = '"', close = '"' }]
@@ -552,17 +560,20 @@ strings = [{ open = '"', close = '"' }, { open = "'", close = "'" }]
 [languages.tcl]
 extensions = [".tcl", ".tk"]
 interpreters = ["tclsh", "wish"]
+line_anchored = true
 line = ["#"]
 strings = [{ open = '"', close = '"', multiline = true }]
 
 [languages.awk]
 extensions = [".awk"]
 interpreters = ["awk", "gawk", "mawk"]
+line_anchored = true
 line = ["#"]
 strings = [{ open = '"', close = '"' }]
 
 [languages.batch]
 extensions = [".bat", ".cmd"]
+line_anchored = true
 line = ["::", "REM ", "rem ", "Rem "]
 strings = [{ open = '"', close = '"' }]
 

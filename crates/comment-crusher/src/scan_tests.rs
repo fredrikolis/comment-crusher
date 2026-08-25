@@ -270,6 +270,12 @@ fn a_url_does_not_open_a_comment_where_the_marker_is_line_anchored() {
         ("adoc", "See https://x/y for more.\n"),
         ("dockerfile", "RUN curl https://x/y | sh\n"),
         ("ini", "color = #ffffff\n"),
+        ("s", "mov r0, #1\nmov r1, #0x20\n"),
+        ("css", "a { background: url(http://x/b.png); }\n"),
+        ("scss", "a { background: url(http://x/b.png); }\n"),
+        ("tcl", "set url http://x/p#frag\n"),
+        ("awk", "$0 ~ /#/ { n++ }\n"),
+        ("bat", "set P=%PATH::=%\n"),
         ("env", "URL=https://x/y#frag\n"),
     ] {
         let scan = run(ext, src);
@@ -334,6 +340,7 @@ const CASES: &[(&str, &str, usize)] = &[
     ("cr", "# n\nx = 1\n", 1),
     ("cs", "// n\nint x = 1;\n/* b */\nvar s = \"// no\";\n", 2),
     ("css", "/* b */\na { color: red; }\n", 1),
+    ("scss", "// n\n$x: 1;\n/* b */\na { color: $x; }\n", 2),
     ("cue", "// n\nx: 1\n", 1),
     ("d", "// n\nint x;\n/+ b +/\nint y;\n", 2),
     ("dart", "// n\nvar x = 1;\n/* b */\nvar y = 2;\n", 2),

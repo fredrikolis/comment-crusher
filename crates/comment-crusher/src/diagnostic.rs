@@ -12,8 +12,7 @@ pub enum Level {
 }
 
 impl Level {
-    /// The wire name. `deny`/`warn`/`allow` say what the budget does about a finding; an agent
-    /// branches on how bad it is, which is what the CLI contract calls severity.
+    /// What the budget does is `deny`/`warn`; how bad it is, is what the wire calls severity.
     pub const fn severity(self) -> &'static str {
         match self {
             Self::Allow => "advice",
@@ -66,10 +65,11 @@ pub struct Diagnostic {
     pub end_line: Option<usize>,
     /// Byte offset and length of the region that tripped the rule, machine-exact.
     pub span: Option<(usize, usize)>,
+    pub start_column: Option<usize>,
+    pub end_column: Option<usize>,
     pub message: String,
     pub help: &'static str,
-    /// The allowance that widened this file's budget, when one did, so a report shows that a
-    /// bound was widened rather than met.
+    /// Present when a bound was widened rather than met.
     pub allowance: Option<String>,
 }
 
@@ -93,8 +93,14 @@ impl Serialize for Diagnostic {
             location: Location {
                 file: self.file.clone(),
                 span: self.span.map(|(offset, length)| Span { offset, length }),
-                start: self.line.map(|line| Position { line, column: 1 }),
-                end: self.end_line.map(|line| Position { line, column: 1 }),
+                start: self.line.map(|line| Position {
+                    line,
+                    column: self.start_column.unwrap_or(1),
+                }),
+                end: self.end_line.map(|line| Position {
+                    line,
+                    column: self.end_column.unwrap_or(1),
+                }),
             },
             help: self.help,
             allowance: self.allowance.as_deref(),
@@ -118,6 +124,8 @@ impl Diagnostic {
             line: None,
             end_line: None,
             span: None,
+            start_column: None,
+            end_column: None,
             message,
             help,
             allowance: None,
@@ -135,6 +143,14 @@ impl Diagnostic {
     pub const fn spanning(mut self, start: usize, end: usize, end_line: usize) -> Self {
         self.span = Some((start, end.saturating_sub(start)));
         self.end_line = Some(end_line);
+        self
+    }
+
+    /// So slicing `start`..`end` reaches the region's real end, not its last line's start.
+    #[must_use]
+    pub const fn columns(mut self, start: usize, end: usize) -> Self {
+        self.start_column = Some(start);
+        self.end_column = Some(end);
         self
     }
 

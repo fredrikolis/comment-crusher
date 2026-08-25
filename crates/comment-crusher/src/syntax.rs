@@ -38,9 +38,7 @@ pub struct Syntax {
     pub heredoc: bool,
     pub strings: Vec<StringSpec>,
     pub openers: Vec<(String, Opener)>,
-    /// Cancels a comment: `#[` is a PHP attribute, `{$` a Pascal directive.
     pub exceptions: Vec<String>,
-    /// What stops `url(https://x)` opening a comment where there are no strings to hide in.
     pub line_anchored: bool,
     pub embeds: Vec<EmbedSpec>,
 }

@@ -173,7 +173,8 @@ impl<'a> Engine<'a> {
             if is_binary(&bytes) {
                 return None;
             }
-            let text = String::from_utf8(bytes).ok()?;
+            // Lossy here too: one decode policy, whichever way the language resolved.
+            let text = String::from_utf8_lossy(&bytes).into_owned();
             let head = text.lines().next().unwrap_or_default();
             let syn = self.config.language_of_shebang(head)?;
             (syn, text)

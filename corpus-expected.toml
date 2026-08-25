@@ -166,8 +166,8 @@ code_chars = 24679
 ["coffeescript".html]
 files = 49
 lines = 96946
-comment_chars = 54311
-code_chars = 2930151
+comment_chars = 48395
+code_chars = 2936067
 
 ["coffeescript".javascript]
 files = 27
@@ -391,12 +391,6 @@ lines = 42
 comment_chars = 208
 code_chars = 411
 
-["hspec".css]
-files = 4
-lines = 320
-comment_chars = 1689
-code_chars = 4639
-
 ["hspec".haskell]
 files = 77
 lines = 3620
@@ -432,6 +426,12 @@ files = 2
 lines = 121
 comment_chars = 199
 code_chars = 3404
+
+["hspec".scss]
+files = 4
+lines = 320
+comment_chars = 1689
+code_chars = 4639
 
 ["hspec".shell]
 files = 1
@@ -1027,12 +1027,6 @@ lines = 1
 comment_chars = 0
 code_chars = 19
 
-["sinatra".css]
-files = 4
-lines = 9
-comment_chars = 0
-code_chars = 87
-
 ["sinatra".markdown]
 files = 12
 lines = 5571
@@ -1050,6 +1044,12 @@ files = 156
 lines = 24492
 comment_chars = 76594
 code_chars = 413913
+
+["sinatra".scss]
+files = 4
+lines = 9
+comment_chars = 0
+code_chars = 87
 
 ["sinatra".stylus]
 files = 1
@@ -1298,10 +1298,10 @@ comment_chars = 0
 code_chars = 31596
 
 ["uri-perl".perl]
-files = 73
-lines = 7442
-comment_chars = 13651
-code_chars = 129754
+files = 74
+lines = 7502
+comment_chars = 13722
+code_chars = 130581
 
 ["uri-perl".plaintext]
 files = 4

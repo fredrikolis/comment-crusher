@@ -37,7 +37,8 @@ pub fn check(cfg: &Config, file: &Path, scan: &Scan) -> Vec<Diagnostic> {
                     HELP,
                 )
                 .at(r.start_line)
-                .spanning(r.start, r.end, r.end_line),
+                .spanning(r.start, r.end, r.end_line)
+                .columns(r.start_column, r.end_column),
             );
         } else if cfg.max_chars > 0 && r.chars > cfg.max_chars {
             out.push(
@@ -49,7 +50,8 @@ pub fn check(cfg: &Config, file: &Path, scan: &Scan) -> Vec<Diagnostic> {
                     HELP,
                 )
                 .at(r.start_line)
-                .spanning(r.start, r.end, r.end_line),
+                .spanning(r.start, r.end, r.end_line)
+                .columns(r.start_column, r.end_column),
             );
         }
     }

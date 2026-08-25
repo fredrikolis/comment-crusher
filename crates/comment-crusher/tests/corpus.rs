@@ -70,7 +70,10 @@ fn measure(dir: &Path) -> (Totals, Vec<String>) {
         e[3] += f.code_chars;
 
         // Lose a character and a region was dropped; gain one and a state was left entered.
-        let bytes = std::fs::read(dir.join(&f.path)).unwrap_or_default();
+        let Ok(bytes) = std::fs::read(dir.join(&f.path)) else {
+            // An IO failure is not a scanner defect; the engine reports it separately.
+            continue;
+        };
         let text = String::from_utf8_lossy(&bytes);
         let visible = text.chars().filter(|c| !c.is_whitespace()).count();
         if f.comment_chars + f.code_chars != visible {
