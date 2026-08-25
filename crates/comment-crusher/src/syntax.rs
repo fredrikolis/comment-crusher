@@ -61,7 +61,8 @@ impl Syntax {
                 let anchored = self.line_anchored && matches!(op, Opener::Line(_));
                 rest.starts_with(tok.as_str())
                     && !(comment && self.exceptions.iter().any(|e| rest.starts_with(e)))
-                    && !(comment && self.cancel_after.iter().any(|e| before.ends_with(e)))
+                    && !(matches!(op, Opener::Line(_))
+                        && self.cancel_after.iter().any(|e| before.ends_with(e)))
                     && (own_line
                         || !anchored
                         || self

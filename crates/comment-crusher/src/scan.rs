@@ -565,7 +565,6 @@ fn find_ci(haystack: &str, needle: &str) -> Option<usize> {
         .position(|w| w.eq_ignore_ascii_case(needle.as_bytes()))
 }
 
-/// How far past the last newline an offset sits, in characters, 1-based.
 /// The 1-based line and column a byte offset falls on.
 pub(crate) fn place(src: &str, offset: usize) -> (usize, usize) {
     let before = &src[..offset.min(src.len())];

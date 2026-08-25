@@ -169,7 +169,7 @@ fn every_comment_marker_has_fired_on_real_source() {
             // The same token elsewhere is the same path, unless this language changes it.
             let anchored =
                 syn.line_anchored && matches!(opener, comment_crusher::syntax::Opener::Line(_));
-            let own = anchored || !syn.exceptions.is_empty();
+            let own = anchored || !syn.exceptions.is_empty() || !syn.cancel_after.is_empty();
             let elsewhere = !own && fired.iter().any(|f| f.ends_with(&format!(" {token}")));
             if fired.contains(&key) || elsewhere {
                 continue;

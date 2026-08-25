@@ -8,7 +8,7 @@ exclude = ["target", "node_modules", "vendor", "dist", "build", ".venv"]
 [rules.comment-ratio]
 # Characters, not lines, so a trailing `// why` costs what it occupies.
 level = "deny"
-# Measured where this rule applies, prose excluded: per-repo median of the 42 pinned, 15.6%.
+# Measured where this rule applies, prose excluded: per-repo median of the 43 pinned, 15.6%.
 max_ratio = 0.15
 # Doc comments count too; at file scope they are usually the larger share.
 count_doc_comments = true
@@ -16,7 +16,7 @@ count_doc_comments = true
 min_chars = 200
 # A fixed per-file cost the body is not charged for, bounded by header_max_chars.
 skip_header = true
-# Measured: p90 of the median header in the 47 corpus languages that carry one, itself 86.
+# Measured: p90 of the median header in the 48 corpus languages that carry one, itself 90.
 header_max_chars = 344
 
 [rules.comment-block]

@@ -360,12 +360,13 @@ impl Cli {
             .first()
             .cloned()
             .unwrap_or_else(|| PathBuf::from("."));
+        // A directory is as much "not a config file" as a missing one, and both are argv.
         if let Some(path) = &self.config
-            && !path.exists()
+            && !path.is_file()
         {
             return Err((
                 Failure::NotFound,
-                anyhow::anyhow!("no such config: {}", path.display()),
+                anyhow::anyhow!("no such config file: {}", path.display()),
             ));
         }
         let config = match Config::load(&anchor, self.config.as_deref(), &allow) {

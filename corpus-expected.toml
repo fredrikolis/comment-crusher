@@ -1246,8 +1246,8 @@ code_chars = 19
 ["stylus".stylus]
 files = 437
 lines = 10470
-comment_chars = 9508
-code_chars = 118889
+comment_chars = 9522
+code_chars = 118875
 
 ["stylus".typescript]
 files = 8
@@ -1362,6 +1362,30 @@ files = 4
 lines = 94
 comment_chars = 132
 code_chars = 2397
+
+["tdbc".c]
+files = 8
+lines = 1464
+comment_chars = 10954
+code_chars = 17984
+
+["tdbc".plaintext]
+files = 1
+lines = 90
+comment_chars = 0
+code_chars = 2024
+
+["tdbc".shell]
+files = 3
+lines = 12986
+comment_chars = 45587
+code_chars = 267625
+
+["tdbc".tcl]
+files = 7
+lines = 4445
+comment_chars = 22458
+code_chars = 64316
 
 ["terraform-vpc".ini]
 files = 1

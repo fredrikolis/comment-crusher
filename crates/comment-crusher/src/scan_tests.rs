@@ -296,8 +296,8 @@ fn a_shell_heredoc_survives_every_opener_form() {
     assert_eq!(s.regions.len(), 1);
 }
 
-/// A language with markers but no string literals has nowhere for data to hide, so a URL
-/// would otherwise open a comment and bill a file with none as mostly prose.
+/// An address is not a comment. Where the language has no string to hide one in the marker is
+/// line-anchored; where it has, what precedes the marker cancels it.
 #[test]
 fn a_url_does_not_open_a_comment_where_the_marker_is_line_anchored() {
     for (ext, src) in [

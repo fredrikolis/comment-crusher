@@ -253,3 +253,9 @@ name = "lwt"
 language = "ocaml"
 url = "https://github.com/ocsigen/lwt"
 rev = "da71600f47a9a1561ddf2585937aeaaf42bceaf1" # 6.1.2
+
+[[repo]]
+name = "tdbc"
+language = "tcl"
+url = "https://github.com/tcltk/tdbc"
+rev = "97caed142ef6245a21fc4bd037ccf1f1cfa351ca" # tdbc_1_0_0

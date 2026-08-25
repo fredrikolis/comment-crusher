@@ -50,8 +50,8 @@ answer holds in CI, in a hook, and against a file an agent just wrote. Exit code
 | `doc-length` | a prose document (`.md`, `.rst`, `.adoc`, `.txt`, and kin) | 77 lines |
 | `unreadable` | a resolved file that is binary or cannot be read | deny |
 
-Across the 42 repositories the tests measure, the median comment share is 15.6%, and 77 lines
-is under their documents' p75 of 89. `comment-block` is policy, not a measurement.
+Across the 43 repositories the tests measure, the median comment share is 15.6%, and 77 lines
+is under their documents' p75 of 90. `comment-block` is policy, not a measurement.
 
 **Comment** is markers, their delimiters, doc comments and docstrings. **Code** is strings,
 heredoc bodies, the shebang, and fenced examples in a doc comment. Counted in characters, the
@@ -69,7 +69,7 @@ false` charges the banner too. A doc comment gets more room than a remark.
 - Nested blocks in 16 languages, heredocs in 6, docstrings in 4, raw strings, char literals.
 - `<script>` and `<style>` scanned as the language their tag names, across HTML, Vue, Svelte
   and Astro; named, never guessed, so a `type=` the table does not map leaves its body code.
-- Comment plus code equals the file's visible chars over 42 pinned repositories, and every
+- Comment plus code equals the file's visible chars over 43 pinned repositories, and every
   declared marker has opened a real comment in one, bar the rare forms `snippet-only.txt`
   names and snippets cover.
 
