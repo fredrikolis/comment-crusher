@@ -385,6 +385,14 @@ impl Cli {
             .first()
             .cloned()
             .unwrap_or_else(|| PathBuf::from("."));
+        if let Some(root) = &self.root
+            && !root.is_dir()
+        {
+            return Err((
+                Failure::NotFound,
+                anyhow::anyhow!("no such directory: {}", root.display()),
+            ));
+        }
         // A directory is as much "not a config file" as a missing one.
         if let Some(path) = &self.config
             && !path.is_file()

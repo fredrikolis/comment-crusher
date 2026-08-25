@@ -502,6 +502,8 @@ pub enum Widenable {
     BlockDocLines,
     BlockHeaderLines,
     BlockChars,
+    BlockDocChars,
+    BlockHeaderChars,
     DocLines,
 }
 
@@ -526,6 +528,18 @@ impl Widenable {
             INF,
         ),
         Bound::new(comment_block::NAME, "max_chars", Self::BlockChars, INF),
+        Bound::new(
+            comment_block::NAME,
+            "doc_max_chars",
+            Self::BlockDocChars,
+            INF,
+        ),
+        Bound::new(
+            comment_block::NAME,
+            "header_max_chars",
+            Self::BlockHeaderChars,
+            INF,
+        ),
         Bound::new(doc_length::NAME, "max_lines", Self::DocLines, INF),
     ];
 
@@ -544,6 +558,8 @@ impl Widenable {
             Self::BlockDocLines => base.comment_block.doc_max_lines as f64,
             Self::BlockHeaderLines => base.comment_block.header_max_lines as f64,
             Self::BlockChars => base.comment_block.max_chars as f64,
+            Self::BlockDocChars => base.comment_block.doc_max_chars as f64,
+            Self::BlockHeaderChars => base.comment_block.header_max_chars as f64,
             Self::DocLines => base.doc_length.max_lines as f64,
         }
     }
@@ -567,6 +583,8 @@ impl Widenable {
             Self::BlockDocLines => rules.comment_block.doc_max_lines = n,
             Self::BlockHeaderLines => rules.comment_block.header_max_lines = n,
             Self::BlockChars => rules.comment_block.max_chars = n,
+            Self::BlockDocChars => rules.comment_block.doc_max_chars = n,
+            Self::BlockHeaderChars => rules.comment_block.header_max_chars = n,
             Self::DocLines => rules.doc_length.max_lines = n,
         }
     }

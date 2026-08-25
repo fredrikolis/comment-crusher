@@ -21,6 +21,58 @@ fn bound(table: &toml::Table, rule: &str, field: &str) -> String {
     table["rules"][rule][field].to_string()
 }
 
+fn claims(
+    t: &toml::Table,
+    languages: usize,
+    repos: usize,
+    ratio: f64,
+) -> Vec<(String, &'static str)> {
+    vec![
+        (format!("{languages} languages"), "the language count"),
+        (format!("{repos} repositor"), "the corpus size"),
+        (
+            format!("{repos} pinned repositor"),
+            "the corpus size, again",
+        ),
+        (
+            format!("{} lines", bound(t, "doc-length", "max_lines")),
+            "doc-length",
+        ),
+        (
+            format!(
+                "{} line and {} chars",
+                bound(t, "comment-block", "max_lines"),
+                bound(t, "comment-block", "max_chars")
+            ),
+            "comment-block remark bounds",
+        ),
+        (
+            format!(
+                "{} and {} for a doc comment",
+                bound(t, "comment-block", "doc_max_lines"),
+                bound(t, "comment-block", "doc_max_chars")
+            ),
+            "comment-block doc bounds",
+        ),
+        (
+            format!(
+                "{} and {} for a banner",
+                bound(t, "comment-block", "header_max_lines"),
+                bound(t, "comment-block", "header_max_chars")
+            ),
+            "comment-block header bounds",
+        ),
+        (
+            format!(
+                "under {} chars skipped",
+                bound(t, "comment-ratio", "min_chars")
+            ),
+            "comment-ratio.min_chars",
+        ),
+        (format!("{:.0}%,", ratio * 100.0), "comment-ratio.max_ratio"),
+    ]
+}
+
 /// Every shipped bound the README quotes, so a threshold cannot move without the sentence
 /// that names it moving too.
 #[test]
@@ -36,44 +88,7 @@ fn the_readme_quotes_the_bounds_that_ship() {
     let ratio = t["rules"]["comment-ratio"]["max_ratio"]
         .as_float()
         .expect("max_ratio is a float");
-    let claims = [
-        (format!("{languages} languages"), "the language count"),
-        (format!("{repos} "), "the corpus size"),
-        (
-            format!("{} lines", bound(&t, "doc-length", "max_lines")),
-            "doc-length",
-        ),
-        (
-            format!("{} chars", bound(&t, "comment-block", "max_chars")),
-            "comment-block.max_chars",
-        ),
-        (
-            format!(
-                "{} for a doc comment",
-                bound(&t, "comment-block", "doc_max_lines")
-            ),
-            "comment-block.doc_max_lines",
-        ),
-        (
-            format!(
-                "{} for a banner",
-                bound(&t, "comment-block", "header_max_lines")
-            ),
-            "comment-block.header_max_lines",
-        ),
-        (
-            format!(
-                "under {} chars skipped",
-                bound(&t, "comment-ratio", "min_chars")
-            ),
-            "comment-ratio.min_chars",
-        ),
-        (format!("{:.0}%,", ratio * 100.0), "comment-ratio.max_ratio"),
-        (
-            format!("| {} line,", bound(&t, "comment-block", "max_lines")),
-            "comment-block.max_lines",
-        ),
-    ];
+    let claims = claims(&t, languages, repos, ratio);
     let missing: Vec<&str> = claims
         .iter()
         .filter(|(needle, _)| !text.contains(needle.as_str()))

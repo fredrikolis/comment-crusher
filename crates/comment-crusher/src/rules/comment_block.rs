@@ -20,6 +20,8 @@ pub struct Config {
     pub doc_max_lines: usize,
     pub header_max_lines: usize,
     pub max_chars: usize,
+    pub doc_max_chars: usize,
+    pub header_max_chars: usize,
 }
 
 pub fn check(cfg: &Config, file: &Path, scan: &Scan) -> Vec<Diagnostic> {
@@ -28,7 +30,7 @@ pub fn check(cfg: &Config, file: &Path, scan: &Scan) -> Vec<Diagnostic> {
     }
     let mut out = Vec::new();
     for r in &scan.regions {
-        let (limit, what) = bound(cfg, r);
+        let (limit, chars, what) = bound(cfg, r);
         if limit > 0 && r.lines() > limit {
             out.push(
                 Diagnostic::new(
@@ -42,13 +44,13 @@ pub fn check(cfg: &Config, file: &Path, scan: &Scan) -> Vec<Diagnostic> {
                 .spanning(r.start, r.end, r.end_line)
                 .columns(r.start_column, r.end_column),
             );
-        } else if cfg.max_chars > 0 && r.chars > cfg.max_chars {
+        } else if chars > 0 && r.chars > chars {
             out.push(
                 Diagnostic::new(
                     CHARS,
                     cfg.level,
                     file,
-                    format!("{what} is {} chars, budget is {}", r.chars, cfg.max_chars),
+                    format!("{what} is {} chars, budget is {chars}", r.chars),
                     HELP,
                 )
                 .at(r.start_line)
@@ -60,12 +62,14 @@ pub fn check(cfg: &Config, file: &Path, scan: &Scan) -> Vec<Diagnostic> {
     out
 }
 
-const fn bound(cfg: &Config, r: &Region) -> (usize, &'static str) {
+/// A banner, a doc comment and a remark are three different things, bounded three ways in
+/// lines and in characters alike.
+const fn bound(cfg: &Config, r: &Region) -> (usize, usize, &'static str) {
     if r.header {
-        (cfg.header_max_lines, "file header")
+        (cfg.header_max_lines, cfg.header_max_chars, "file header")
     } else if matches!(r.kind, CommentKind::Doc) {
-        (cfg.doc_max_lines, "doc comment")
+        (cfg.doc_max_lines, cfg.doc_max_chars, "doc comment")
     } else {
-        (cfg.max_lines, "comment")
+        (cfg.max_lines, cfg.max_chars, "comment")
     }
 }

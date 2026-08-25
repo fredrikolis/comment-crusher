@@ -82,7 +82,8 @@ fn a_repo_config_found_by_walking_up_sets_the_budget() {
     write(
         dir.path(),
         ".comment-crusher.toml",
-        "[rules.comment-ratio]\nmax_ratio = 0.95\n[rules.comment-block]\nmax_lines = 50\n",
+        "[rules.comment-ratio]\nmax_ratio = 0.95\n[rules.comment-block]\nmax_lines = 50\n\
+         max_chars = 5000\n",
     );
     assert_eq!(code(&run(dir.path(), &["src/deep/fat.rs"])), 0);
 }
