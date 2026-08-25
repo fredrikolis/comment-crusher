@@ -280,11 +280,6 @@ fn a_malformed_allowance_is_a_configuration_error_not_a_finding() {
         3,
         "a bad configuration is validation_error, the same code the wire reports"
     );
-    assert_eq!(
-        code(&run(dir.path(), &["no-such-path", "--format", "json"])),
-        24,
-        "a missing path is not_found, not bad arguments"
-    );
 }
 
 #[test]

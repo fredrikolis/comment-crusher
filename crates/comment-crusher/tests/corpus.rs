@@ -13,26 +13,19 @@ use comment_crusher::{Config, Engine};
 
 const SNAPSHOT: &str = "../../corpus-expected.toml";
 
-/// Absent corpus is a failure, not a skip; `CORPUS_OPTIONAL=1` opts out and says so loudly.
-fn corpus_root() -> Option<PathBuf> {
+/// No opt-out: these are the only assertions over real code, and an escape hatch that turned
+/// them into unconditional passes bought a convenience worth less than a green run means.
+fn corpus_root() -> PathBuf {
     let root = std::env::var_os("CORPUS_DIR").map_or_else(
         || Path::new(env!("CARGO_MANIFEST_DIR")).join("../../target/corpus"),
         PathBuf::from,
     );
-    if root.is_dir() {
-        return Some(root);
-    }
     assert!(
-        std::env::var_os("CORPUS_OPTIONAL").is_some(),
-        "no corpus at {}: run ./scripts/fetch-corpus.sh, or set CORPUS_OPTIONAL=1 to skip",
+        root.is_dir(),
+        "no corpus at {}: run ./scripts/fetch-corpus.sh",
         root.display()
     );
-    eprintln!(
-        "warning: CORPUS_OPTIONAL is set and {} is absent, so nothing was asserted over real \
-         code. Run ./scripts/fetch-corpus.sh before trusting a green run.",
-        root.display()
-    );
-    None
+    root
 }
 
 fn repos(root: &Path) -> Vec<(String, PathBuf)> {
@@ -95,9 +88,7 @@ fn measure(dir: &Path) -> (Totals, Vec<String>) {
 
 #[test]
 fn corpus_partitions_every_file_into_comment_and_code() {
-    let Some(root) = corpus_root() else {
-        return;
-    };
+    let root = corpus_root();
     let mut all = Vec::new();
     for (name, dir) in repos(&root) {
         let (_, mismatches) = measure(&dir);
@@ -113,9 +104,7 @@ fn corpus_partitions_every_file_into_comment_and_code() {
 
 #[test]
 fn corpus_totals_match_the_pinned_snapshot() {
-    let Some(root) = corpus_root() else {
-        return;
-    };
+    let root = corpus_root();
     let snapshot_path = Path::new(env!("CARGO_MANIFEST_DIR")).join(SNAPSHOT);
     let measured: BTreeMap<String, Totals> = repos(&root)
         .into_iter()
@@ -158,9 +147,7 @@ Non-concern: choosing the corpus (corpus.toml) or asserting over it (tests/corpu
 /// which is how a Pascal directive and a fixed-form Fortran comment were found mis-declared.
 #[test]
 fn every_comment_marker_has_fired_on_real_source() {
-    let Some(root) = corpus_root() else {
-        return;
-    };
+    let root = corpus_root();
     let config = Config::defaults().expect("defaults");
     let (fired, strings_seen) = exercised(&root, &config);
 

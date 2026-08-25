@@ -111,7 +111,7 @@ fn default_escape() -> String {
 pub struct Allowance {
     pub reason: String,
     globs: GlobSet,
-    set: Vec<(String, Value)>,
+    set: Vec<(Widenable, f64)>,
 }
 
 pub struct Config {
@@ -121,7 +121,6 @@ pub struct Config {
     pub exclude: Vec<String>,
     pub base: Rules,
     allowances: Vec<Allowance>,
-    rules_table: Table,
     langs: Vec<Syntax>,
     by_ext: HashMap<String, usize>,
     by_filename: HashMap<String, usize>,
@@ -160,14 +159,15 @@ impl Config {
 
     fn build(table: &Table, cli_allow: &[(String, String)], root: PathBuf) -> Result<Self> {
         let global: RawGlobal = section(table, "global")?;
-        let rules_table = table
-            .get("rules")
-            .and_then(Value::as_table)
-            .cloned()
-            .unwrap_or_default();
-        let base = Rules::from_table(&rules_table)?;
+        let base = Rules::from_table(
+            &table
+                .get("rules")
+                .and_then(Value::as_table)
+                .cloned()
+                .unwrap_or_default(),
+        )?;
 
-        let allowances = build_allowances(table, cli_allow, &rules_table)?;
+        let allowances = build_allowances(table, cli_allow)?;
 
         let sets: HashMap<String, Vec<RawEmbed>> = section(table, "embed_sets")?;
         let raw_langs: HashMap<String, RawLanguage> = section(table, "languages")?;
@@ -176,7 +176,6 @@ impl Config {
             exclude: global.exclude,
             base,
             allowances,
-            rules_table,
             langs: Vec::with_capacity(raw_langs.len()),
             by_ext: HashMap::new(),
             by_filename: HashMap::new(),
@@ -252,21 +251,21 @@ impl Config {
 
     /// The base rules with every matching allowance applied, and the reasons that widened
     /// them. If a combination ever failed to deserialize, the unwidened base applies, which
-    /// is stricter than any allowance could make it and so can never under-report.
+    /// Applied to the base by typed assignment, never by patching TOML and deserializing it
+    /// again, so there is no failure to fall back from.
     pub fn rules_for(&self, rel: &Path) -> (Rules, Vec<String>) {
         let matched = self.matching(rel);
         if matched.is_empty() {
             return (self.base.clone(), Vec::new());
         }
-        let mut table = self.rules_table.clone();
+        let mut rules = self.base.clone();
         let mut reasons = Vec::new();
         for a in matched {
-            for (path, value) in &a.set {
-                set_dotted(&mut table, path, value.clone());
+            for (field, value) in &a.set {
+                field.apply(&mut rules, *value);
             }
             reasons.push(a.reason.clone());
         }
-        let rules = Rules::from_table(&table).unwrap_or_else(|_| self.base.clone());
         (rules, reasons)
     }
 }
@@ -277,11 +276,7 @@ impl Resolve for Config {
     }
 }
 
-fn build_allowances(
-    table: &Table,
-    cli_allow: &[(String, String)],
-    rules_table: &Table,
-) -> Result<Vec<Allowance>> {
+fn build_allowances(table: &Table, cli_allow: &[(String, String)]) -> Result<Vec<Allowance>> {
     let declared: Vec<RawAllow> = table
         .get("allow")
         .cloned()
@@ -310,22 +305,6 @@ fn build_allowances(
         });
     }
 
-    // Deserialized here, not mid-walk, where the file it covers would leave the report.
-    for a in &allowances {
-        let mut probe = rules_table.clone();
-        for (path, value) in &a.set {
-            set_dotted(&mut probe, path, value.clone());
-        }
-        Rules::from_table(&probe).with_context(|| {
-            let what = a
-                .set
-                .iter()
-                .map(|(p, v)| format!("{p}={v}"))
-                .collect::<Vec<_>>()
-                .join(", ");
-            format!("allowance `{what}` is not a value its rule can hold")
-        })?;
-    }
     Ok(allowances)
 }
 
@@ -451,79 +430,77 @@ fn build_globs(patterns: &[String]) -> Result<GlobSet> {
     b.build().context("glob set")
 }
 
-/// The fields an allowance may set, and the open upper limit each must stay under. Only
-/// upper bounds appear here: `min_chars` decides whether a rule applies at all and `level`
-/// whether it runs, so setting either would exempt a path rather than widen it, and a ratio
-/// of 1 can never be exceeded. This list is what makes "no file is exempt" true.
-const WIDENABLE: &[(&str, f64)] = &[
-    ("comment-ratio.max_ratio", 1.0),
-    ("comment-block.max_lines", f64::INFINITY),
-    ("comment-block.doc_max_lines", f64::INFINITY),
-    ("comment-block.header_max_lines", f64::INFINITY),
-    ("comment-block.max_chars", f64::INFINITY),
-    ("doc-length.max_lines", f64::INFINITY),
-];
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum Widenable {
+    CommentRatio,
+    BlockLines,
+    BlockDocLines,
+    BlockHeaderLines,
+    BlockChars,
+    DocLines,
+}
+
+impl Widenable {
+    /// Name, and the open limit a value must stay under. Only upper bounds appear here:
+    /// `min_chars` decides whether a rule applies and `level` whether it runs, so setting
+    /// either would exempt a path rather than widen it, and a ratio of 1 can never be
+    /// exceeded. This list is what makes "no file is exempt" true.
+    const ALL: &'static [(&'static str, Self, f64)] = &[
+        ("comment-ratio.max_ratio", Self::CommentRatio, 1.0),
+        ("comment-block.max_lines", Self::BlockLines, f64::INFINITY),
+        (
+            "comment-block.doc_max_lines",
+            Self::BlockDocLines,
+            f64::INFINITY,
+        ),
+        (
+            "comment-block.header_max_lines",
+            Self::BlockHeaderLines,
+            f64::INFINITY,
+        ),
+        ("comment-block.max_chars", Self::BlockChars, f64::INFINITY),
+        ("doc-length.max_lines", Self::DocLines, f64::INFINITY),
+    ];
+
+    #[expect(
+        clippy::cast_possible_truncation,
+        clippy::cast_sign_loss,
+        reason = "positive and bounded by parse_setting"
+    )]
+    const fn apply(self, rules: &mut Rules, value: f64) {
+        let n = value as usize;
+        match self {
+            Self::CommentRatio => rules.comment_ratio.max_ratio = value,
+            Self::BlockLines => rules.comment_block.max_lines = n,
+            Self::BlockDocLines => rules.comment_block.doc_max_lines = n,
+            Self::BlockHeaderLines => rules.comment_block.header_max_lines = n,
+            Self::BlockChars => rules.comment_block.max_chars = n,
+            Self::DocLines => rules.doc_length.max_lines = n,
+        }
+    }
+}
 
 /// `comment-ratio.max_ratio=0.4` -> the dotted path and its typed value.
-fn parse_setting(s: &str) -> Result<(String, Value)> {
+fn parse_setting(s: &str) -> Result<(Widenable, f64)> {
     let Some((path, raw)) = s.split_once('=') else {
         bail!("`{s}` is not <rule>.<field>=<value>");
     };
-    let path = path.trim().to_string();
-    let Some((_, limit)) = WIDENABLE.iter().find(|(p, _)| *p == path) else {
-        let names = WIDENABLE
+    let path = path.trim();
+    let Some((_, field, limit)) = Widenable::ALL.iter().find(|(p, _, _)| *p == path) else {
+        let names = Widenable::ALL
             .iter()
-            .map(|(p, _)| *p)
+            .map(|(p, _, _)| *p)
             .collect::<Vec<_>>()
             .join(", ");
         bail!("`{path}` is not a bound an allowance may widen. One of: {names}");
     };
-    let raw = raw.trim();
-    let value = raw.parse::<i64>().map_or_else(
-        |_| raw.parse::<f64>().ok().map(Value::Float),
-        |i| Some(Value::Integer(i)),
-    );
-    let Some(value) = value else {
+    let Ok(value) = raw.trim().parse::<f64>() else {
         bail!("`{s}` is not a number");
     };
-    let n = as_f64(&value);
-    if n <= 0.0 || n >= *limit {
+    if value <= 0.0 || value >= *limit {
         bail!("`{s}` would leave the path exempt; an allowance only ever widens a bound");
     }
-    Ok((path, value))
-}
-
-#[expect(
-    clippy::cast_precision_loss,
-    reason = "bounds are far below f64 precision"
-)]
-const fn as_f64(value: &Value) -> f64 {
-    match value {
-        Value::Integer(i) => *i as f64,
-        Value::Float(f) => *f,
-        _ => 0.0,
-    }
-}
-
-fn set_dotted(table: &mut Table, path: &str, value: Value) {
-    let mut parts = path.split('.').peekable();
-    let mut cursor = table;
-    while let Some(part) = parts.next() {
-        if parts.peek().is_none() {
-            cursor.insert(part.to_string(), value);
-            return;
-        }
-        let entry = cursor
-            .entry(part.to_string())
-            .or_insert_with(|| Value::Table(Table::new()));
-        if !entry.is_table() {
-            *entry = Value::Table(Table::new());
-        }
-        match entry {
-            Value::Table(table) => cursor = table,
-            _ => return,
-        }
-    }
+    Ok((*field, value))
 }
 
 fn overlay(base: &mut Table, path: &Path) -> Result<()> {

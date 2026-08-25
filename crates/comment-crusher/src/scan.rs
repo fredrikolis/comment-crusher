@@ -84,7 +84,7 @@ fn scan_at(src: &str, syn: &Syntax, resolve: &dyn Resolve, depth: usize) -> Scan
         if r.nested {
             continue;
         }
-        let (comment, example) = count_body(&src[r.start..r.end.min(src.len())]);
+        let (comment, example) = count_body(&src[r.start..r.end]);
         r.chars = comment;
         code_chars += example;
     }
