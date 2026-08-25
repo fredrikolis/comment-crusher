@@ -8,7 +8,7 @@ is over budget, whose single comment runs too long, or whose document is longer 
 $ comment-crusher .
 error: src/parser.rs [comment-ratio] 41% comment (2104/5117 chars), budget is 15%
 
-312 files, 14.2% comment (48219/339104 chars), 1 findings
+298 code files and 14 documents, 14.2% comment (48219/339104 chars), 1 findings
 ```
 
 ## No file is exempt

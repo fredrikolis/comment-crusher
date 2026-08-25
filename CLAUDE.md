@@ -4,7 +4,7 @@
 ## Constitution
 
 1. **The bound is the detector.** Never raise a threshold to make something pass. A tripped
-   bound is a question about the shape of the code, not the number.
+   bound asks about the shape of the code, not the number.
 2. **Measure size, claim nothing about quality.** No message, doc or README line may suggest
    the tool can tell a good comment from a bad one.
 3. **Skip, never guess.** A wrong number is worse than no number.
@@ -24,54 +24,54 @@
 | `rules/` | one module per rule, each owning its `Config` and check |
 | `engine.rs` | walking, parallelism, per-file dispatch |
 | `cli.rs` | the CLI surface, the report, and the `--help` legend |
+| `diagnostic.rs`, `lib.rs`, `main.rs` | one finding and its two shapes; the crate; argv |
 | `../../../corpus.toml` + `corpus-expected.toml` | the pinned repos and their totals |
 
 ## Before every change
 
 `./scripts/fetch-corpus.sh` once, then `cargo fmt --all`, `cargo clippy --all-targets -- -D
-warnings`, `cargo test`, and `cargo run -- .`, all clean. The last is the repo holding itself
-to its own budget: a change that cannot live inside `.comment-crusher.toml` needs a better
-shape.
+warnings`, `cargo test` and `cargo run -- .`, all clean. The last holds the repo to its own
+budget: a change that cannot live inside `.comment-crusher.toml` needs a better shape.
 
 ## No fixtures
 
 `corpus.toml` pins real repositories by SHA; `scripts/fetch-corpus.sh` clones them into
-gitignored `target/corpus/`. Three assertions over them:
+gitignored `target/corpus/`. Four assertions over them:
 
-- **The partition invariant** over every corpus file. Lose a character and a region was
-  dropped; gain one and a state was left entered.
+- **The partition invariant**: comment plus code equals a file's visible chars. Lose one and
+  a region was dropped; gain one and a state was left entered.
 - **Every declared marker has opened a real comment** in a pinned repo; rare forms no repo
   uses are in `snippet-only.txt`, asserted both ways so it cannot grow or go stale.
-- **`corpus-expected.toml`** per-language totals; movement is a scanner change. Re-record with
-  `UPDATE_CORPUS_SNAPSHOT=1 cargo test --test corpus` and read the diff.
+- **A pinned repository nests a block comment**, so depth counting rests on real source.
+- **`corpus-expected.toml`** per-language totals; movement is a scanner change. Re-record:
+  `UPDATE_CORPUS_SNAPSHOT=1 cargo test --test corpus`, then read the diff.
 
 ## Adding a language
 
-`default_config.toml` is the table; knobs are documented under LANGUAGE TABLE in `--help`
-(`src/cli.rs`). A recombination of proved constructs needs a snippet in `scan_tests.rs`,
-written in the language's real syntax; a new construct needs a corpus repo.
+`default_config.toml` is the table; knobs live under LANGUAGE TABLE in `--help` (`cli.rs`). A
+recombination of proved constructs needs a real-syntax snippet in `scan_tests.rs`; a new
+construct needs a corpus repo.
 
 ## Gates
 
 Annotations are checked by [annotated-tree](https://github.com/fredrikolis/annotated-tree);
 commits go through [git-agent-verdict](https://github.com/fredrikolis/git-agent-verdict).
-`.githooks/commit-msg` declares which reviews run and in what order; run
-`git agent-verdict --reviewer-prompt <gate>` for a gate's live brief. Per clone, once:
-`git config core.hooksPath .githooks` and `git config --global agent-verdict.runner claude`.
+`.githooks/commit-msg` declares which reviews run and in what order; `git agent-verdict
+--reviewer-prompt <gate>` prints a gate's live brief. Per clone, once: `git config
+core.hooksPath .githooks` and `git config --global agent-verdict.runner claude`.
 
 ## Invariants worth knowing
 
-- **Partition.** Comment plus code equals a file's visible chars, checked over the corpus. A
-  merged run of whole-line comments must never span code.
-- **Named, never guessed**: an embedded region, and a tag attribute present but unmapped. An
-  unresolved child leaves the body code. Nesting stops at depth 3.
+- **A merged run of whole-line comments never spans code.**
+- **Named, never guessed**: an embedded region, and a tag attribute. An unresolved target is
+  refused at load; nesting stops at depth 3.
 - **A marker with no strings to hide data in is line-anchored**, or a URL opens a comment.
+  `make` is the one exception: it has no string literals, and its trailing `#` is a comment.
 - **Every knob has one home**: the LANGUAGE TABLE in `--help` (`cli.rs`).
 
 ## Conventions
 
 - Commits: [Conventional Commits](https://www.conventionalcommits.org/), one change each.
 - Rule names are kebab-case; config fields are snake_case.
-- Every file carries a first-line annotation under 200 characters; run
-  `annotated-tree --annotation-guide` first.
+- Every file carries a first-line annotation under 200 chars; see `--annotation-guide`.
 - No `.unwrap()` or `.expect()` outside tests; clippy denies them.

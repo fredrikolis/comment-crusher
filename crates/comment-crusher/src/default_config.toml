@@ -465,6 +465,7 @@ strings = [{ open = '"', close = '"', multiline = true }]
 extensions = [".glsl", ".frag", ".vert", ".comp", ".geom", ".hlsl", ".wgsl", ".metal"]
 line = ["//"]
 block = [["/*", "*/"]]
+strings = [{ open = '"', close = '"' }]
 
 [languages.fsharp]
 extensions = [".fs", ".fsi", ".fsx"]

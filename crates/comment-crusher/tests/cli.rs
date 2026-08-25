@@ -187,7 +187,11 @@ fn json_reports_every_file_measured_and_every_finding() {
     assert!(block["location"]["span"]["length"].as_u64().unwrap_or(0) > 0);
     assert!(block["location"]["end"]["line"].as_u64().unwrap_or(0) > 0);
     assert!(d["help"].as_str().is_some_and(|h| !h.is_empty()));
-    assert_eq!(v["data"]["pagination"]["diagnostics"]["count"], 2);
+    assert_eq!(
+        v["data"]["pagination"]["diagnostics"]["count"],
+        v["data"]["diagnostics"].as_array().map_or(0, Vec::len),
+        "the count is of what was sent, not of what the thresholds happen to find"
+    );
     assert_eq!(v["data"]["pagination"]["files"]["count"], 1);
 }
 

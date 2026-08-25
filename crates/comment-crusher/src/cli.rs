@@ -77,7 +77,7 @@ EXIT CODES
   1   internal error
 
 LANGUAGE TABLE (crates/comment-crusher/src/default_config.toml)
-  A file resolves by exact filename, then extension, then the `#!` interpreter. Per entry:
+  A file resolves by `filenames`, then `extensions`, then `interpreters` (the `#!`). Per entry:
     line / doc_line      line-comment markers; doc_line wins when both match
     exceptions           text that cancels a comment: `#[` is a PHP attribute, `{$` a
                          Pascal directive
@@ -295,8 +295,7 @@ impl Cli {
             .collect())
     }
 
-    /// Renders its own failures, so a JSON caller gets an envelope on stdout rather than prose
-    /// on stderr it cannot parse.
+    /// Renders its own failures: a JSON caller gets an envelope, never prose it cannot parse.
     pub fn run(&self) -> i32 {
         match self.report() {
             Ok(report) => self.print(&report),
@@ -524,9 +523,16 @@ fn print_findings(report: &Report) {
     }
     let (comment, code) = report.totals();
     let total = comment + code;
+    // The share is over code files, so that is what the count beside it names.
+    let docs = report.files.iter().filter(|f| f.prose).count();
+    let also = if docs == 0 {
+        String::new()
+    } else {
+        format!(" and {docs} documents")
+    };
     println!(
-        "\n{} files, {:.1}% comment ({comment}/{total} chars), {} findings",
-        report.files.len(),
+        "\n{} code files{also}, {:.1}% comment ({comment}/{total} chars), {} findings",
+        report.files.len() - docs,
         percent(comment, total),
         report.diagnostics.len()
     );

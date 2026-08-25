@@ -416,7 +416,11 @@ const CASES: &[(&str, &str, usize)] = &[
     ("jsonnet", "// n\n{ a: 1 }\n# also\n{ b: 2 }\n", 2),
     ("jl", "# n\nx = 1\n#= b =#\ny = 2\n", 2),
     ("just", "# n\nbuild:\n", 1),
-    ("kt", "// n\nval x = 1\n/* b */\nval y = 2\n", 2),
+    (
+        "kt",
+        "// n\nval x = 1\n/* b */\nval s = \"\"\"\n// not a comment\n\"\"\"\n",
+        2,
+    ),
     ("lisp", "; n\n(defun f () 1)\n#| b |#\n(defun g () 2)\n", 2),
     ("lua", "-- n\nlocal x = 1\n--[[ b ]]\nlocal y = 2\n", 2),
     ("mk", "# n\nall:\n", 1),
@@ -455,7 +459,11 @@ const CASES: &[(&str, &str, usize)] = &[
     ("sml", "(* b *)\nval x = 1\n", 1),
     ("sol", "// n\nuint x = 1;\n/* b */\nuint y = 2;\n", 2),
     ("sql", "-- n\nSELECT 1;\n/* b */\nSELECT 2;\n", 2),
-    ("bzl", "# n\nx = 1\n", 1),
+    (
+        "bzl",
+        "# n\ndef f():\n    \"\"\"\n    Doc.\n    \"\"\"\n    return 1\n",
+        2,
+    ),
     (
         "styl",
         "// n\na\n  color red\n/* b */\nc\n  color blue\n",

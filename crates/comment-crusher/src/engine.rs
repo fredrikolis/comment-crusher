@@ -83,6 +83,18 @@ impl<'a> Engine<'a> {
                 .then(a.line.cmp(&b.line))
                 .then(a.rule.cmp(b.rule))
         });
+        for t in targets.iter().filter(|t| self.rooted(t).is_none()) {
+            report.diagnostics.push(Diagnostic::about_the_run(
+                "target.outside_budget",
+                Level::Warn,
+                format!(
+                    "{} is outside {}, so no allowance in it can match",
+                    t.display(),
+                    self.root.display()
+                ),
+                "Run from the tree the budget governs, or point --root at this one.",
+            ));
+        }
         let measured: Vec<PathBuf> = report.files.iter().map(|f| f.path.clone()).collect();
         for glob in self.config.argv_globs_matching_none(&measured) {
             report.diagnostics.push(Diagnostic::about_the_run(
@@ -140,26 +152,16 @@ impl<'a> Engine<'a> {
     }
 
     /// Never fatal: one bad file must not cost the whole report.
-    fn unreadable(
+    /// Nothing was measured, so the file counts for nothing but the diagnostic it earned.
+    fn declined(
         &self,
         file: &Path,
         syn: &Syntax,
-        error: &std::io::Error,
+        why: impl FnOnce(&crate::rules::unreadable::Config, &Path) -> Option<Diagnostic>,
     ) -> (FileStat, Vec<Diagnostic>) {
         let rel = self.relative(file);
         let (rules, _) = self.config.rules_for(&rel);
-        let diags = crate::rules::unreadable::check(&rules.unreadable, &rel, error)
-            .into_iter()
-            .collect();
-        (Self::empty_stat(rel, syn), diags)
-    }
-
-    fn binary(&self, file: &Path, syn: &Syntax) -> (FileStat, Vec<Diagnostic>) {
-        let rel = self.relative(file);
-        let (rules, _) = self.config.rules_for(&rel);
-        let diags = crate::rules::unreadable::binary(&rules.unreadable, &rel)
-            .into_iter()
-            .collect();
+        let diags = why(&rules.unreadable, &rel).into_iter().collect();
         (Self::empty_stat(rel, syn), diags)
     }
 
@@ -174,22 +176,32 @@ impl<'a> Engine<'a> {
         }
     }
 
-    /// A path outside the budget's directory is returned whole and matches no allowance.
     fn relative(&self, path: &Path) -> PathBuf {
+        self.rooted(path).unwrap_or_else(|| path.to_path_buf())
+    }
+
+    fn rooted(&self, path: &Path) -> Option<PathBuf> {
         path.canonicalize()
+            .ok()?
+            .strip_prefix(&self.root)
             .ok()
-            .and_then(|p| p.strip_prefix(&self.root).ok().map(Path::to_path_buf))
-            .unwrap_or_else(|| path.to_path_buf())
+            .map(Path::to_path_buf)
     }
 
     fn check(&self, file: &Path) -> Option<(FileStat, Vec<Diagnostic>)> {
         // A resolved path must be read or reported; an unresolved one is only a candidate.
         let (syn, content) = if let Some(syn) = self.config.language(file) {
             match std::fs::read(file) {
-                Ok(bytes) if is_binary(&bytes) => return Some(self.binary(file, syn)),
+                Ok(bytes) if is_binary(&bytes) => {
+                    return Some(self.declined(file, syn, crate::rules::unreadable::binary));
+                }
                 // Lossy on purpose: legacy-encoded source is still source, and markers are ASCII.
                 Ok(bytes) => (syn, String::from_utf8_lossy(&bytes).into_owned()),
-                Err(e) => return Some(self.unreadable(file, syn, &e)),
+                Err(e) => {
+                    return Some(
+                        self.declined(file, syn, |c, p| crate::rules::unreadable::check(c, p, &e)),
+                    );
+                }
             }
         } else {
             let bytes = std::fs::read(file).ok()?;
