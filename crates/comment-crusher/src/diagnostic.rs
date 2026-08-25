@@ -118,7 +118,7 @@ const DOCS: &str = "https://github.com/fredrikolis/comment-crusher";
 impl Diagnostic {
     fn section(&self) -> &'static str {
         match self.rule.split('.').next().unwrap_or_default() {
-            "config" => "use",
+            "config" | "target" => "use",
             "allowance" => "no-file-is-exempt",
             _ => "what-it-measures",
         }

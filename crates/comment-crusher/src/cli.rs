@@ -61,8 +61,9 @@ OUTPUT (--format json)
 
   `allowance` names the reason a bound was widened for the file, when one was.
 
-  A warning `allowance.unused` reports a --allow glob that matched none of the files
-  measured, so it widened nothing. A budget file that is not TOML is `config.syntax`, with
+  Two warnings are about the run, not about a file, and carry no `location.file`:
+  `allowance.unused` for a --allow glob that matched none of the files measured, and
+  `target.outside_budget` for a target the budget's directory does not contain. A budget file that is not TOML is `config.syntax`, with
   the byte range the parser pointed at; one the tool refuses is `config.rejected`.
   `error` appears only when status is error. A field with no value is omitted, never null.
   `comment_chars` counts every comment in a file; a rule may judge a subset and says so.
@@ -385,7 +386,7 @@ impl Cli {
             status: if rejected { "error" } else { "success" },
             error: rejected.then(|| ErrorBody {
                 code: "validation_error".to_string(),
-                message: Self::rejection(report),
+                message: self.rejection(report),
             }),
             data: Data {
                 files: &report.files,
@@ -409,7 +410,7 @@ impl Cli {
 
     /// Every channel a caller reads is stdout, this one and clap's rejection alike.
     /// Nothing was measured when the configuration was rejected.
-    fn rejection(report: &Report) -> String {
+    fn rejection(&self, report: &Report) -> String {
         if report
             .diagnostics
             .iter()
@@ -424,8 +425,8 @@ impl Cli {
             .count();
         let warnings = report.diagnostics.len() - n;
         match (n, warnings) {
+            (n, _) if !self.warnings_as_errors => format!("{n} findings over budget"),
             (0, w) => format!("{w} warnings, and warnings are errors"),
-            (n, 0) => format!("{n} findings over budget"),
             (n, w) => format!("{n} findings over budget, and {w} warnings are errors"),
         }
     }
