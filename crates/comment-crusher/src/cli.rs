@@ -425,6 +425,7 @@ impl Cli {
             .count();
         let warnings = report.diagnostics.len() - n;
         match (n, warnings) {
+            (n, 0) => format!("{n} findings over budget"),
             (n, _) if !self.warnings_as_errors => format!("{n} findings over budget"),
             (0, w) => format!("{w} warnings, and warnings are errors"),
             (n, w) => format!("{n} findings over budget, and {w} warnings are errors"),

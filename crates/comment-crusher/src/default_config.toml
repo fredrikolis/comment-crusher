@@ -16,7 +16,7 @@ count_doc_comments = true
 min_chars = 200
 # A fixed per-file cost the body is not charged for, bounded by header_max_chars.
 skip_header = true
-# Measured: p90 of the 47 corpus languages' median header, whose own median is 86 chars.
+# Measured: p90 of the median header in the 47 corpus languages that carry one, itself 86.
 header_max_chars = 344
 
 [rules.comment-block]
@@ -38,7 +38,7 @@ level = "deny"
 [rules.doc-length]
 # Applies to `prose = true` languages only. Code files are bounded by comment-ratio.
 level = "deny"
-# Measured: the corpus's 729 prose documents run to a median of 25 lines, p75 of 87.
+# Measured: the corpus's 725 prose documents run to a median of 25 lines, p75 of 89.
 max_lines = 77
 
 # Every knob below is documented under LANGUAGE TABLE in `comment-crusher --help`.

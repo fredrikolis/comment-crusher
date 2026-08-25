@@ -51,7 +51,7 @@ answer holds in CI, in a hook, and against a file an agent just wrote. Exit code
 | `unreadable` | a resolved file that is binary or cannot be read | deny |
 
 Across the 42 repositories the tests measure, the median comment share is 15.6%, and 77 lines
-is under their documents' p75 of 87. `comment-block` is policy, not a measurement.
+is under their documents' p75 of 89. `comment-block` is policy, not a measurement.
 
 **Comment** is markers, their delimiters, doc comments and docstrings. **Code** is strings,
 heredoc bodies, the shebang, and fenced examples in a doc comment. The two are counted in

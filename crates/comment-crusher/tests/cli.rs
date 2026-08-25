@@ -525,3 +525,43 @@ fn an_explicit_config_replaces_the_one_the_walk_would_have_found() {
         stdout(&missing)
     );
 }
+
+/// The message an agent reads before the diagnostics has to describe the run it summarises.
+#[test]
+fn the_rejection_message_counts_only_what_it_names() {
+    let dir = tempfile::tempdir().expect("tempdir");
+    write(dir.path(), "fat.rs", &over_budget_rust());
+    write(dir.path(), "docs/long.md", &"a line\n".repeat(500));
+
+    let message = |args: &[&str]| -> String {
+        let out = run(dir.path(), args);
+        let v: serde_json::Value = serde_json::from_str(&stdout(&out)).expect("valid JSON");
+        v["error"]["message"]
+            .as_str()
+            .unwrap_or_default()
+            .to_string()
+    };
+
+    // No warning was raised, so none is announced, flag or no flag.
+    for args in [
+        vec!["fat.rs", "--format", "json"],
+        vec!["fat.rs", "--warnings-as-errors", "--format", "json"],
+    ] {
+        let m = message(&args);
+        assert!(!m.contains("warning"), "{args:?} -> {m}");
+    }
+
+    // A glob matching nothing is a warning, and only --warnings-as-errors makes it an error.
+    let allow = [
+        "docs",
+        "--allow",
+        "zzz/**",
+        "doc-length.max_lines=600",
+        "--format",
+        "json",
+    ];
+    let plain = message(&allow);
+    assert_eq!(plain, "1 findings over budget", "{plain}");
+    let strict = message(&[allow.as_slice(), &["--warnings-as-errors"]].concat());
+    assert!(strict.contains("1 warnings are errors"), "{strict}");
+}
