@@ -247,3 +247,38 @@ fn every_language_knob_is_in_the_help_table() {
         .collect();
     assert!(missing.is_empty(), "knobs --help never names: {missing:?}");
 }
+
+/// What this repo sets for itself, and why, stays checkable: no allowance, and one rule field
+/// whose value is the annotation cap CLAUDE.md names.
+#[test]
+fn this_repo_grants_no_allowance() {
+    let root = Path::new(env!("CARGO_MANIFEST_DIR")).join("../..");
+    let own: toml::Table = toml::from_str(
+        &std::fs::read_to_string(root.join(".comment-crusher.toml")).expect("own budget"),
+    )
+    .expect("own budget parses");
+    assert!(own.get("allow").is_none(), "this repo grants no allowance");
+    let set: Vec<String> = own
+        .get("rules")
+        .and_then(toml::Value::as_table)
+        .map(|rules| {
+            rules
+                .iter()
+                .flat_map(|(rule, fields)| {
+                    fields
+                        .as_table()
+                        .into_iter()
+                        .flat_map(|f| f.keys())
+                        .map(move |k| format!("{rule}.{k}"))
+                })
+                .collect()
+        })
+        .unwrap_or_default();
+    assert_eq!(set, vec!["comment-ratio.header_free_chars"], "{set:?}");
+    let claim = std::fs::read_to_string(root.join("CLAUDE.md")).expect("CLAUDE.md");
+    let value = own["rules"]["comment-ratio"]["header_free_chars"].to_string();
+    assert!(
+        claim.contains(&format!("header_free_chars = {value}")),
+        "CLAUDE.md no longer says why this repo sets {value}"
+    );
+}

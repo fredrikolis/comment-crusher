@@ -54,6 +54,12 @@ gitignored `target/corpus/`. Five assertions over them:
 recombination of proved constructs needs a real-syntax snippet in `scan_tests.rs`; a new
 construct needs a corpus repo.
 
+## What this repo sets for itself
+
+`.comment-crusher.toml` grants no allowance and overrides one rule field:
+`comment-ratio.header_free_chars = 200`, because `annotated-tree --max-length` defaults to 200
+and every file here carries an annotation. The shipped default is 90, the corpus median.
+
 ## Gates
 
 Annotations are checked by [annotated-tree](https://github.com/fredrikolis/annotated-tree);

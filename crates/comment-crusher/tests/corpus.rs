@@ -310,11 +310,17 @@ impl Figures {
             comment += f.comment_chars;
             code += f.code_chars;
             let path = dir.join(&f.path);
-            let (Some(syn), Ok(bytes)) = (config.language(&path), std::fs::read(&path)) else {
+            let Ok(bytes) = std::fs::read(&path) else {
                 continue;
             };
-            // As the engine reads it: a legacy encoding is still source.
+            // As the engine reads it, `#!` and legacy encodings included.
             let text = String::from_utf8_lossy(&bytes).into_owned();
+            let Some(syn) = config
+                .language(&path)
+                .or_else(|| config.language_of_shebang(text.lines().next().unwrap_or_default()))
+            else {
+                continue;
+            };
             for r in &comment_crusher::scan_in(&text, syn, config).regions {
                 self.region(r, &syn.name);
             }

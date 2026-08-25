@@ -30,7 +30,7 @@ doc_max_lines = 8
 header_max_lines = 13
 # corpus-figures.toml: chars_p90 per kind, as the line bounds are per kind.
 max_chars = 163
-doc_max_chars = 312
+doc_max_chars = 311
 header_max_chars = 971
 
 # A file whose language resolved but whose bytes are not text.
