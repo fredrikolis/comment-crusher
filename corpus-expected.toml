@@ -1246,8 +1246,8 @@ code_chars = 19
 ["stylus".stylus]
 files = 437
 lines = 10470
-comment_chars = 9540
-code_chars = 118857
+comment_chars = 9508
+code_chars = 118889
 
 ["stylus".typescript]
 files = 8

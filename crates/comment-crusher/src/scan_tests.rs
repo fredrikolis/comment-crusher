@@ -302,8 +302,14 @@ fn a_shell_heredoc_survives_every_opener_form() {
 fn a_url_does_not_open_a_comment_where_the_marker_is_line_anchored() {
     for (ext, src) in [
         ("pug", "a(href='https://x/y') Link\n"),
-        ("styl", "body\n  background url(https://x/y.png)\n"),
-        ("scss", "a { background: url(https://x/b.png); }\n"),
+        (
+            "styl",
+            "body\n  background url(https://x/y.png)\n  background url(//x.png)\n",
+        ),
+        (
+            "scss",
+            "a { background: url(https://x/b.png); b: url(//x.png); }\n",
+        ),
         ("adoc", "See https://x/y for more.\n"),
         ("dockerfile", "RUN curl https://x/y | sh\n"),
         ("ini", "color = #ffffff\n"),
