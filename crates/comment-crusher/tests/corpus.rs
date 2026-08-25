@@ -13,8 +13,7 @@ use comment_crusher::{Config, Engine};
 
 const SNAPSHOT: &str = "../../corpus-expected.toml";
 
-/// Absent corpus is a failure, not a skip. `CORPUS_OPTIONAL=1` opts out, and says on stderr
-/// that the only assertions over real code did not run, so a green sweep cannot read as one.
+/// Absent corpus is a failure, not a skip; `CORPUS_OPTIONAL=1` opts out and says so loudly.
 fn corpus_root() -> Option<PathBuf> {
     let root = std::env::var_os("CORPUS_DIR").map_or_else(
         || Path::new(env!("CARGO_MANIFEST_DIR")).join("../../target/corpus"),
@@ -155,9 +154,8 @@ Non-concern: choosing the corpus (corpus.toml) or asserting over it (tests/corpu
     out
 }
 
-/// Not "its language appears in the corpus": the token itself must have fired on real source.
-/// Only real code shows whether a marker set is complete, which is how a Pascal compiler
-/// directive and a fixed-form Fortran comment were both found mis-declared.
+/// Not "its language appears in the corpus": the token itself must have fired on real source,
+/// which is how a Pascal directive and a fixed-form Fortran comment were found mis-declared.
 #[test]
 fn every_comment_marker_has_fired_on_real_source() {
     let Some(root) = corpus_root() else {
@@ -207,9 +205,8 @@ fn every_comment_marker_has_fired_on_real_source() {
     );
 }
 
-/// What real source actually exercised: the markers that opened a comment, and the string
-/// delimiters that appear. One walk, and the scanner's own `opener` rather than a prefix
-/// match that is not the rule the scanner used.
+/// The markers that opened a comment and the string delimiters that appear, from the
+/// scanner's own `opener` rather than a prefix match it never used.
 fn exercised(root: &Path, config: &Config) -> (BTreeSet<String>, BTreeSet<String>) {
     let (mut markers, mut strings) = (BTreeSet::new(), BTreeSet::new());
     for (_, dir) in repos(root) {
