@@ -13,10 +13,9 @@ error: src/parser.rs [comment-ratio] 41% comment (2104/5117 chars), budget is 15
 
 ## No file is exempt
 
-A gas expands to occupy whatever volume it is given. An LLM fills whatever space is available
-with words. A limit you can always meet gets spent on words; one you cannot meet gets spent on
-thinking. So there is no `allowed` list and no unlimited budget: an allowance widens a bound
-for the paths it names, up to a hundredfold, and can neither remove one nor switch a rule off.
+An allowance widens a bound for the paths it names, up to a hundredfold. It cannot remove one
+or switch a rule off, and there is no `allowed` list. A gas expands to occupy whatever volume
+it is given; an LLM fills whatever space is available with words.
 
 ```toml
 [[allow]]
@@ -25,8 +24,8 @@ reason = "the specification is the product"   # required, and printed beside eve
 set = ["doc-length.max_lines=2000"]           # only genuine upper bounds may be set
 ```
 
-Generated trees are not measured: `.gitignore` applies, and `[global] exclude` adds `target`,
-`node_modules`, `vendor`, `dist`, `build` and `.venv`.
+Generated trees are not measured: `.gitignore` applies, plus `target`, `node_modules`,
+`vendor`, `dist`, `build` and `.venv`.
 
 ## Use
 
@@ -51,16 +50,15 @@ CI, in a hook, and against a file an agent just wrote. Exit codes:
 | `doc-length` | a prose document (`.md`, `.rst`, `.adoc`, `.txt`, and kin) | 77 lines |
 | `unreadable` | a resolved file that is binary or cannot be read | deny |
 
-Where the numbers come from: across the 41 repositories the tests measure, the median comment
-share is 15.5% and 77 lines is under their documents' p75 of 87. `comment-block` is policy.
+Across the 41 repositories the tests measure, the median comment share is 15.5%, and 77 lines
+is under their documents' p75 of 87. `comment-block` is policy, not a measurement.
 
 **Comment** is markers, their delimiters, doc comments and docstrings. **Code** is strings,
 heredoc bodies, the shebang, and fenced examples in a doc comment. The two are counted in
 characters and sum to the whole file, so a trailing `// why` costs what it occupies.
 
-A doc comment gets more room than a remark, and a banner more still: it is exempt from the
-ratio up to `header_max_chars`, so a small file can carry a mandated licence line and still
-have room for a comment. Past that it is charged like anything else.
+A doc comment gets more room than a remark. A file's banner is exempt from the ratio up to
+`header_max_chars` and charged past it, so a small file can carry a mandated licence line.
 
 ## Languages
 
@@ -68,10 +66,12 @@ Resolved by exact filename, then extension, then the `#!` interpreter, so `CMake
 is CMake and a git hook is measured like anything else. Unknown languages are skipped;
 adding one is a row in `default_config.toml`.
 
-- Nested blocks in 16 languages, heredocs in 6, docstrings in 4, raw strings, char literals:
-  what a naive scanner miscounts, and a miscount is a budget that does not hold.
+- Nested blocks in 16 languages, heredocs in 6, docstrings in 4, raw strings, char literals,
+  which is what a scanner that only matched `//` and `/*` would miscount.
 - `<script>` and `<style>` scanned as the language their tag names, across HTML, Vue, Svelte
   and Astro; named, never guessed, so a `type=` the table does not map leaves its body code.
 - Nothing is measured on trust: comment plus code equals the file's visible chars over 41
   pinned repositories, and every declared marker has opened a real comment in one, bar the
-  rare forms `snippet-only.txt` names and snippets cover. MIT licence.
+  rare forms `snippet-only.txt` names and snippets cover.
+
+MIT licence.

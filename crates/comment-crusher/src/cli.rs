@@ -54,8 +54,11 @@ OUTPUT (--format json)
    "error":{"code":..., "message":...},
    "data":{"files":[{path,language,prose,lines,code_chars,comment_chars}],
            "languages":[{language,files,lines,comment_chars,code_chars}],
-           "diagnostics":[{code,severity,message,location,help,docs_url}],
-           "pagination":{"files":{count,has_more},"diagnostics":{count,has_more}}}}
+           "diagnostics":[{code,severity,message,location,help,docs_url,allowance}],
+           "pagination":{"files":{count,has_more},"diagnostics":{count,has_more}}},
+   "meta":{"request_id":..., "timestamp":...}}
+
+  `allowance` names the reason a bound was widened for the file, when one was.
 
   A warning `allowance.unused` reports a --allow glob that matched none of the files
   measured, so it widened nothing. A budget file that is not TOML is `config.syntax`, with

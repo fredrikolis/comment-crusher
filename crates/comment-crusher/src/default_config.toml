@@ -14,7 +14,7 @@ max_ratio = 0.15
 count_doc_comments = true
 # Below this, a stub would be trivially "100% comments".
 min_chars = 200
-# A fixed per-file cost the body is not charged for, up to the size a banner really is.
+# A fixed per-file cost the body is not charged for, bounded by header_max_chars.
 skip_header = true
 # Measured: p90 of the 47 corpus languages' median header, whose own median is 84 chars.
 header_max_chars = 344
