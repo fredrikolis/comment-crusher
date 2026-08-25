@@ -77,7 +77,7 @@ OUTPUT (--format json)
    "data":{"files":[{path,language,prose,lines,code_chars,comment_chars}],
            "languages":[{language,files,lines,comment_chars,code_chars}],
            "diagnostics":[{code,severity,message,location,help,docs_url,allowance}],
-           "pagination":{"files":{count,has_more},"languages":{...},"diagnostics":{...}}},
+           "pagination":{"files":{count,has_more,next_cursor},"languages":{...},...}},
    "meta":{"request_id":..., "timestamp":...}}
 
   `allowance` names the reason a bound was widened for the file, when one was.
@@ -87,7 +87,9 @@ OUTPUT (--format json)
   `target.outside_budget` for a target the budget's directory does not contain.
   A budget file that is not TOML is `config.syntax`, carrying the byte range the parser
   pointed at; one the tool refuses afterwards is `config.rejected`.
-  `error` appears only when status is error. A field with no value is omitted, never null.
+  `error` appears only when status is error. A field with no value is omitted, never null,
+  except `next_cursor`: the standard names it in every collection, and one reply answers
+  about every file, so there is never a page after it.
   `comment_chars` counts every comment in a file; a rule may judge a subset and says so.
   `location.span` is a byte offset and length; `location.start`/`end` are 1-based line and
   character column.
@@ -201,6 +203,8 @@ struct ErrorBody {
 struct Page {
     count: usize,
     has_more: bool,
+    /// Null, not absent: the CLI standard names it in every collection.
+    next_cursor: Option<String>,
 }
 
 impl Page {
@@ -209,6 +213,7 @@ impl Page {
         Self {
             count,
             has_more: false,
+            next_cursor: None,
         }
     }
 }

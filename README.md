@@ -51,7 +51,7 @@ answer holds in CI, in a hook, and against a file an agent just wrote. Exit code
 | Rule | Bounds | Default |
 |---|---|---|
 | `comment-ratio` | comment chars as a share of comment plus code | 15%, under 200 chars skipped |
-| `comment-block` | one block comment, or one run of whole-line comments | 1 line and 163 chars; 8 and 314 for a doc comment; 18 and 971 for a banner |
+| `comment-block` | one block comment, or one run of whole-line comments | 1 line and 163 chars; 8 and 314 for a doc comment; 13 and 971 for a banner |
 | `doc-length` | a prose document (`.md`, `.rst`, `.adoc`, `.txt`, and kin) | 90 lines |
 | `unreadable` | a resolved file that is binary or cannot be read | deny |
 

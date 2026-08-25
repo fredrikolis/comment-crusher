@@ -27,7 +27,7 @@ max_lines = 1
 # Measured: p75 of the corpus's doc comments, whose median is 4 and p90 14.
 doc_max_lines = 8
 # Measured: p75 of the corpus's headers, whose median is 4 and p90 24.
-header_max_lines = 18
+header_max_lines = 13
 # Measured: p90 of the corpus's comments, taken per kind as the line bounds are.
 max_chars = 163
 doc_max_chars = 314
