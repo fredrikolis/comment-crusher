@@ -4,7 +4,6 @@ use clap::Parser;
 use clap::error::ErrorKind;
 use comment_crusher::cli::{Cli, EXIT_BAD_ARGS};
 
-/// Off argv: clap has not run, and a rejection still owes the requested shape.
 fn wants_json() -> bool {
     let mut args = std::env::args_os()
         .skip(1)
@@ -21,7 +20,6 @@ fn wants_json() -> bool {
     false
 }
 
-/// Before `--`; after it every word is a path.
 fn version_request() -> bool {
     std::env::args_os()
         .skip(1)
@@ -39,7 +37,7 @@ fn main() -> std::process::ExitCode {
         Ok(cli) => cli.run(),
         // Help and version are successful requests, not invalid usage.
         Err(e) if matches!(e.kind(), ErrorKind::DisplayHelp | ErrorKind::DisplayVersion) => {
-            let _ = e.print();
+            println!("{e}");
             0
         }
         Err(e) if wants_json() => {
@@ -51,8 +49,9 @@ fn main() -> std::process::ExitCode {
             );
             EXIT_BAD_ARGS
         }
+        // stdout, like every other channel a caller reads.
         Err(e) => {
-            let _ = e.print();
+            println!("{e}");
             EXIT_BAD_ARGS
         }
     };

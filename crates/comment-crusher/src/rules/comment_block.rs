@@ -8,6 +8,8 @@ use crate::scan::{Region, Scan};
 use crate::syntax::CommentKind;
 
 pub const NAME: &str = "comment-block";
+const LINES: &str = "comment-block.lines";
+const CHARS: &str = "comment-block.chars";
 const HELP: &str = "One line, or change the shape of what needed a paragraph.";
 
 #[derive(Debug, Clone, Deserialize)]
@@ -30,7 +32,7 @@ pub fn check(cfg: &Config, file: &Path, scan: &Scan) -> Vec<Diagnostic> {
         if limit > 0 && r.lines() > limit {
             out.push(
                 Diagnostic::new(
-                    NAME,
+                    LINES,
                     cfg.level,
                     file,
                     format!("{what} spans {} lines, budget is {limit}", r.lines()),
@@ -43,7 +45,7 @@ pub fn check(cfg: &Config, file: &Path, scan: &Scan) -> Vec<Diagnostic> {
         } else if cfg.max_chars > 0 && r.chars > cfg.max_chars {
             out.push(
                 Diagnostic::new(
-                    NAME,
+                    CHARS,
                     cfg.level,
                     file,
                     format!("{what} is {} chars, budget is {}", r.chars, cfg.max_chars),

@@ -16,6 +16,8 @@ pub struct Region {
     pub start_column: usize,
     pub end_column: usize,
     pub kind: CommentKind,
+    /// The token actually matched, so nothing re-derives it.
+    pub opener: String,
     pub own_line: bool,
     /// Only whole-line comments merge: one merging around trailing code would charge it prose.
     pub ends_line: bool,
@@ -51,7 +53,7 @@ impl Scan {
     }
 }
 
-/// Covers a component, its `<script>`, a template within that — and makes self-embedding end.
+/// A component, its `<script>`, a template within that; and self-embedding terminates.
 const MAX_EMBED_DEPTH: usize = 3;
 
 /// Comment and code are an exact partition of the file's visible characters.
@@ -313,7 +315,7 @@ impl<'a> Scanner<'a> {
             return false;
         };
         match op {
-            Opener::Line(kind) => self.consume_line_comment(kind),
+            Opener::Line(kind) => self.consume_line_comment(&tok, kind),
             Opener::Block { close, kind } => self.consume_block(&tok, &close, kind),
             Opener::Str(idx) => {
                 let Some(spec) = self.syn.strings.get(idx).cloned() else {
@@ -329,13 +331,9 @@ impl<'a> Scanner<'a> {
         (self.line, self.own_line())
     }
 
-    fn push_region(
-        &mut self,
-        span: (usize, usize),
-        start: usize,
-        own_line: bool,
-        kind: CommentKind,
-    ) {
+    fn push_region(&mut self, found: (usize, usize, usize, bool, CommentKind, String)) {
+        let (start_byte, end_byte, start, own_line, kind, opener) = found;
+        let span = (start_byte, end_byte);
         let header = own_line && !self.saw_code && self.raw.is_empty();
         let ends_line = self.src[span.1.min(self.src.len())..]
             .chars()
@@ -350,6 +348,7 @@ impl<'a> Scanner<'a> {
             start_column: 1,
             end_column: 1,
             kind,
+            opener,
             own_line,
             ends_line,
             header,
@@ -357,14 +356,14 @@ impl<'a> Scanner<'a> {
         });
     }
 
-    fn consume_line_comment(&mut self, kind: CommentKind) {
+    fn consume_line_comment(&mut self, tok: &str, kind: CommentKind) {
         let (start, own) = self.open_region();
         let end = self.src[self.i..]
             .find('\n')
             .map_or(self.src.len(), |n| self.i + n);
         let span = (self.i, end);
         self.i = end;
-        self.push_region(span, start, own, kind);
+        self.push_region((span.0, span.1, start, own, kind, tok.to_string()));
     }
 
     /// Byte past the closing delimiter, or `None` when the block never closes.
@@ -398,7 +397,7 @@ impl<'a> Scanner<'a> {
         self.count_newlines(self.i, j);
         let span = (self.i, end);
         self.i = end;
-        self.push_region(span, start, own, kind);
+        self.push_region((span.0, span.1, start, own, kind, open.to_string()));
     }
 
     /// A string is code; a docstring opening its own line is prose.
@@ -412,7 +411,14 @@ impl<'a> Scanner<'a> {
             self.count_newlines(self.i, end);
             let span = (self.i, end);
             self.i = end;
-            self.push_region(span, start, own, CommentKind::Doc);
+            self.push_region((
+                span.0,
+                span.1,
+                start,
+                own,
+                CommentKind::Doc,
+                spec.open.clone(),
+            ));
         } else {
             self.advance_to(end);
         }

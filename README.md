@@ -2,7 +2,7 @@
 # comment-crusher
 
 A gas expands to occupy whatever volume it is given. An LLM fills whatever space is available
-with words. comment-crusher gives it less space: across 89 languages from one binary, it fails
+with words. comment-crusher gives it less space: across 90 languages from one binary, it fails
 a file whose comment-to-code ratio is over budget, whose single comment runs too long, or whose
 document is longer than allowed.
 
@@ -49,8 +49,8 @@ so one answer holds in CI, in a hook, and against a file an agent just wrote.
 | `doc-length` | a prose document (`.md`, `.rst`, `.adoc`, `.txt`, and kin) | 77 lines |
 | `unreadable` | a resolved file that is binary or cannot be read | deny |
 
-A file over 15% comment is unusual: that is the median of the 38 real repositories the tests
-measure, counting only the files this rule judges. 77 lines is their 75th-percentile document. `comment-block` is a policy, and
+15% is the median comment share of the 38 real repositories the tests measure, over the files
+this rule judges; 77 lines is their 75th-percentile document. `comment-block` is a policy and
 says so. Every visible character is
 either comment or code, and the two sum to the whole file: characters, not lines, so a trailing
 `// why` costs what it occupies. **Comment** is markers, their delimiters, doc comments and

@@ -24,19 +24,16 @@ const AFTER_HELP: &str = r##"EXAMPLES
 
 OUTPUT (--format json)
   {"status":"success"|"error",
-   "error":{"code":..., "message":...},          only when status is error
+   "error":{"code":..., "message":...},
    "data":{"files":[{path,language,prose,lines,code_chars,comment_chars}],
            "languages":[{language,files,lines,comment_chars,code_chars}],
-           "diagnostics":[{code,severity,message,location,help}]},
-  A field with no value is omitted, never null: `allowance`, and `location.span`/`start`/`end`
-  on a finding that names no region.
-  `comment_chars` counts every comment in the file; a rule may judge a subset of it,
-  exempting the header or excluding doc comments, and says so in its own message.
+           "diagnostics":[{code,severity,message,location,help}],
            "pagination":{"files":{count,has_more},"diagnostics":{count,has_more}}}}
 
-VERSION
-  -V, --version                answered before any other argument is judged, so a broken
-                               invocation can still say what it is
+  `error` appears only when status is error. A field with no value is omitted, never null.
+  `comment_chars` counts every comment in a file; a rule may judge a subset and says so.
+  `location.span` is a byte offset and length; `location.start`/`end` are 1-based line and
+  character column.
 
 EXIT CODES
   0   nothing over budget
@@ -227,6 +224,14 @@ impl Cli {
             .first()
             .cloned()
             .unwrap_or_else(|| PathBuf::from("."));
+        if let Some(path) = &self.config
+            && !path.exists()
+        {
+            return Err((
+                "not_found",
+                anyhow::anyhow!("no such config: {}", path.display()),
+            ));
+        }
         let config = Config::load(&anchor, self.config.as_deref(), &allow)
             .map_err(|e| ("validation_error", e))?;
         Ok(Engine::new(&config, self.root.as_deref()).run(&self.paths))
@@ -290,7 +295,7 @@ impl Cli {
         }
     }
 
-    /// Every channel a caller reads is stdout, including this one.
+    /// Every channel a caller reads is stdout, this one and clap's rejection alike.
     fn print_error(&self, code: &'static str, message: &str) -> i32 {
         match self.format {
             Format::Human => println!("comment-crusher: {message}"),
@@ -330,17 +335,8 @@ pub fn error_json(code: &str, message: &str) -> String {
             },
         },
     };
-    serde_json::to_string(&envelope).unwrap_or_else(|_| {
-        // The message is the only part that can fail to serialize, so drop it and retry.
-        let bare = Envelope {
-            error: Some(ErrorBody {
-                code: "internal_error".to_string(),
-                message: String::new(),
-            }),
-            ..envelope
-        };
-        serde_json::to_string(&bare).unwrap_or_default()
-    })
+    // Every field is a string, number or bool, so this cannot fail.
+    serde_json::to_string(&envelope).unwrap_or_default()
 }
 
 fn language_totals(report: &Report) -> Vec<LanguageTotal<'_>> {

@@ -13,7 +13,8 @@ use comment_crusher::{Config, Engine};
 
 const SNAPSHOT: &str = "../../corpus-expected.toml";
 
-/// Absent corpus is a failure, not a skip. `CORPUS_OPTIONAL=1` opts out.
+/// Absent corpus is a failure, not a skip. `CORPUS_OPTIONAL=1` opts out, and says on stderr
+/// that the only assertions over real code did not run, so a green sweep cannot read as one.
 fn corpus_root() -> Option<PathBuf> {
     let root = std::env::var_os("CORPUS_DIR").map_or_else(
         || Path::new(env!("CARGO_MANIFEST_DIR")).join("../../target/corpus"),
@@ -25,6 +26,11 @@ fn corpus_root() -> Option<PathBuf> {
     assert!(
         std::env::var_os("CORPUS_OPTIONAL").is_some(),
         "no corpus at {}: run ./scripts/fetch-corpus.sh, or set CORPUS_OPTIONAL=1 to skip",
+        root.display()
+    );
+    eprintln!(
+        "warning: CORPUS_OPTIONAL is set and {} is absent, so nothing was asserted over real \
+         code. Run ./scripts/fetch-corpus.sh before trusting a green run.",
         root.display()
     );
     None
@@ -53,7 +59,7 @@ fn measure(dir: &Path) -> (Totals, Vec<String>) {
     let declined: BTreeSet<PathBuf> = report
         .diagnostics
         .iter()
-        .filter(|d| d.rule == "unreadable")
+        .filter(|d| d.rule.starts_with("unreadable"))
         .map(|d| d.file.clone())
         .collect();
 
@@ -158,8 +164,7 @@ fn every_comment_marker_has_fired_on_real_source() {
         return;
     };
     let config = Config::defaults().expect("defaults");
-    let fired = markers_that_opened_a_comment(&root, &config);
-    let strings_seen = string_delimiters_seen(&root, &config);
+    let (fired, strings_seen) = exercised(&root, &config);
 
     let mut unfired: Vec<String> = Vec::new();
     let mut unused_exemptions: Vec<&str> = snippet_only();
@@ -202,9 +207,11 @@ fn every_comment_marker_has_fired_on_real_source() {
     );
 }
 
-/// Which declared markers actually opened a comment in real source.
-fn markers_that_opened_a_comment(root: &Path, config: &Config) -> BTreeSet<String> {
-    let mut fired = BTreeSet::new();
+/// What real source actually exercised: the markers that opened a comment, and the string
+/// delimiters that appear. One walk, and the scanner's own `opener` rather than a prefix
+/// match that is not the rule the scanner used.
+fn exercised(root: &Path, config: &Config) -> (BTreeSet<String>, BTreeSet<String>) {
+    let (mut markers, mut strings) = (BTreeSet::new(), BTreeSet::new());
     for (_, dir) in repos(root) {
         let report = Engine::new(config, Some(&dir)).run(std::slice::from_ref(&dir));
         for f in &report.files {
@@ -215,42 +222,16 @@ fn markers_that_opened_a_comment(root: &Path, config: &Config) -> BTreeSet<Strin
                 continue;
             };
             for region in comment_crusher::scan_in(&text, syn, config).regions {
-                let Some(rest) = text.get(region.start..) else {
-                    continue;
-                };
-                if let Some((token, _)) = syn
-                    .openers
-                    .iter()
-                    .find(|(t, _)| rest.starts_with(t.as_str()))
-                {
-                    fired.insert(format!("{} {token}", syn.name));
-                }
+                markers.insert(format!("{} {}", syn.name, region.opener));
             }
-        }
-    }
-    fired
-}
-
-/// Which declared string delimiters actually appear in real source of their own language.
-fn string_delimiters_seen(root: &Path, config: &Config) -> BTreeSet<String> {
-    let mut seen = BTreeSet::new();
-    for (_, dir) in repos(root) {
-        let report = Engine::new(config, Some(&dir)).run(std::slice::from_ref(&dir));
-        for f in &report.files {
-            let Some(syn) = config.language(&dir.join(&f.path)) else {
-                continue;
-            };
-            let Ok(text) = std::fs::read_to_string(dir.join(&f.path)) else {
-                continue;
-            };
             for spec in &syn.strings {
                 if text.contains(&spec.open) {
-                    seen.insert(format!("{} {}", syn.name, spec.open));
+                    strings.insert(format!("{} {}", syn.name, spec.open));
                 }
             }
         }
     }
-    seen
+    (markers, strings)
 }
 
 /// Correct but rare forms no pinned repository happens to use. One home, read by this test

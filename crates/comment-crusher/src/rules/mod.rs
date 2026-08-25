@@ -1,4 +1,4 @@
-// Concern: the rule set — its thresholds, and running every rule a file is subject to | Non-concern: what any one rule measures, or how a file is scanned | IO: (Scan) -> Vec<Diagnostic>
+// Concern: the rule set — its thresholds, and running every rule a scanned file is subject to | Non-concern: what a rule measures, or the rules for a file that was never scanned | IO: (Scan) -> Vec<Diagnostic>
 
 pub mod comment_block;
 pub mod comment_ratio;

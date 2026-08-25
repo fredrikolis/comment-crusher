@@ -20,7 +20,7 @@ skip_header = true
 [rules.comment-block]
 # One block comment, or one unbroken run of adjacent line comments.
 level = "deny"
-# Policy, not a measurement: the corpus trips this 13089 times at 1, still 4309 at 5.
+# Policy, not a measurement: the corpus trips this 13311 times at 1, still 4337 at 5.
 max_lines = 1
 doc_max_lines = 10
 header_max_lines = 30

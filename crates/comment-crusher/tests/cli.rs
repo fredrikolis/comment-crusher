@@ -172,7 +172,7 @@ fn json_reports_every_file_measured_and_every_finding() {
         .as_array()
         .expect("array")
         .iter()
-        .find(|d| d["code"] == "comment-block")
+        .find(|d| d["code"] == "comment-block.lines")
         .expect("comment-block finding");
     assert!(block["location"]["span"]["length"].as_u64().unwrap_or(0) > 0);
     assert!(block["location"]["end"]["line"].as_u64().unwrap_or(0) > 0);

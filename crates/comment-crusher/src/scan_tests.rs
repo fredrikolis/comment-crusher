@@ -442,10 +442,9 @@ const CASES: &[(&str, &str, usize)] = &[
 /// partitions with everything counted as code.
 #[test]
 fn real_source_in_every_language_yields_the_comments_it_contains() {
-    let cases = CASES;
     let cfg = Config::defaults().unwrap();
     let mut seen = std::collections::BTreeSet::new();
-    for (ext, src, want) in cases {
+    for (ext, src, want) in CASES {
         let syn = cfg.language(Path::new(&format!("x.{ext}")));
         let Some(syn) = syn else {
             unreachable!("no language resolves .{ext}")
