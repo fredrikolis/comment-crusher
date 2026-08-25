@@ -55,8 +55,8 @@ answer holds in CI, in a hook, and against a file an agent just wrote. Exit code
 | `doc-length` | a prose document (`.md`, `.rst`, `.adoc`, `.txt`, and kin) | 90 lines |
 | `unreadable` | a resolved file that is binary or cannot be read | deny |
 
-Across the 43 repositories the tests measure, the median comment share is 18% and the
-75th-percentile document is 90 lines. `comment-block` is policy, not a measurement.
+The median comment share is 18% and the 75th-percentile document is 90 lines, across the
+43 repositories the tests measure. `comment-block` is policy, not a measurement.
 
 **Comment** is markers, their delimiters, doc comments and docstrings. **Code** is strings,
 heredoc bodies, the shebang, and fenced examples inside any comment. Counted in characters, the
@@ -65,7 +65,7 @@ two sum to every non-whitespace character, so a trailing `// why` costs what it 
 **A banner is discounted**, not exempt: the ratio ignores its first `header_free_chars` and
 charges the rest like any comment, so a file carrying only a short banner measures 0% while a
 long one still fails. `skip_header = false` charges it whole. Under `comment-block`, a doc
-comment gets more lines than a remark.
+comment gets more lines and more characters than a remark, and a banner more still.
 
 ## Languages
 

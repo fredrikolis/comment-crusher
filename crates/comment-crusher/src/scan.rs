@@ -196,11 +196,10 @@ impl<'a> Scanner<'a> {
     }
 
     fn advance_to(&mut self, end: usize) {
-        for (off, ch) in self.src[self.i..end].char_indices() {
-            if ch == '\n' {
-                self.line += 1;
-                self.line_start = self.i + off + 1;
-            } else if !ch.is_whitespace() {
+        let from = self.i;
+        self.count_newlines(from, end);
+        for ch in self.src[from..end.min(self.src.len())].chars() {
+            if ch != '\n' && !ch.is_whitespace() {
                 self.code_chars += 1;
                 self.saw_code = true;
             }
@@ -541,6 +540,7 @@ impl<'a> Scanner<'a> {
         true
     }
 
+    /// The one place a line number moves, so its two callers cannot drift.
     fn count_newlines(&mut self, from: usize, to: usize) {
         for (off, ch) in self.src[from..to.min(self.src.len())].char_indices() {
             if ch == '\n' {
@@ -551,7 +551,6 @@ impl<'a> Scanner<'a> {
     }
 }
 
-/// Byte-wise: needles are ASCII, so a hit is always on a character boundary.
 fn starts_with_ci(haystack: &str, needle: &str) -> bool {
     haystack
         .as_bytes()

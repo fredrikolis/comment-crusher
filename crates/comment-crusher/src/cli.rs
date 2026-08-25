@@ -411,8 +411,9 @@ impl Cli {
                     LoadFailure::Syntax(e, s) => (SYNTAX_RULE, e, Some(s)),
                     other => (REJECTED_RULE, other.into_error(), None),
                 };
+                // Relative to where the run was invoked, as every file finding is.
                 let path = Config::source_path(&anchor, self.config.as_deref())
-                    .unwrap_or_else(|| PathBuf::from(CONFIG_FILE));
+                    .map_or_else(|| PathBuf::from(CONFIG_FILE), |p| relative_to_cwd(&p));
                 return Ok(Report {
                     files: Vec::new(),
                     diagnostics: vec![config_diagnostic(code, &path, &format!("{e:#}"), span)],
@@ -512,6 +513,13 @@ impl Cli {
 /// A configuration failure is a finding about a file.
 ///
 /// So it reaches an agent as one, not as a multi-line blob it must read as prose.
+fn relative_to_cwd(path: &Path) -> PathBuf {
+    std::env::current_dir()
+        .ok()
+        .and_then(|cwd| path.strip_prefix(&cwd).ok().map(Path::to_path_buf))
+        .unwrap_or_else(|| path.to_path_buf())
+}
+
 fn config_diagnostic(
     rule: &'static str,
     path: &Path,
