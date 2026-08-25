@@ -411,7 +411,10 @@ fn a_broken_config_arrives_as_a_located_diagnostic() {
     let out = run(dir.path(), &["a.rs", "--format", "json"]);
     let v: serde_json::Value = serde_json::from_str(&stdout(&out)).expect("valid JSON");
     let d = &v["data"]["diagnostics"][0];
-    assert_eq!(d["code"], "config");
+    assert_eq!(
+        d["code"], "config.rejected",
+        "a value the tool refuses, not bad TOML"
+    );
     assert_eq!(d["severity"], "error");
     assert!(
         d["location"]["file"]
@@ -430,6 +433,7 @@ fn a_broken_config_arrives_as_a_located_diagnostic() {
     );
     let out = run(dir.path(), &["a.rs", "--format", "json"]);
     let v: serde_json::Value = serde_json::from_str(&stdout(&out)).expect("valid JSON");
+    assert_eq!(v["data"]["diagnostics"][0]["code"], "config.syntax");
     let loc = &v["data"]["diagnostics"][0]["location"];
     assert_eq!(loc["start"]["line"], 1, "{loc}");
     assert_eq!(loc["start"]["column"], 6, "{loc}");

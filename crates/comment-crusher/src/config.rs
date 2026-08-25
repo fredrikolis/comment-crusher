@@ -168,7 +168,7 @@ impl Config {
     fn from_file(root: &Path, explicit: Option<&Path>) -> std::result::Result<Self, LoadFailure> {
         let mut table: Table = toml::from_str(DEFAULTS)
             .context("built-in default config is invalid")
-            .map_err(|e| LoadFailure::File(e, None))?;
+            .map_err(LoadFailure::Rejected)?;
         let base = match Self::source_path(root, explicit) {
             Some(p) => {
                 overlay(&mut table, &p)?;
@@ -177,7 +177,7 @@ impl Config {
             // No budget file to anchor to, so a glob is read from where it was typed.
             None => std::env::current_dir().unwrap_or_else(|_| directory_of(root)),
         };
-        Self::build(&table, base).map_err(|e| LoadFailure::File(e, None))
+        Self::build(&table, base).map_err(LoadFailure::Rejected)
     }
 
     fn build(table: &Table, root: PathBuf) -> Result<Self> {
@@ -576,10 +576,13 @@ fn parse_setting(s: &str, base: &Rules) -> Result<(Widenable, f64)> {
 fn overlay(base: &mut Table, path: &Path) -> std::result::Result<(), LoadFailure> {
     let text = std::fs::read_to_string(path)
         .with_context(|| format!("reading {}", path.display()))
-        .map_err(|e| LoadFailure::File(e, None))?;
+        .map_err(LoadFailure::Rejected)?;
     let layer: Table = toml::from_str(&text).map_err(|e| {
         let span = e.span().map(|s| (s.start, s.end.saturating_sub(s.start)));
-        LoadFailure::File(anyhow::anyhow!("parsing {}: {e}", path.display()), span)
+        span.map_or_else(
+            || LoadFailure::Rejected(anyhow::anyhow!("parsing {}: {e}", path.display())),
+            |s| LoadFailure::Syntax(anyhow::anyhow!("parsing {}: {e}", path.display()), s),
+        )
     })?;
     merge(base, layer);
     Ok(())
@@ -621,11 +624,20 @@ fn find_upward(from: &Path) -> Option<PathBuf> {
     }
 }
 
-/// Which of the two inputs a caller must fix. Argv failures are the caller's own invocation,
-/// so they exit as bad arguments rather than as a finding about a file.
+/// Which input a caller must fix, and how far the tool got before deciding.
 #[derive(Debug)]
 pub enum LoadFailure {
     Argv(anyhow::Error),
-    /// With the byte offset and length the parser pointed at, where it pointed at any.
-    File(anyhow::Error, Option<(usize, usize)>),
+    /// The file is not TOML, with the byte offset and length the parser pointed at.
+    Syntax(anyhow::Error, (usize, usize)),
+    /// The file is TOML but says something the tool refuses, which no byte range locates.
+    Rejected(anyhow::Error),
+}
+
+impl LoadFailure {
+    pub fn into_error(self) -> anyhow::Error {
+        match self {
+            Self::Argv(e) | Self::Syntax(e, _) | Self::Rejected(e) => e,
+        }
+    }
 }

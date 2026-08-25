@@ -11,11 +11,37 @@ use crate::diagnostic::Level;
 use crate::engine::{Engine, FileStat, Report};
 
 /// Exit codes an agent branches on, from the CLI standard.
-const CONFIG_RULE: &str = "config";
-const EXIT_VALIDATION: i32 = 3;
-const EXIT_NOT_FOUND: i32 = 24;
+/// Not TOML, and TOML the tool refuses, are different mistakes with different repairs.
+const SYNTAX_RULE: &str = "config.syntax";
+const REJECTED_RULE: &str = "config.rejected";
 pub const EXIT_BAD_ARGS: i32 = 2;
-const EXIT_INTERNAL: i32 = 1;
+const EXIT_VALIDATION: i32 = 3;
+
+/// The wire code and the exit code are one decision, so they are one value.
+#[derive(Debug, Clone, Copy)]
+pub enum Failure {
+    BadArguments,
+    NotFound,
+    Internal,
+}
+
+impl Failure {
+    const fn code(self) -> &'static str {
+        match self {
+            Self::BadArguments => "bad_arguments",
+            Self::NotFound => "not_found",
+            Self::Internal => "internal_error",
+        }
+    }
+
+    const fn exit(self) -> i32 {
+        match self {
+            Self::BadArguments => EXIT_BAD_ARGS,
+            Self::NotFound => 24,
+            Self::Internal => 1,
+        }
+    }
+}
 
 const AFTER_HELP: &str = r##"EXAMPLES
   comment-crusher .                                  measure a tree
@@ -32,7 +58,8 @@ OUTPUT (--format json)
            "pagination":{"files":{count,has_more},"diagnostics":{count,has_more}}}}
 
   A warning `allowance.unused` reports a --allow glob that matched none of the files
-  measured, so it widened nothing.
+  measured, so it widened nothing. A budget file that is not TOML is `config.syntax`, with
+  the byte range the parser pointed at; one the tool refuses is `config.rejected`.
   `error` appears only when status is error. A field with no value is omitted, never null.
   `comment_chars` counts every comment in a file; a rule may judge a subset and says so.
   `location.span` is a byte offset and length; `location.start`/`end` are 1-based line and
@@ -264,17 +291,17 @@ impl Cli {
         0
     }
 
-    fn report(&self) -> Result<Report, (&'static str, anyhow::Error)> {
+    fn report(&self) -> Result<Report, (Failure, anyhow::Error)> {
         for p in &self.paths {
             if !p.exists() {
                 return Err((
-                    "not_found",
+                    Failure::NotFound,
                     anyhow::anyhow!("no such path: {}", p.display()),
                 ));
             }
         }
         // On argv, so argv is what was wrong: an agent branching on 2 re-reads --help.
-        let allow = self.allowances().map_err(|e| ("bad_arguments", e))?;
+        let allow = self.allowances().map_err(|e| (Failure::BadArguments, e))?;
         let anchor = self
             .paths
             .first()
@@ -284,20 +311,24 @@ impl Cli {
             && !path.exists()
         {
             return Err((
-                "not_found",
+                Failure::NotFound,
                 anyhow::anyhow!("no such config: {}", path.display()),
             ));
         }
         let config = match Config::load(&anchor, self.config.as_deref(), &allow) {
             Ok(config) => config,
             // The caller's own invocation, not a fact about any file in the repo.
-            Err(LoadFailure::Argv(e)) => return Err(("bad_arguments", e)),
-            Err(LoadFailure::File(e, span)) => {
+            Err(LoadFailure::Argv(e)) => return Err((Failure::BadArguments, e)),
+            Err(other) => {
+                let (code, e, span) = match other {
+                    LoadFailure::Syntax(e, s) => (SYNTAX_RULE, e, Some(s)),
+                    other => (REJECTED_RULE, other.into_error(), None),
+                };
                 let path = Config::source_path(&anchor, self.config.as_deref())
                     .unwrap_or_else(|| PathBuf::from(CONFIG_FILE));
                 return Ok(Report {
                     files: Vec::new(),
-                    diagnostics: vec![config_diagnostic(&path, &format!("{e:#}"), span)],
+                    diagnostics: vec![config_diagnostic(code, &path, &format!("{e:#}"), span)],
                 });
             }
         };
@@ -352,14 +383,18 @@ impl Cli {
                 println!("{text}");
                 i32::from(rejected) * EXIT_VALIDATION
             }
-            Err(e) => self.print_error("internal_error", &e.to_string()),
+            Err(e) => self.print_error(Failure::Internal, &e.to_string()),
         }
     }
 
     /// Every channel a caller reads is stdout, this one and clap's rejection alike.
     /// Nothing was measured when the configuration was rejected, so nothing is over budget.
     fn rejection(&self, report: &Report) -> String {
-        if report.diagnostics.iter().any(|d| d.rule == CONFIG_RULE) {
+        if report
+            .diagnostics
+            .iter()
+            .any(|d| d.rule.starts_with("config."))
+        {
             return "the configuration was rejected".to_string();
         }
         let n = report
@@ -370,17 +405,12 @@ impl Cli {
         format!("{n} findings over budget")
     }
 
-    fn print_error(&self, code: &'static str, message: &str) -> i32 {
+    fn print_error(&self, failure: Failure, message: &str) -> i32 {
         match self.format {
             Format::Human => println!("comment-crusher: {message}"),
-            Format::Json => println!("{}", error_json(code, message)),
+            Format::Json => println!("{}", error_json(failure.code(), message)),
         }
-        match code {
-            "not_found" => EXIT_NOT_FOUND,
-            "bad_arguments" => EXIT_BAD_ARGS,
-            "validation_error" => EXIT_VALIDATION,
-            _ => EXIT_INTERNAL,
-        }
+        failure.exit()
     }
 }
 
@@ -388,13 +418,14 @@ impl Cli {
 ///
 /// So it reaches an agent as one, not as a multi-line blob it must read as prose.
 fn config_diagnostic(
+    rule: &'static str,
     path: &Path,
     message: &str,
     span: Option<(usize, usize)>,
 ) -> crate::Diagnostic {
     let first = message.lines().next().unwrap_or(message);
     let d = crate::Diagnostic::new(
-        CONFIG_RULE,
+        rule,
         Level::Deny,
         path,
         first.to_string(),
