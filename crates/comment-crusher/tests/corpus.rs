@@ -362,11 +362,13 @@ derived from | Non-concern: which bound is chosen from them (default_config.toml
             out,
             "repo_comment_share_median = {:.3}\nprose_lines_p75 = {}\n\
 comments_over_1_line = {}\ncomments_over_5_lines = {}\n\
+header_chars_language_median_p50 = {}\n\
 header_chars_language_median_p90 = {}\n",
             self.shares[self.shares.len() / 2],
             pct(&self.docs, 0.75),
             self.over_1,
             self.over_5,
+            pct(&medians, 0.50),
             pct(&medians, 0.90),
         );
         for kind in ["remark", "doc", "header"] {

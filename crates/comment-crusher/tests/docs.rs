@@ -162,7 +162,7 @@ fn every_derived_bound_matches_its_figure() {
         ("doc-length.max_lines", f["prose_lines_p75"].clone()),
         (
             "comment-ratio.header_free_chars",
-            f["header_chars_language_median_p90"].clone(),
+            f["header_chars_language_median_p50"].clone(),
         ),
         ("comment-block.max_chars", f["remark"]["chars_p90"].clone()),
         ("comment-block.doc_max_lines", f["doc"]["lines_p75"].clone()),

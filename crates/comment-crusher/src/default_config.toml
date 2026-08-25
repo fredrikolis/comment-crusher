@@ -16,8 +16,8 @@ count_doc_comments = true
 min_chars = 200
 # A fixed per-file cost the body is not charged for, up to header_free_chars.
 skip_header = true
-# corpus-figures.toml: header_chars_language_median_p90.
-header_free_chars = 344
+# corpus-figures.toml: header_chars_language_median_p50, what a banner is across real code.
+header_free_chars = 90
 
 [rules.comment-block]
 # One block comment, or one unbroken run of adjacent line comments.
