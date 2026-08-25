@@ -40,7 +40,7 @@ CI, in a hook, and against a file an agent just wrote. Exit codes:
 
 | 0 | 1 | 2 | 3 | 24 |
 |---|---|---|---|---|
-| nothing over budget | internal error | argv rejected | over budget, or the config was rejected | no such path |
+| nothing over budget | internal error | argv rejected, `--allow` included | over budget, or the budget file rejected | no such path |
 
 ## What it measures
 

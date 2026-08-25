@@ -67,8 +67,8 @@ OUTPUT (--format json)
 
 EXIT CODES
   0   nothing over budget
-  2   bad_arguments: argv itself was rejected
-  3   validation_error: a file is over budget, or the configuration is invalid
+  2   bad_arguments: argv itself was rejected, a --allow value included
+  3   validation_error: a file is over budget, or the budget file was rejected
   24  not_found: a path does not exist
   1   internal error
 
