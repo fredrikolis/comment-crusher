@@ -241,7 +241,7 @@ fn an_allowance_cannot_exempt_a_file_only_widen_its_bound() {
         "comment-ratio.skip_header=true",
     ] {
         let out = run(dir.path(), &["docs", "--allow", "docs/**", setting]);
-        assert_eq!(code(&out), 3, "{setting} should be refused");
+        assert_eq!(code(&out), 2, "{setting} should be refused");
     }
     // The same field, widened rather than removed, is accepted.
     assert_eq!(
@@ -272,17 +272,37 @@ fn each_kind_of_failure_has_its_own_code_and_exit() {
     }
 }
 
+/// The same bad setting is the caller's mistake on argv and the repo's in a file, and an
+/// agent branches on 2 to re-read `--help`, on 3 to go read the file.
 #[test]
-fn a_malformed_allowance_is_a_configuration_error_not_a_finding() {
+fn a_malformed_allowance_names_which_input_was_wrong() {
     let dir = tempfile::tempdir().expect("tempdir");
     write(dir.path(), "lean.rs", &lean_rust());
-    assert_eq!(
-        code(&run(
-            dir.path(),
-            &["lean.rs", "--allow", "*.rs", "max_ratio=0.9"]
-        )),
-        3,
-        "a bad configuration is validation_error, the same code the wire reports"
+    let argv = run(
+        dir.path(),
+        &[
+            "lean.rs",
+            "--allow",
+            "*.rs",
+            "max_ratio=0.9",
+            "--format",
+            "json",
+        ],
+    );
+    assert_eq!(code(&argv), 2, "{}", stdout(&argv));
+    assert!(stdout(&argv).contains("bad_arguments"), "{}", stdout(&argv));
+
+    write(
+        dir.path(),
+        ".comment-crusher.toml",
+        "[[allow]]\npaths = [\"*.rs\"]\nreason = \"x\"\nset = [\"max_ratio=0.9\"]\n",
+    );
+    let file = run(dir.path(), &["lean.rs", "--format", "json"]);
+    assert_eq!(code(&file), 3, "{}", stdout(&file));
+    assert!(
+        stdout(&file).contains("validation_error"),
+        "{}",
+        stdout(&file)
     );
 }
 

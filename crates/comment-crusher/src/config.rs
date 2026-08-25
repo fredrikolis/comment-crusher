@@ -138,16 +138,31 @@ impl Config {
     pub fn defaults() -> Result<Self> {
         let table: Table =
             toml::from_str(DEFAULTS).context("built-in default config is invalid")?;
-        Self::build(&table, &[], PathBuf::from("."))
+        Self::build(&table, PathBuf::from("."))
     }
 
     /// Layer the built-in defaults, the user file, the nearest `.comment-crusher.toml` above
     /// `root`, and any `--allow` given on the command line.
+    /// The file first, then argv, so a rejection names which of the two the caller must fix.
     pub fn load(
         root: &Path,
         explicit: Option<&Path>,
         cli_allow: &[(String, String)],
-    ) -> Result<Self> {
+    ) -> std::result::Result<Self, LoadFailure> {
+        let mut cfg = Self::from_file(root, explicit).map_err(LoadFailure::File)?;
+        for (glob, setting) in cli_allow {
+            let set = vec![parse_setting(setting, &cfg.base).map_err(LoadFailure::Argv)?];
+            let globs = build_globs(std::slice::from_ref(glob)).map_err(LoadFailure::Argv)?;
+            cfg.allowances.push(Allowance {
+                reason: "--allow".to_string(),
+                globs,
+                set,
+            });
+        }
+        Ok(cfg)
+    }
+
+    fn from_file(root: &Path, explicit: Option<&Path>) -> Result<Self> {
         let mut table: Table =
             toml::from_str(DEFAULTS).context("built-in default config is invalid")?;
         let found = explicit.map_or_else(|| find_upward(root), |p| Some(p.to_path_buf()));
@@ -158,10 +173,10 @@ impl Config {
             }
             None => directory_of(root),
         };
-        Self::build(&table, cli_allow, base)
+        Self::build(&table, base)
     }
 
-    fn build(table: &Table, cli_allow: &[(String, String)], root: PathBuf) -> Result<Self> {
+    fn build(table: &Table, root: PathBuf) -> Result<Self> {
         let global: RawGlobal = section(table, "global")?;
         let base = Rules::from_table(
             &table
@@ -171,7 +186,7 @@ impl Config {
                 .unwrap_or_default(),
         )?;
 
-        let allowances = build_allowances(table, cli_allow, &base)?;
+        let allowances = build_allowances(table, &base)?;
 
         let sets: HashMap<String, Vec<RawEmbed>> = section(table, "embed_sets")?;
         let raw_langs: HashMap<String, RawLanguage> = section(table, "languages")?;
@@ -278,11 +293,7 @@ impl Resolve for Config {
     }
 }
 
-fn build_allowances(
-    table: &Table,
-    cli_allow: &[(String, String)],
-    base: &Rules,
-) -> Result<Vec<Allowance>> {
+fn build_allowances(table: &Table, base: &Rules) -> Result<Vec<Allowance>> {
     let declared: Vec<RawAllow> = table
         .get("allow")
         .cloned()
@@ -291,7 +302,7 @@ fn build_allowances(
         .context("[[allow]] is malformed")?
         .unwrap_or_default();
 
-    let mut allowances = Vec::with_capacity(declared.len() + cli_allow.len());
+    let mut allowances = Vec::with_capacity(declared.len());
     for raw in declared {
         allowances.push(Allowance {
             reason: raw.reason,
@@ -303,14 +314,6 @@ fn build_allowances(
                 .collect::<Result<_>>()?,
         });
     }
-    for (glob, setting) in cli_allow {
-        allowances.push(Allowance {
-            reason: "--allow".to_string(),
-            globs: build_globs(std::slice::from_ref(glob))?,
-            set: vec![parse_setting(setting, base)?],
-        });
-    }
-
     Ok(allowances)
 }
 
@@ -480,8 +483,8 @@ impl Widenable {
         (doc_length::NAME, "max_lines", Self::DocLines, f64::INFINITY),
     ];
 
-    /// An allowance may widen a bound a hundredfold. Past that it is not widening it, it is
-    /// removing it: the corpus's longest document is 3419 lines against a shipped 77.
+    /// The corpus's longest prose document is 3419 lines against a shipped 77, so a
+    /// hundredfold covers any real exception and nothing beyond one.
     const CEILING: f64 = 100.0;
 
     /// The shipped value, which the ceiling is relative to.
@@ -543,7 +546,9 @@ fn parse_setting(s: &str, base: &Rules) -> Result<(Widenable, f64)> {
     }
     let ceiling = field.shipped(base) * Widenable::CEILING;
     if value > ceiling {
-        bail!("`{s}` exceeds {ceiling:.0}, a hundred times what ships; that removes the bound");
+        bail!(
+            "`{s}` exceeds {ceiling:.0}, a hundredfold; past that a bound is not widened, it is gone"
+        );
     }
     Ok((*field, value))
 }
@@ -591,4 +596,12 @@ fn find_upward(from: &Path) -> Option<PathBuf> {
             return None;
         }
     }
+}
+
+/// Which of the two inputs a caller must fix. Argv failures are the caller's own invocation,
+/// so they exit as bad arguments rather than as a finding about a file.
+#[derive(Debug)]
+pub enum LoadFailure {
+    Argv(anyhow::Error),
+    File(anyhow::Error),
 }

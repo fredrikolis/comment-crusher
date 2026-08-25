@@ -6,11 +6,12 @@ use anyhow::{Result, bail};
 use clap::{Parser, ValueEnum};
 use serde::Serialize;
 
-use crate::config::{CONFIG_FILE, Config};
+use crate::config::{CONFIG_FILE, Config, LoadFailure};
 use crate::diagnostic::Level;
 use crate::engine::{Engine, FileStat, Report};
 
 /// Exit codes an agent branches on, from the CLI standard.
+const CONFIG_RULE: &str = "config";
 const EXIT_VALIDATION: i32 = 3;
 const EXIT_NOT_FOUND: i32 = 24;
 pub const EXIT_BAD_ARGS: i32 = 2;
@@ -99,7 +100,7 @@ pub struct Cli {
     #[arg(long, value_name = "FILE")]
     pub config: Option<PathBuf>,
 
-    /// Widen a budget for the paths a glob matches, up to a hundred times what ships, e.g.
+    /// Widen a budget for the paths a glob matches, up to a hundredfold, e.g.
     /// --allow 'docs/**/*.md' doc-length.max_lines=2000
     #[arg(long, num_args = 2, value_names = ["GLOB", "RULE.FIELD=VALUE"], action = clap::ArgAction::Append)]
     pub allow: Vec<String>,
@@ -171,6 +172,27 @@ struct Envelope<'a> {
     #[serde(skip_serializing_if = "Option::is_none")]
     error: Option<ErrorBody>,
     data: Data<'a>,
+    meta: Meta,
+}
+
+/// What a caller keys a run on in a log it reads later.
+#[derive(Serialize)]
+struct Meta {
+    request_id: String,
+    timestamp: u64,
+}
+
+impl Meta {
+    /// The pid and the nanosecond: unique across runs, with no RNG dependency to get there.
+    fn now() -> Self {
+        let since = std::time::SystemTime::now()
+            .duration_since(std::time::UNIX_EPOCH)
+            .unwrap_or_default();
+        Self {
+            request_id: format!("req_{:x}{:08x}", std::process::id(), since.subsec_nanos()),
+            timestamp: since.as_secs(),
+        }
+    }
 }
 
 impl Cli {
@@ -246,7 +268,8 @@ impl Cli {
                 ));
             }
         }
-        let allow = self.allowances().map_err(|e| ("validation_error", e))?;
+        // On argv, so argv is what was wrong: an agent branching on 2 re-reads --help.
+        let allow = self.allowances().map_err(|e| ("bad_arguments", e))?;
         let anchor = self
             .paths
             .first()
@@ -262,7 +285,9 @@ impl Cli {
         }
         let config = match Config::load(&anchor, self.config.as_deref(), &allow) {
             Ok(config) => config,
-            Err(e) => {
+            // The caller's own invocation, not a fact about any file in the repo.
+            Err(LoadFailure::Argv(e)) => return Err(("bad_arguments", e)),
+            Err(LoadFailure::File(e)) => {
                 let path = Config::source_path(&anchor, self.config.as_deref())
                     .unwrap_or_else(|| PathBuf::from(CONFIG_FILE));
                 return Ok(Report {
@@ -296,16 +321,9 @@ impl Cli {
     fn print_json(&self, report: &Report, rejected: bool) -> i32 {
         let envelope = Envelope {
             status: if rejected { "error" } else { "success" },
-            error: rejected.then(|| {
-                let n = report
-                    .diagnostics
-                    .iter()
-                    .filter(|d| d.level == Level::Deny || self.warnings_as_errors)
-                    .count();
-                ErrorBody {
-                    code: "validation_error".to_string(),
-                    message: format!("{n} findings over budget"),
-                }
+            error: rejected.then(|| ErrorBody {
+                code: "validation_error".to_string(),
+                message: self.rejection(report),
             }),
             data: Data {
                 files: &report.files,
@@ -322,6 +340,7 @@ impl Cli {
                     },
                 },
             },
+            meta: Meta::now(),
         };
         match serde_json::to_string_pretty(&envelope) {
             Ok(text) => {
@@ -333,6 +352,19 @@ impl Cli {
     }
 
     /// Every channel a caller reads is stdout, this one and clap's rejection alike.
+    /// Nothing was measured when the configuration was rejected, so nothing is over budget.
+    fn rejection(&self, report: &Report) -> String {
+        if report.diagnostics.iter().any(|d| d.rule == CONFIG_RULE) {
+            return "the configuration was rejected".to_string();
+        }
+        let n = report
+            .diagnostics
+            .iter()
+            .filter(|d| d.level == Level::Deny || self.warnings_as_errors)
+            .count();
+        format!("{n} findings over budget")
+    }
+
     fn print_error(&self, code: &'static str, message: &str) -> i32 {
         match self.format {
             Format::Human => println!("comment-crusher: {message}"),
@@ -353,7 +385,7 @@ impl Cli {
 fn config_diagnostic(path: &Path, message: &str) -> crate::Diagnostic {
     let first = message.lines().next().unwrap_or(message);
     crate::Diagnostic::new(
-        "config",
+        CONFIG_RULE,
         Level::Deny,
         path,
         first.to_string(),
@@ -386,6 +418,7 @@ pub fn error_json(code: &str, message: &str) -> String {
                 },
             },
         },
+        meta: Meta::now(),
     };
     // Every field is a string, number or bool, so this cannot fail.
     serde_json::to_string(&envelope).unwrap_or_default()
