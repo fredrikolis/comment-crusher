@@ -22,12 +22,9 @@ rule off.
 ```toml
 [[allow]]
 paths = ["docs/spec.md"]
-reason = "the specification is the product"
-set = ["doc-length.max_lines=2000"]
+reason = "the specification is the product"   # required, and printed beside every finding
+set = ["doc-length.max_lines=2000"]           # only genuine upper bounds may be set
 ```
-
-`reason` is required, so every finding under a widened budget prints one; `--allow` does the
-same on the command line, and only genuine upper bounds may be set.
 
 ## Use
 
@@ -35,10 +32,13 @@ same on the command line, and only genuine upper bounds may be set.
 comment-crusher src/parser.rs  # one file, the agent-hook path; add --format json
 ```
 
-Install with `cargo install --git https://github.com/fredrikolis/comment-crusher`. Exit `0`
-nothing over budget, `3` something is or the config was rejected, `2` argv rejected, `24` no
-such path. The budget lives in `.comment-crusher.toml`, found by walking up from the target,
-so one answer holds in CI, in a hook, and against a file an agent just wrote.
+Install with `cargo install --git https://github.com/fredrikolis/comment-crusher`. The budget
+lives in `.comment-crusher.toml`, found by walking up from the target, so one answer holds in
+CI, in a hook, and against a file an agent just wrote. Exit codes:
+
+| 0 | 2 | 3 | 24 |
+|---|---|---|---|
+| nothing over budget | argv rejected | something is over, or the config was rejected | no such path |
 
 ## What it measures
 
@@ -50,8 +50,8 @@ so one answer holds in CI, in a hook, and against a file an agent just wrote.
 | `unreadable` | a resolved file that is binary or cannot be read | deny |
 
 15% is the median comment share of the 38 real repositories the tests measure, over the files
-this rule judges; 77 lines is their 75th-percentile document. `comment-block` is a policy and
-says so. Every visible character is
+this rule judges; 77 lines is their 75th-percentile document. `comment-block` is policy. Every
+visible character is
 either comment or code, and the two sum to the whole file: characters, not lines, so a trailing
 `// why` costs what it occupies. **Comment** is markers, their delimiters, doc comments and
 docstrings; **code** is strings, heredoc bodies, the shebang, and fenced examples in a doc
@@ -59,7 +59,7 @@ comment, because a doctest is code living in one.
 
 A doc comment gets more room than a remark, the banner more still, and that banner is exempt
 from the ratio so a small file can carry a mandated licence line and still have room for a
-comment. `header_max_lines` keeps the banner itself bounded.
+comment; `header_max_lines` bounds the banner itself.
 
 ## Languages
 

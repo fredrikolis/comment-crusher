@@ -1,12 +1,12 @@
 // Concern: declares the command-line surface and turns one invocation into a rendered report and an exit code | Non-concern: walking, scanning or judging | IO: (argv, stdout) -> exit code
 
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 
 use anyhow::{Result, bail};
 use clap::{Parser, ValueEnum};
 use serde::Serialize;
 
-use crate::config::Config;
+use crate::config::{CONFIG_FILE, Config};
 use crate::diagnostic::Level;
 use crate::engine::{Engine, FileStat, Report};
 
@@ -233,8 +233,17 @@ impl Cli {
                 anyhow::anyhow!("no such config: {}", path.display()),
             ));
         }
-        let config = Config::load(&anchor, self.config.as_deref(), &allow)
-            .map_err(|e| ("validation_error", e))?;
+        let config = match Config::load(&anchor, self.config.as_deref(), &allow) {
+            Ok(config) => config,
+            Err(e) => {
+                let path = Config::source_path(&anchor, self.config.as_deref())
+                    .unwrap_or_else(|| PathBuf::from(CONFIG_FILE));
+                return Ok(Report {
+                    files: Vec::new(),
+                    diagnostics: vec![config_diagnostic(&path, &format!("{e:#}"))],
+                });
+            }
+        };
         Ok(Engine::new(&config, self.root.as_deref()).run(&self.paths))
     }
 
@@ -311,8 +320,23 @@ impl Cli {
     }
 }
 
-/// The one producer of a failed envelope, so `data` is present on every reply the contract
-/// in `--help` describes, whatever went wrong.
+/// The one producer of a failed envelope.
+///
+/// `data` is therefore present on every reply the `--help` contract describes.
+/// A configuration failure is a finding about a file.
+///
+/// So it reaches an agent as one, not as a multi-line blob it must read as prose.
+pub fn config_diagnostic(path: &Path, message: &str) -> crate::Diagnostic {
+    let first = message.lines().next().unwrap_or(message);
+    crate::Diagnostic::new(
+        "config",
+        Level::Deny,
+        path,
+        first.to_string(),
+        "Fix the configuration, or point --config at one that parses.",
+    )
+}
+
 pub fn error_json(code: &str, message: &str) -> String {
     let envelope: Envelope<'_> = Envelope {
         status: "error",

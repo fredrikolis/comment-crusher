@@ -362,3 +362,29 @@ fn a_file_that_is_not_utf8_is_still_measured() {
     assert!(v["data"]["files"][0]["comment_chars"].as_u64().unwrap_or(0) > 0);
     assert_eq!(code(&out), 0);
 }
+
+/// A configuration that does not parse is a finding about a file, not a traceback in a
+/// string, so an agent branches on it the way it branches on any other.
+#[test]
+fn a_broken_config_arrives_as_a_located_diagnostic() {
+    let dir = tempfile::tempdir().expect("tempdir");
+    write(dir.path(), "a.rs", &lean_rust());
+    write(
+        dir.path(),
+        ".comment-crusher.toml",
+        "[rules.comment-ratio]\nmax_ratio = \"not a number\"\n",
+    );
+    let out = run(dir.path(), &["a.rs", "--format", "json"]);
+    let v: serde_json::Value = serde_json::from_str(&stdout(&out)).expect("valid JSON");
+    let d = &v["data"]["diagnostics"][0];
+    assert_eq!(d["code"], "config");
+    assert_eq!(d["severity"], "error");
+    assert!(
+        d["location"]["file"]
+            .as_str()
+            .is_some_and(|f| f.ends_with(".comment-crusher.toml")),
+        "{d}"
+    );
+    assert!(!d["message"].as_str().unwrap_or_default().contains('\n'));
+    assert_eq!(code(&out), 3);
+}

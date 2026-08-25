@@ -230,20 +230,50 @@ fn an_empty_block_comment_does_not_swallow_the_file() {
     assert_eq!(scan.code_chars, 0);
 }
 
+/// No pinned repository contains a nested block comment; real code barely uses them. So
+/// every language declaring `nested_block` is proved here instead, and the last assertion
+/// stops a new one being added without a case.
 #[test]
-fn block_comments_nest_in_every_family_that_nests_them() {
-    // Lisp `#| |#`, Nim `#[ ]#`, Haskell/Elm `{- -}`, ML `(* *)`, D `/+ +/`.
-    for (ext, src, tail) in [
-        ("el", "#| a #| b |# c |# (f)", "(f)"),
-        ("nim", "#[ a #[ b ]# c ]# f()", "f()"),
+fn block_comments_nest_in_every_language_that_declares_it() {
+    let nesting: &[(&str, &str, &str)] = &[
+        ("d", "/+ a /+ b +/ c +/ f", "f"),
+        ("dart", "/* a /* b */ c */ f", "f"),
         ("elm", "{- a {- b -} c -} f", "f"),
         ("fs", "(* a (* b *) c *) f", "f"),
-        ("d", "/+ a /+ b +/ c +/ f", "f"),
-    ] {
-        let s = run(ext, src);
-        assert_eq!(s.regions.len(), 1, "{ext}");
-        assert_eq!(s.code_chars, visible(tail), "{ext}");
+        ("hs", "{- a {- b -} c -} f", "f"),
+        ("jl", "#= a #= b =# c =# f", "f"),
+        ("kt", "/* a /* b */ c */ f", "f"),
+        ("lisp", "#| a #| b |# c |# f", "f"),
+        ("nim", "#[ a #[ b ]# c ]# f", "f"),
+        ("ml", "(* a (* b *) c *) f", "f"),
+        ("odin", "/* a /* b */ c */ f", "f"),
+        ("purs", "{- a {- b -} c -} f", "f"),
+        ("rs", "/* a /* b */ c */ f", "f"),
+        ("scala", "/* a /* b */ c */ f", "f"),
+        ("sml", "(* a (* b *) c *) f", "f"),
+        ("swift", "/* a /* b */ c */ f", "f"),
+    ];
+    let cfg = Config::defaults().unwrap();
+    let mut covered = std::collections::BTreeSet::new();
+    for (ext, src, tail) in nesting {
+        let scan = run(ext, src);
+        assert_eq!(
+            scan.regions.len(),
+            1,
+            "{ext}: the inner close must not end it"
+        );
+        assert_eq!(scan.code_chars, visible(tail), "{ext}");
+        if let Some(syn) = cfg.language(Path::new(&format!("x.{ext}"))) {
+            covered.insert(syn.name.clone());
+        }
     }
+    let declared: std::collections::BTreeSet<String> = cfg
+        .languages()
+        .filter(|s| s.nested_block)
+        .map(|s| s.name.clone())
+        .collect();
+    let missing: Vec<_> = declared.difference(&covered).collect();
+    assert!(missing.is_empty(), "nested_block with no case: {missing:?}");
 }
 
 #[test]

@@ -128,6 +128,11 @@ pub struct Config {
 }
 
 impl Config {
+    /// Where the budget for `root` comes from, if any file supplies one.
+    pub fn source_path(root: &Path, explicit: Option<&Path>) -> Option<PathBuf> {
+        explicit.map_or_else(|| find_upward(root), |p| Some(p.to_path_buf()))
+    }
+
     /// The built-in defaults alone, with no file layer consulted. What a caller measuring a
     /// tree that is not its own — a test corpus, another repo — should use.
     pub fn defaults() -> Result<Self> {
