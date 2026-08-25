@@ -149,8 +149,7 @@ impl Config {
         let base = match &found {
             Some(p) => {
                 overlay(&mut table, p)?;
-                p.parent()
-                    .map_or_else(|| PathBuf::from("."), Path::to_path_buf)
+                directory_of(p)
             }
             None => directory_of(root),
         };
@@ -249,10 +248,8 @@ impl Config {
             .collect()
     }
 
-    /// The base rules with every matching allowance applied, and the reasons that widened
-    /// them. If a combination ever failed to deserialize, the unwidened base applies, which
-    /// Applied to the base by typed assignment, never by patching TOML and deserializing it
-    /// again, so there is no failure to fall back from.
+    /// The base with every matching allowance applied by typed assignment, never by patching
+    /// TOML and deserializing it again, so there is no failure to fall back from.
     pub fn rules_for(&self, rel: &Path) -> (Rules, Vec<String>) {
         let matched = self.matching(rel);
         if matched.is_empty() {

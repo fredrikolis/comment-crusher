@@ -104,7 +104,8 @@ pub struct Cli {
     #[arg(long, num_args = 2, value_names = ["GLOB", "RULE.FIELD=VALUE"], action = clap::ArgAction::Append)]
     pub allow: Vec<String>,
 
-    /// Directory globs and reported paths are relative to. Defaults to the working directory.
+    /// Directory globs and reported paths are relative to. Defaults to the directory the
+    /// budget file was found in, so one answer holds from anywhere.
     #[arg(long, value_name = "DIR")]
     pub root: Option<PathBuf>,
 
