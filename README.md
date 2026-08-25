@@ -14,8 +14,9 @@ error: src/parser.rs [comment-ratio] 41% comment (2104/5117 chars), budget is 15
 ## No file is exempt
 
 An allowance widens a bound for the paths it names. It cannot remove one or switch a rule off,
-and it stops at a hundredfold, past which a bound is not widened but gone. A gas expands to
-occupy whatever volume it is given; an LLM fills whatever space is available with words.
+and it stops at a hundredfold, or at whatever the field itself allows: a ratio never reaches 1.
+A gas expands to occupy whatever volume it is given; an LLM fills whatever space is available
+with words.
 
 ```toml
 [[allow]]
@@ -37,9 +38,13 @@ comment-crusher src/parser.rs  # one file, the agent-hook path; add --format jso
 The budget lives in `.comment-crusher.toml`, found by walking up from the target, so one
 answer holds in CI, in a hook, and against a file an agent just wrote. Exit codes:
 
-| 0 | 1 | 2 | 3 | 24 |
-|---|---|---|---|---|
-| nothing over budget | internal error | argv rejected, a bad `--allow` value included | over budget, or the budget file rejected | no such path |
+| Code | Meaning |
+|---|---|
+| 0 | nothing over budget |
+| 1 | internal error |
+| 2 | argv rejected, including a bad `--allow` value |
+| 3 | a file over budget, or the budget file rejected |
+| 24 | no such path |
 
 ## What it measures
 
@@ -71,7 +76,6 @@ comment gets more lines than a remark.
 - `<script>` and `<style>` scanned as the language their tag names, across HTML, Vue, Svelte
   and Astro; named, never guessed, so a `type=` the table does not map leaves its body code.
 - Comment plus code equals the file's visible chars over 43 pinned repositories, and every
-  declared marker has opened a real comment in one, counting a token proved wherever it
-  first fired; `snippet-only.txt` names the rest, and snippets cover them.
+  declared marker has opened a real comment in one.
 
 MIT licence.

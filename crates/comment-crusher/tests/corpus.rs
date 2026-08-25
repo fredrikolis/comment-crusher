@@ -67,7 +67,6 @@ fn measure(dir: &Path) -> (Totals, Vec<String>) {
         e[2] += f.comment_chars;
         e[3] += f.code_chars;
 
-        // Lose a character and a region was dropped; gain one and a state was left entered.
         let Ok(bytes) = std::fs::read(dir.join(&f.path)) else {
             // An IO failure is not a scanner defect; the engine reports it separately.
             continue;
@@ -86,30 +85,24 @@ fn measure(dir: &Path) -> (Totals, Vec<String>) {
     (totals, mismatches)
 }
 
+/// Comment plus code equals every corpus file's visible chars, and the totals hold.
 #[test]
-fn corpus_partitions_every_file_into_comment_and_code() {
-    let root = corpus_root();
-    let mut all = Vec::new();
-    for (name, dir) in repos(&root) {
-        let (_, mismatches) = measure(&dir);
-        all.extend(mismatches.into_iter().map(|m| format!("{name}/{m}")));
-    }
-    assert!(
-        all.is_empty(),
-        "{} files mis-counted:\n{}",
-        all.len(),
-        all.join("\n")
-    );
-}
-
-#[test]
-fn corpus_totals_match_the_pinned_snapshot() {
+fn the_corpus_partitions_and_its_totals_hold() {
     let root = corpus_root();
     let snapshot_path = Path::new(env!("CARGO_MANIFEST_DIR")).join(SNAPSHOT);
-    let measured: BTreeMap<String, Totals> = repos(&root)
-        .into_iter()
-        .map(|(name, dir)| (name, measure(&dir).0))
-        .collect();
+    let mut measured: BTreeMap<String, Totals> = BTreeMap::new();
+    let mut lost = Vec::new();
+    for (name, dir) in repos(&root) {
+        let (totals, off) = measure(&dir);
+        measured.insert(name.clone(), totals);
+        lost.extend(off.into_iter().map(|m| format!("{name}/{m}")));
+    }
+    assert!(
+        lost.is_empty(),
+        "{} files mis-counted:\n{}",
+        lost.len(),
+        lost.join("\n")
+    );
     let rendered = render(&measured);
 
     if std::env::var_os("UPDATE_CORPUS_SNAPSHOT").is_some() {

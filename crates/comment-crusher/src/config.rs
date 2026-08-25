@@ -144,8 +144,7 @@ impl Config {
     /// The built-in defaults alone, with no file layer consulted. What a caller measuring a
     /// tree that is not its own — a test corpus, another repo — should use.
     pub fn defaults() -> Result<Self> {
-        let table: Table =
-            toml::from_str(DEFAULTS).context("built-in default config is invalid")?;
+        let table = shipped_table()?;
         let shipped = rules_of(&table)?;
         Self::build(&table, shipped, PathBuf::from("."))
     }
@@ -172,9 +171,7 @@ impl Config {
     }
 
     fn from_file(root: &Path, explicit: Option<&Path>) -> std::result::Result<Self, LoadFailure> {
-        let mut table: Table = toml::from_str(DEFAULTS)
-            .context("built-in default config is invalid")
-            .map_err(LoadFailure::Rejected)?;
+        let mut table = shipped_table().map_err(LoadFailure::Rejected)?;
         // Read before the overlay, which is what makes it the shipped value.
         let shipped = rules_of(&table).map_err(LoadFailure::Rejected)?;
         let base = match Self::source_path(root, explicit) {
@@ -183,7 +180,9 @@ impl Config {
                 directory_of(&p)
             }
             // No budget file to anchor to, so a glob is read from where it was typed.
-            None => std::env::current_dir().unwrap_or_else(|_| directory_of(root)),
+            None => std::env::current_dir()
+                .context("no budget file, and the working directory cannot be read")
+                .map_err(LoadFailure::Rejected)?,
         };
         Self::build(&table, shipped, base).map_err(LoadFailure::Rejected)
     }
@@ -327,6 +326,10 @@ impl Resolve for Config {
     fn language_named(&self, name: &str) -> Option<&Syntax> {
         self.langs.iter().find(|l| l.name == name)
     }
+}
+
+fn shipped_table() -> Result<Table> {
+    toml::from_str(DEFAULTS).context("built-in default config is invalid")
 }
 
 fn rules_of(table: &Table) -> Result<Rules> {
