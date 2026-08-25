@@ -16,7 +16,7 @@ count_doc_comments = true
 min_chars = 200
 # A fixed per-file cost the body is not charged for, up to the size a banner really is.
 skip_header = true
-# Measured: corpus headers run to a median of 137 characters, 434 at the 75th percentile.
+# Measured: p90 of the 45 corpus languages' median header, whose own median is 90 chars.
 header_max_chars = 400
 
 [rules.comment-block]
