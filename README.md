@@ -59,8 +59,8 @@ answer holds in CI, in a hook, and against a file an agent just wrote. Exit code
 | `unreadable` | a resolved file that is binary or cannot be read | deny |
 
 The median comment share is 18% and the 75th-percentile document is 90 lines, across the 43
-repositories the tests measure. **`comment-block` is policy**, the one rule not derived from
-them.
+repositories the tests measure. **`comment-block.max_lines` is policy**, the one bound not
+derived from them.
 
 **Comment** is markers, their delimiters, doc comments and docstrings. **Code** is strings,
 heredoc bodies, the shebang, and fenced examples inside any comment. Counted in characters, the
@@ -80,6 +80,7 @@ comment gets more lines and more characters than a remark, and a banner more sti
 - `<script>` and `<style>` scanned as the language their tag names, across HTML, Vue, Svelte
   and Astro; named, never guessed, so a `type=` the table does not map leaves its body code.
 - Comment plus code equals the file's visible chars over 43 pinned repositories, and every
-  declared marker has opened a real comment in one.
+  declared marker has opened a real comment in one, bar the rare forms `snippet-only.txt`
+  names and snippets cover.
 
 MIT licence.

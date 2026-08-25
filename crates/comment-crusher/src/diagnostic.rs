@@ -3,16 +3,6 @@
 use serde::{Deserialize, Serialize};
 use std::path::{Path, PathBuf};
 
-/// The 1-based line and column a byte offset falls on.
-pub(crate) fn place(src: &str, offset: usize) -> (usize, usize) {
-    let before = &src[..offset.min(src.len())];
-    let line_start = before.rfind('\n').map_or(0, |n| n + 1);
-    (
-        before.matches('\n').count() + 1,
-        before[line_start..].chars().count() + 1,
-    )
-}
-
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Deserialize)]
 #[serde(rename_all = "lowercase")]
 pub enum Level {

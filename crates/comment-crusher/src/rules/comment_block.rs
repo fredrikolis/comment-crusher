@@ -62,8 +62,6 @@ pub fn check(cfg: &Config, file: &Path, scan: &Scan) -> Vec<Diagnostic> {
     out
 }
 
-/// A banner, a doc comment and a remark are three different things, bounded three ways in
-/// lines and in characters alike.
 const fn bound(cfg: &Config, r: &Region) -> (usize, usize, &'static str) {
     if r.header {
         (cfg.header_max_lines, cfg.header_max_chars, "file header")

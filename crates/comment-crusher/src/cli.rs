@@ -180,7 +180,7 @@ pub struct Cli {
     #[arg(long, value_enum, default_value_t = Format::Human)]
     pub format: Format,
 
-    /// Print per-language totals instead of findings. Human format only; JSON always carries
+    /// Print per-language totals above the findings. Human format only; JSON always carries
     /// them under `data.languages`.
     #[arg(long)]
     pub stats: bool,

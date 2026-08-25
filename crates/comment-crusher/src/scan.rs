@@ -572,7 +572,7 @@ fn find_ci(haystack: &str, needle: &str) -> Option<usize> {
 }
 
 fn column_of(src: &str, offset: usize) -> usize {
-    crate::diagnostic::place(src, offset).1
+    crate::text::place(src, offset).1
 }
 
 fn count_visible(s: &str) -> usize {

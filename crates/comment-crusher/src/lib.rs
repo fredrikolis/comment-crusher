@@ -8,6 +8,7 @@ pub mod engine;
 pub mod rules;
 pub mod scan;
 pub mod syntax;
+mod text;
 
 pub use config::Config;
 pub use diagnostic::Diagnostic;

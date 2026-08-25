@@ -549,8 +549,7 @@ impl Widenable {
         Bound::new(doc_length::NAME, "max_lines", Self::DocLines, INF),
     ];
 
-    /// A hundredfold covers any real exception: the corpus's longest prose document is 3419
-    /// lines, well inside a hundred times the shipped bound.
+    /// A hundredfold covers any real exception and nothing past one.
     const CEILING: f64 = 100.0;
 
     #[expect(
@@ -764,8 +763,8 @@ impl Located {
         Self {
             offset: start,
             length: end.saturating_sub(start),
-            start: crate::diagnostic::place(text, start),
-            end: crate::diagnostic::place(text, end),
+            start: crate::text::place(text, start),
+            end: crate::text::place(text, end),
         }
     }
 }
