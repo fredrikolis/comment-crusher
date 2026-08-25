@@ -229,9 +229,7 @@ fn snippet_only() -> Vec<&'static str> {
         .collect()
 }
 
-/// Nesting is depth-counting, a scanner construct, so `scan_tests.rs` snippets are not enough
-/// on their own: this records that no pinned repository writes one, and fails the day one does
-/// — at which point the construct is provable from real source and should be proved there.
+/// Snippets alone cannot prove depth-counting, so this records that no pinned repo writes one.
 #[test]
 fn nesting_is_the_one_construct_no_pinned_repository_writes() {
     let root = corpus_root();
