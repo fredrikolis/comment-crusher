@@ -38,6 +38,10 @@ pub fn check(cfg: &Config, file: &Path, scan: &Scan) -> Option<Diagnostic> {
         cfg.skip_header.then_some(cfg.header_free_chars),
     );
     let total = comment + scan.code_chars;
+    // All discounted, so there is no share to take.
+    if total == 0 {
+        return None;
+    }
     let ratio = comment as f64 / total as f64;
     if ratio <= cfg.max_ratio {
         return None;

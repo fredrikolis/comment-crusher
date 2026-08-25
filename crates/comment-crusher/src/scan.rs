@@ -12,25 +12,26 @@ pub struct Region {
     pub start_line: usize,
     pub end_line: usize,
     pub chars: usize,
+    example_lines: usize,
     /// 1-based; `end_column` is exclusive, as `end` is.
     pub start_column: usize,
     pub end_column: usize,
     pub kind: CommentKind,
     pub opener: String,
     own_line: bool,
-    /// Only whole-line comments merge: one merging around trailing code would charge it prose.
+    /// Only whole-line comments merge: one around trailing code would charge it prose.
     ends_line: bool,
     /// The leading comment above any code — a fixed per-file cost, budgeted apart.
     pub header: bool,
-    /// Lifted from an embedded child scan, which already counted and merged it. Its
-    /// `own_line`/`ends_line` were computed in the child's coordinates, so re-reading it
-    /// against the parent source would bill the surrounding markup twice.
+    /// Lifted from an embedded child scan, whose coordinates these fields are in: re-reading
+    /// it against the parent source would bill the surrounding markup twice.
     nested: bool,
 }
 
 impl Region {
+    /// Prose lines: a fenced example is code, so not part of the shape either.
     pub const fn lines(&self) -> usize {
-        self.end_line - self.start_line + 1
+        self.end_line - self.start_line + 1 - self.example_lines
     }
 }
 
@@ -95,8 +96,9 @@ fn scan_at(src: &str, syn: &Syntax, resolve: &dyn Resolve, depth: usize) -> Scan
         if r.nested {
             continue;
         }
-        let (comment, example) = count_body(&src[r.start..r.end]);
+        let (comment, example, example_lines) = count_body(&src[r.start..r.end]);
         r.chars = comment;
+        r.example_lines = example_lines;
         code_chars += example;
     }
     Scan {
@@ -107,8 +109,8 @@ fn scan_at(src: &str, syn: &Syntax, resolve: &dyn Resolve, depth: usize) -> Scan
 }
 
 /// Split into prose and fenced example: a doctest is code that happens to live in a comment.
-fn count_body(text: &str) -> (usize, usize) {
-    let (mut prose, mut example, mut fenced) = (0, 0, false);
+fn count_body(text: &str) -> (usize, usize, usize) {
+    let (mut prose, mut example, mut lines, mut fenced) = (0, 0, 0, false);
     for line in text.lines() {
         let visible = count_visible(line);
         if is_fence(line) {
@@ -116,11 +118,12 @@ fn count_body(text: &str) -> (usize, usize) {
             prose += visible;
         } else if fenced {
             example += visible;
+            lines += 1;
         } else {
             prose += visible;
         }
     }
-    (prose, example)
+    (prose, example, lines)
 }
 
 /// The punctuation declared markers are made of; a word marker like `REM ` is not, since
@@ -327,7 +330,7 @@ impl<'a> Scanner<'a> {
             )
             .map(|(t, o)| (t.to_owned(), o.clone()))
             .collect();
-        // An unterminated block really does comment out the rest of the file; `/**/` is not one.
+        // An unterminated block does comment out the rest of the file; `/**/` is not one.
         let Some((tok, op)) = candidates
             .iter()
             .find(|(t, o)| self.terminates(t, o))
@@ -367,6 +370,7 @@ impl<'a> Scanner<'a> {
             start_line: start,
             end_line: self.line,
             chars: 0,
+            example_lines: 0,
             start_column: 1,
             end_column: 1,
             kind,

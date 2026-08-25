@@ -670,3 +670,28 @@ fn a_discounted_banner_does_not_lift_a_file_out_of_the_rule() {
     assert_eq!(code(&out), 3, "{}", stdout(&out));
     assert!(stdout(&out).contains("comment-ratio"), "{}", stdout(&out));
 }
+
+/// A budget file that sets nothing is a typo, and a typo that merges silently leaves the
+/// budget it was written to change exactly as it was.
+#[test]
+fn a_budget_key_the_defaults_never_declared_is_refused() {
+    let dir = tempfile::tempdir().expect("tempdir");
+    write(dir.path(), "a.rs", &lean_rust());
+    for bad in [
+        "[globl]\nexclude = [\"x\"]\n",
+        "[rules.comment-ration]\nmax_ratio = 0.9\n",
+        "[rules.comment-ratio]\nmax_ration = 0.9\n",
+    ] {
+        write(dir.path(), ".comment-crusher.toml", bad);
+        let out = run(dir.path(), &["a.rs", "--format", "json"]);
+        assert_eq!(code(&out), 3, "{bad}: {}", stdout(&out));
+        assert!(stdout(&out).contains("sets nothing"), "{}", stdout(&out));
+    }
+    // What a budget file legitimately introduces still loads.
+    write(
+        dir.path(),
+        ".comment-crusher.toml",
+        "[[allow]]\npaths = [\"*.rs\"]\nreason = \"x\"\nset = [\"doc-length.max_lines=200\"]\n",
+    );
+    assert_eq!(code(&run(dir.path(), &["a.rs"])), 0);
+}

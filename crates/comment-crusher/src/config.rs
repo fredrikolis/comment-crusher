@@ -666,8 +666,41 @@ fn overlay(base: &mut Table, path: &Path) -> std::result::Result<(), LoadFailure
             None => LoadFailure::Rejected(message),
         }
     })?;
+    // A key the defaults never declared is a typo, and a typo that merges sets no budget.
+    let stray = unknown_keys(base, &layer, "");
+    if !stray.is_empty() {
+        return Err(LoadFailure::Rejected(anyhow::anyhow!(
+            "sets nothing: {}",
+            stray.join(", ")
+        )));
+    }
     merge(base, layer);
     Ok(())
+}
+
+fn unknown_keys(base: &Table, layer: &Table, at: &str) -> Vec<String> {
+    let mut out = Vec::new();
+    for (k, v) in layer {
+        let here = if at.is_empty() {
+            k.clone()
+        } else {
+            format!("{at}.{k}")
+        };
+        // The one key a budget file introduces rather than overrides.
+        if here == "allow" {
+            continue;
+        }
+        match base.get(k) {
+            None => out.push(here),
+            Some(Value::Table(bt)) => {
+                if let Some(lt) = v.as_table() {
+                    out.extend(unknown_keys(bt, lt, &here));
+                }
+            }
+            Some(_) => {}
+        }
+    }
+    out
 }
 
 /// Later layers overlay earlier ones key by key. `global.exclude` is the one additive key:
