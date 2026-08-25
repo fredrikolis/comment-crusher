@@ -513,7 +513,12 @@ fn real_source_in_every_language_yields_the_comments_it_contains() {
             syn.name
         );
     }
-    let all: std::collections::BTreeSet<String> = cfg.languages().map(|s| s.name.clone()).collect();
+    // A language with no comment marker has no comment for a case to assert.
+    let all: std::collections::BTreeSet<String> = cfg
+        .languages()
+        .filter(|s| s.openers.iter().any(|(_, o)| !matches!(o, Opener::Str(_))))
+        .map(|s| s.name.clone())
+        .collect();
     let missing: Vec<_> = all.difference(&seen).collect();
     assert!(
         missing.is_empty(),
@@ -578,5 +583,73 @@ fn a_header_is_exempt_only_up_to_the_size_a_banner_really_is() {
         big.charged_chars(true, None),
         charged + 400,
         "without the exemption the same essay is charged in full"
+    );
+}
+
+/// A tag attribute names a language, and the name has to reach a table that scans it: `scss`
+/// once named `css`, which has no `//`, so every line comment in a `<style lang="scss">` was
+/// silently code. The marker per value is written out here, not read back from the table.
+#[test]
+fn every_tag_attribute_reaches_the_language_it_names() {
+    // (attribute value, a marker that language really uses, comments it opens)
+    let expected: &[(&str, &str, usize)] = &[
+        ("ts", "//", 1),
+        ("tsx", "//", 1),
+        ("typescript", "//", 1),
+        ("text/typescript", "//", 1),
+        ("application/typescript", "//", 1),
+        ("js", "//", 1),
+        ("jsx", "//", 1),
+        ("module", "//", 1),
+        ("text/babel", "//", 1),
+        // JSON has no comment at all, so the body stays code whatever it holds.
+        ("application/json", "//", 0),
+        ("application/ld+json", "//", 0),
+        ("importmap", "//", 0),
+        ("speculationrules", "//", 0),
+        ("text/x-template", "<!--", 1),
+        ("text/template", "<!--", 1),
+        ("text/coffeescript", "#", 1),
+        ("text/x-coffeescript", "#", 1),
+        ("text/x-literate-coffeescript", "#", 1),
+        ("text/css", "/*", 1),
+        ("scss", "//", 1),
+        ("sass", "//", 1),
+        ("less", "//", 1),
+        ("postcss", "//", 1),
+        ("stylus", "//", 1),
+        ("styl", "//", 1),
+    ];
+    let cfg = Config::defaults().unwrap();
+    let html = cfg.language(Path::new("x.html")).unwrap();
+    let mut unseen: Vec<String> = html
+        .embeds
+        .iter()
+        .flat_map(|s| s.map.keys().cloned())
+        .collect();
+    for (value, marker, want) in expected {
+        // Which tag carries the value is the table's business; which language it names is not.
+        let spec = html
+            .embeds
+            .iter()
+            .find(|s| s.map.contains_key(*value))
+            .unwrap();
+        let tag = spec.open.trim_start_matches('<');
+        unseen.retain(|k| k != value);
+        let body = match *marker {
+            "/*" => "/* n */".to_string(),
+            "<!--" => "<!-- n -->".to_string(),
+            _ => format!("{marker} n"),
+        };
+        let src = format!("<{tag} lang=\"{value}\" type=\"{value}\">\nx\n{body}\n</{tag}>\n");
+        assert_eq!(
+            run("html", &src).regions.len(),
+            *want,
+            "{value}: `{marker}` in {src:?}"
+        );
+    }
+    assert!(
+        unseen.is_empty(),
+        "attribute values with no case: {unseen:?}"
     );
 }

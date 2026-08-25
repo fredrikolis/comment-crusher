@@ -44,7 +44,7 @@ max_lines = 77
 [embed_sets]
 web = [
   { open = "<script", close = "</script", default = "javascript", attrs = ["type", "lang"], map = { ts = "typescript", tsx = "typescript", typescript = "typescript", "text/typescript" = "typescript", "application/typescript" = "typescript", js = "javascript", jsx = "javascript", module = "javascript", "text/babel" = "javascript", "application/json" = "json", "application/ld+json" = "json", importmap = "json", speculationrules = "json", "text/x-template" = "html", "text/template" = "html", "text/coffeescript" = "coffee", "text/x-coffeescript" = "coffee", "text/x-literate-coffeescript" = "coffee", "text/css" = "css" } },
-  { open = "<style", close = "</style", default = "css", attrs = ["lang"], map = { scss = "css", sass = "css", less = "css", postcss = "css", stylus = "stylus", styl = "stylus" } },
+  { open = "<style", close = "</style", default = "css", attrs = ["lang"], map = { scss = "scss", sass = "scss", less = "scss", postcss = "scss", stylus = "stylus", styl = "stylus" } },
 ]
 
 [languages.rust]
@@ -625,6 +625,10 @@ extensions = [".jsonnet", ".libsonnet"]
 line = ["//", "#"]
 block = [["/*", "*/"]]
 strings = [{ open = '"', close = '"' }, { open = "'", close = "'" }]
+
+# No extensions: JSON has no comment, so the entry exists only to be named by a <script type>.
+[languages.json]
+strings = [{ open = '"', close = '"' }]
 
 [languages.jsonc]
 extensions = [".jsonc", ".json5"]

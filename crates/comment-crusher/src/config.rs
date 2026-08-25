@@ -209,7 +209,25 @@ impl Config {
         for (name, raw) in names {
             cfg.push_language(&name, &raw, &sets)?;
         }
+        cfg.check_embed_targets()?;
         Ok(cfg)
+    }
+
+    /// An embed target naming no language is a typo, and a typo scans as a body left code.
+    fn check_embed_targets(&self) -> Result<()> {
+        for syn in &self.langs {
+            for spec in &syn.embeds {
+                for target in std::iter::once(&spec.default).chain(spec.map.values()) {
+                    if !target.is_empty() && self.language_named(target).is_none() {
+                        bail!(
+                            "`{}` embeds `{target}`, which no [languages.*] declares",
+                            syn.name
+                        );
+                    }
+                }
+            }
+        }
+        Ok(())
     }
 
     fn push_language(
