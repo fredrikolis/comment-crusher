@@ -292,20 +292,14 @@ fn each_kind_of_failure_has_its_own_code_and_exit() {
 fn a_malformed_allowance_names_which_input_was_wrong() {
     let dir = tempfile::tempdir().expect("tempdir");
     write(dir.path(), "lean.rs", &lean_rust());
-    let argv = run(
-        dir.path(),
-        &[
-            "lean.rs",
-            "--allow",
-            "*.rs",
-            "max_ratio=0.9",
-            "--format",
-            "json",
-        ],
-    );
-    assert_eq!(code(&argv), 2, "{}", stdout(&argv));
-    assert!(stdout(&argv).contains("bad_arguments"), "{}", stdout(&argv));
-
+    for setting in ["max_ratio=0.9", "comment-block.max_lines=2.9"] {
+        let argv = run(
+            dir.path(),
+            &["lean.rs", "--allow", "*.rs", setting, "--format", "json"],
+        );
+        assert_eq!(code(&argv), 2, "{setting}: {}", stdout(&argv));
+        assert!(stdout(&argv).contains("bad_arguments"), "{setting}");
+    }
     write(
         dir.path(),
         ".comment-crusher.toml",

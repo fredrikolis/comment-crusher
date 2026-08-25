@@ -15,8 +15,13 @@ pub fn say(line: &str) {
     use std::io::Write as _;
     let out = std::io::stdout();
     let mut out = out.lock();
-    let _ = writeln!(out, "{line}");
-    let _ = out.flush();
+    let wrote = writeln!(out, "{line}").and_then(|()| out.flush());
+    // A closed reader got what it wanted; a full disk did not, and must not read as success.
+    if let Err(e) = wrote
+        && e.kind() != std::io::ErrorKind::BrokenPipe
+    {
+        std::process::exit(Failure::Internal.exit());
+    }
 }
 
 /// Not TOML, and TOML the tool refuses, are different mistakes with different repairs.

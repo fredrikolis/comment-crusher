@@ -71,7 +71,7 @@ than a remark.
 - `<script>` and `<style>` scanned as the language their tag names, across HTML, Vue, Svelte
   and Astro; named, never guessed, so a `type=` the table does not map leaves its body code.
 - Comment plus code equals the file's visible chars over 43 pinned repositories, and every
-  declared marker has opened a real comment in one, bar the rare forms `snippet-only.txt`
-  names and snippets cover.
+  declared marker has opened a real comment in one, counting a token proved wherever it
+  first fired; `snippet-only.txt` names the rest, and snippets cover them.
 
 MIT licence.

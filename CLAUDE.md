@@ -40,8 +40,9 @@ gitignored `target/corpus/`. Four assertions over them:
 
 - **The partition invariant**: comment plus code equals a file's visible chars. Lose one and
   a region was dropped; gain one and a state was left entered.
-- **Every declared marker has opened a real comment** in a pinned repo; rare forms no repo
-  uses are in `snippet-only.txt`, asserted both ways so it cannot grow or go stale.
+- **Every declared marker has opened a real comment** in a pinned repo. The same token in
+  another language is the same scanner path, unless this one anchors or cancels it; rare
+  forms no repo uses are in `snippet-only.txt`, asserted both ways.
 - **A pinned repository nests a block comment**, so depth counting rests on real source.
 - **`corpus-expected.toml`** per-language totals; movement is a scanner change. Re-record:
   `UPDATE_CORPUS_SNAPSHOT=1 cargo test --test corpus`, then read the diff.

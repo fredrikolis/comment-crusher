@@ -516,8 +516,8 @@ impl Widenable {
         Bound::new(doc_length::NAME, "max_lines", Self::DocLines, INF),
     ];
 
-    /// The corpus's longest prose document is 3419 lines against a shipped 77, so a
-    /// hundredfold covers any real exception and nothing beyond one.
+    /// A hundredfold covers any real exception: the corpus's longest prose document is 3419
+    /// lines, well inside a hundred times the shipped bound.
     const CEILING: f64 = 100.0;
 
     #[expect(
@@ -535,10 +535,16 @@ impl Widenable {
         }
     }
 
+    /// Every bound but the ratio is a count, and a count truncated is one the caller never
+    /// asked for, so `parse_setting` refuses a fraction before this runs.
+    const fn counts_whole(self) -> bool {
+        !matches!(self, Self::CommentRatio)
+    }
+
     #[expect(
         clippy::cast_possible_truncation,
         clippy::cast_sign_loss,
-        reason = "positive and bounded by parse_setting"
+        reason = "whole and bounded by parse_setting"
     )]
     const fn apply(self, rules: &mut Rules, value: f64) {
         let n = value as usize;
@@ -598,6 +604,9 @@ fn parse_setting(s: &str, base: &Rules) -> Result<(Widenable, f64)> {
     };
     if !value.is_finite() || value <= 0.0 || value >= bound.limit {
         bail!("`{s}` would leave the path exempt; an allowance only ever widens a bound");
+    }
+    if bound.which.counts_whole() && value.fract() != 0.0 {
+        bail!("`{s}` is a line or character count, and {value} is not a whole number");
     }
     let ceiling = bound.which.shipped(base) * Widenable::CEILING;
     if value > ceiling {
