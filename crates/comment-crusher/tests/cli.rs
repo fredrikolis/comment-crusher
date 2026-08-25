@@ -588,3 +588,24 @@ fn a_filename_that_is_not_utf8_does_not_discard_the_other_findings() {
         stdout(&out)
     );
 }
+
+/// A reader that stops reading is not an error, and a linter that panics on one is useless
+/// in a pipeline.
+#[cfg(unix)]
+#[test]
+fn a_closed_reader_is_not_a_crash() {
+    use std::process::{Command, Stdio};
+    let dir = tempfile::tempdir().expect("tempdir");
+    write(dir.path(), "a.rs", &lean_rust());
+    for args in [vec!["--help"], vec![".", "--format", "json"]] {
+        let mut child = Command::new(BIN)
+            .args(&args)
+            .current_dir(dir.path())
+            .stdout(Stdio::piped())
+            .spawn()
+            .expect("spawn");
+        drop(child.stdout.take());
+        let status = child.wait().expect("wait");
+        assert_ne!(status.code(), Some(101), "{args:?} panicked");
+    }
+}

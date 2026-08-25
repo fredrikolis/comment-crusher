@@ -57,9 +57,10 @@ is under their documents' p75 of 90. `comment-block` is policy, not a measuremen
 heredoc bodies, the shebang, and fenced examples in a doc comment. Counted in characters, the
 two sum to every non-whitespace character, so a trailing `// why` costs what it occupies.
 
-**A banner is exempt** from the ratio up to `header_max_chars`, so a file whose only comment
-is its banner measures 0%, and every character below it is still charged; `skip_header =
-false` charges the banner too. A doc comment gets more room than a remark.
+**A banner is discounted**, not exempt: the ratio ignores its first `header_max_chars` and
+charges the rest like any comment, so a file carrying only a short banner measures 0% while a
+long one still fails. `skip_header = false` charges it whole. A doc comment gets more room
+than a remark.
 
 ## Languages
 

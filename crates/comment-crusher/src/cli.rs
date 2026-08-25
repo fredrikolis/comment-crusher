@@ -10,6 +10,15 @@ use crate::config::{CONFIG_FILE, Config, LoadFailure, Located};
 use crate::diagnostic::Level;
 use crate::engine::{Engine, FileStat, Report};
 
+/// A reader that closed the pipe got what it wanted; `println!` panics on it.
+pub fn say(line: &str) {
+    use std::io::Write as _;
+    let out = std::io::stdout();
+    let mut out = out.lock();
+    let _ = writeln!(out, "{line}");
+    let _ = out.flush();
+}
+
 /// Not TOML, and TOML the tool refuses, are different mistakes with different repairs.
 const SYNTAX_RULE: &str = "config.syntax";
 const REJECTED_RULE: &str = "config.rejected";
@@ -86,8 +95,8 @@ LANGUAGE TABLE (crates/comment-crusher/src/default_config.toml)
     line_anchored        a line comment only opens where nothing but whitespace precedes it,
                          so a URL cannot open one where there are no strings to hide in
     open_after           text that opens one anyway, anchored or not: Tcl's `;`
-    cancel_after         text before the marker that cancels it: `:` ahead of a CSS `//`
-                         is a scheme separator, not a comment
+    cancel_after         text before a line marker that cancels it: a CSS `//` after `:`
+                         or `(` is an address, not a comment. Block markers are unaffected
     block / doc_block    [open, close] pairs
     nested_block         `/* /* */ */` closes once, not twice
     strings              [open, close] regions whose contents are CODE, not comment
@@ -260,11 +269,11 @@ impl Cli {
         Self::scan().1
     }
 
-    /// A word where an option's value goes is that value, not a flag of its own.
+    /// A word where an option's value goes is that value, not a flag.
     fn scan() -> (bool, bool) {
-        // Clap owns each option's arity, so the pre-parse asks it rather than keeping a copy.
+        // Clap owns each option's arity, so the pre-parse asks rather than copying it.
         let command = <Self as clap::CommandFactory>::command();
-        // Every spelling comes from clap too, so a new alias cannot leave this blind.
+        // Spellings come from clap too, so a new alias cannot leave this blind.
         let named = |flag: &str| {
             command.get_arguments().find(|a| {
                 a.get_long().is_some_and(|l| format!("--{l}") == flag)
@@ -333,14 +342,12 @@ impl Cli {
     /// An envelope whatever the format: the standard fixes this reply's shape.
     pub fn version_only() -> i32 {
         let meta = Meta::now();
-        println!(
-            "{}",
-            serde_json::json!({
-                "status": "success",
-                "data": { "name": "comment-crusher", "version": env!("CARGO_PKG_VERSION") },
-                "meta": { "request_id": meta.request_id, "timestamp": meta.timestamp },
-            })
-        );
+        say(&serde_json::json!({
+            "status": "success",
+            "data": { "name": "comment-crusher", "version": env!("CARGO_PKG_VERSION") },
+            "meta": { "request_id": meta.request_id, "timestamp": meta.timestamp },
+        })
+        .to_string());
         0
     }
 
@@ -360,7 +367,7 @@ impl Cli {
             .first()
             .cloned()
             .unwrap_or_else(|| PathBuf::from("."));
-        // A directory is as much "not a config file" as a missing one, and both are argv.
+        // A directory is as much "not a config file" as a missing one.
         if let Some(path) = &self.config
             && !path.is_file()
         {
@@ -401,7 +408,7 @@ impl Cli {
                 print_stats(report);
                 // A table alone drops whatever the run found, warnings included.
                 if !report.diagnostics.is_empty() {
-                    println!();
+                    say("");
                     print_findings(report);
                 }
                 i32::from(rejected) * EXIT_VALIDATION
@@ -436,7 +443,7 @@ impl Cli {
         };
         match serde_json::to_string_pretty(&envelope) {
             Ok(text) => {
-                println!("{text}");
+                say(&text);
                 i32::from(rejected) * EXIT_VALIDATION
             }
             Err(e) => self.print_error(Failure::Internal, &e.to_string()),
@@ -469,8 +476,8 @@ impl Cli {
     /// Every channel a caller reads is stdout, this one and clap's rejection alike.
     fn print_error(&self, failure: Failure, message: &str) -> i32 {
         match self.format {
-            Format::Human => println!("comment-crusher: {message}"),
-            Format::Json => println!("{}", error_json(failure.code(), message)),
+            Format::Human => say(&format!("comment-crusher: {message}")),
+            Format::Json => say(&error_json(failure.code(), message)),
         }
         failure.exit()
     }
@@ -558,7 +565,7 @@ fn print_findings(report: &Report) {
             .allowance
             .as_ref()
             .map_or_else(String::new, |a| format!(" (allowance: {a})"));
-        println!("{}{note}", d.human());
+        say(&format!("{}{note}", d.human()));
     }
     let (comment, code) = report.totals();
     let total = comment + code;
@@ -569,19 +576,19 @@ fn print_findings(report: &Report) {
     } else {
         format!(" and {docs} documents")
     };
-    println!(
+    say(&format!(
         "\n{} code files{also}, {:.1}% comment ({comment}/{total} chars), {} findings",
         report.files.len() - docs,
         percent(comment, total),
         report.diagnostics.len()
-    );
+    ));
 }
 
 fn print_stats(report: &Report) {
-    println!(
+    say(&format!(
         "{:<16} {:>6} {:>7} {:>10} {:>10} {:>7}",
         "language", "files", "lines", "comment", "code", "share"
-    );
+    ));
     for t in language_totals(report) {
         let prose = report
             .files
@@ -595,10 +602,10 @@ fn print_stats(report: &Report) {
                 percent(t.comment_chars, t.comment_chars + t.code_chars)
             )
         };
-        println!(
+        say(&format!(
             "{:<16} {:>6} {:>7} {:>10} {:>10} {share}",
             t.language, t.files, t.lines, t.comment_chars, t.code_chars
-        );
+        ));
     }
 }
 

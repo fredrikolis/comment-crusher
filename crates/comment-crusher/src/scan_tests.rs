@@ -236,9 +236,9 @@ fn an_empty_block_comment_does_not_swallow_the_file() {
     assert_eq!(scan.code_chars, 0);
 }
 
-/// No pinned repository contains a nested block comment; real code barely uses them. So
-/// every language declaring `nested_block` is proved here instead, and the last assertion
-/// stops a new one being added without a case.
+/// One pinned repository nests one (tests/corpus.rs); real code barely does. So every
+/// language declaring `nested_block` has a case here, and the last assertion stops a new
+/// one being added without one.
 #[test]
 fn block_comments_nest_in_every_language_that_declares_it() {
     let nesting: &[(&str, &str, &str)] = &[

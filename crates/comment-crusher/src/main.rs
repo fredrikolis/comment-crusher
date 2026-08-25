@@ -2,7 +2,7 @@
 
 use clap::Parser;
 use clap::error::ErrorKind;
-use comment_crusher::cli::{Cli, EXIT_BAD_ARGS};
+use comment_crusher::cli::{Cli, EXIT_BAD_ARGS, say};
 
 fn main() -> std::process::ExitCode {
     if Cli::version_request() {
@@ -12,21 +12,18 @@ fn main() -> std::process::ExitCode {
         Ok(cli) => cli.run(),
         // Help and version are successful requests, not invalid usage.
         Err(e) if matches!(e.kind(), ErrorKind::DisplayHelp | ErrorKind::DisplayVersion) => {
-            println!("{e}");
+            say(&e.to_string());
             0
         }
         Err(e) if Cli::wants_json() => {
             let message = e.to_string();
             let first = message.lines().next().unwrap_or_default();
-            println!(
-                "{}",
-                comment_crusher::cli::error_json("bad_arguments", first)
-            );
+            say(&comment_crusher::cli::error_json("bad_arguments", first));
             EXIT_BAD_ARGS
         }
         // stdout, like every other channel a caller reads.
         Err(e) => {
-            println!("{e}");
+            say(&e.to_string());
             EXIT_BAD_ARGS
         }
     };
