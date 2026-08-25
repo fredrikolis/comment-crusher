@@ -1,4 +1,4 @@
-# Concern: the corpus statistics every `# Measured:` line in default_config.toml cites | Non-concern: which bound is chosen from them (default_config.toml argues that) | IO: none
+# Concern: the corpus statistics every threshold in default_config.toml is derived from | Non-concern: which bound is chosen from them (default_config.toml argues that) | IO: none
 # Re-record with: UPDATE_CORPUS_SNAPSHOT=1 cargo test --test corpus
 
 repo_comment_share_median = 0.184

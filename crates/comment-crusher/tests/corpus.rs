@@ -261,104 +261,136 @@ fn a_pinned_repository_nests_a_block_comment() {
 
 const FIGURES: &str = "../../corpus-figures.toml";
 
-/// Every threshold's basis in `default_config.toml` derives from these. Recording them stops
-/// a citation drifting when the corpus moves, and stops a hand-rolled harness measuring the
-/// corpus a different way from the engine.
-#[test]
-fn the_cited_figures_reproduce() {
-    let root = corpus_root();
-    let config = Config::defaults().expect("defaults");
-    let mut shares: Vec<f64> = Vec::new();
-    let mut docs: Vec<usize> = Vec::new();
-    let (mut over_1, mut over_5) = (0usize, 0usize);
-    let mut lines: BTreeMap<&str, Vec<usize>> = BTreeMap::new();
-    let mut chars: BTreeMap<&str, Vec<usize>> = BTreeMap::new();
-    let mut per_language: BTreeMap<String, Vec<usize>> = BTreeMap::new();
-    for (_, dir) in repos(&root) {
-        let report = Engine::new(&config, Some(&dir)).run(std::slice::from_ref(&dir));
+/// What every threshold in `default_config.toml` is derived from, measured by the same walk
+/// that checks the partition and read the way the engine reads a file.
+#[derive(Default)]
+struct Figures {
+    shares: Vec<f64>,
+    docs: Vec<usize>,
+    over_1: usize,
+    over_5: usize,
+    lines: BTreeMap<&'static str, Vec<usize>>,
+    chars: BTreeMap<&'static str, Vec<usize>>,
+    header_by_language: BTreeMap<String, Vec<usize>>,
+}
+
+impl Figures {
+    #[expect(
+        clippy::cast_precision_loss,
+        reason = "character counts are far below f64 precision"
+    )]
+    fn gather(&mut self, config: &Config, dir: &PathBuf) {
+        let report = Engine::new(config, Some(dir)).run(std::slice::from_ref(dir));
         let declined: BTreeSet<PathBuf> = report
             .diagnostics
             .iter()
             .filter(|d| d.rule.starts_with("unreadable"))
             .filter_map(|d| d.file.clone())
             .collect();
-        let (mut c, mut k) = (0usize, 0usize);
+        let (mut comment, mut code) = (0usize, 0usize);
         for f in report.files.iter().filter(|f| !declined.contains(&f.path)) {
             if f.prose {
-                docs.push(f.lines);
+                self.docs.push(f.lines);
                 continue;
             }
-            c += f.comment_chars;
-            k += f.code_chars;
+            comment += f.comment_chars;
+            code += f.code_chars;
             let path = dir.join(&f.path);
             let (Some(syn), Ok(bytes)) = (config.language(&path), std::fs::read(&path)) else {
                 continue;
             };
             // As the engine reads it: a legacy encoding is still source.
             let text = String::from_utf8_lossy(&bytes).into_owned();
-            for r in &comment_crusher::scan_in(&text, syn, &config).regions {
-                let n = r.end_line - r.start_line + 1;
-                over_1 += usize::from(n > 1);
-                over_5 += usize::from(n > 5);
-                let kind = if r.header {
-                    per_language
-                        .entry(syn.name.clone())
-                        .or_default()
-                        .push(r.chars);
-                    "header"
-                } else if r.kind == comment_crusher::syntax::CommentKind::Doc {
-                    "doc"
-                } else {
-                    "remark"
-                };
-                lines.entry(kind).or_default().push(n);
-                chars.entry(kind).or_default().push(r.chars);
+            for r in &comment_crusher::scan_in(&text, syn, config).regions {
+                self.region(r, &syn.name);
             }
         }
-        if c + k > 0 {
-            shares.push(c as f64 / (c + k) as f64);
+        if comment + code > 0 {
+            self.shares.push(comment as f64 / (comment + code) as f64);
         }
     }
-    let mut medians: Vec<usize> = per_language.values().map(|v| median(v.clone())).collect();
-    medians.sort_unstable();
-    shares.sort_by(|a, b| a.partial_cmp(b).expect("finite"));
-    docs.sort_unstable();
 
-    let mut out = String::from(
-        "# Concern: the corpus statistics every `# Measured:` line in default_config.toml \
-cites | Non-concern: which bound is chosen from them (default_config.toml argues that) | IO: none\n\
-# Re-record with: UPDATE_CORPUS_SNAPSHOT=1 cargo test --test corpus\n\n",
-    );
-    let _ = write!(
-        out,
-        "repo_comment_share_median = {:.3}\nprose_documents = {}\nprose_lines_p50 = {}\n\
-prose_lines_p75 = {}\ncomments_over_1_line = {over_1}\ncomments_over_5_lines = {over_5}\n\
-header_languages = {}\nheader_chars_language_median_p50 = {}\n\
-header_chars_language_median_p90 = {}\n",
-        shares[shares.len() / 2],
-        docs.len(),
-        pct(&docs, 0.50),
-        pct(&docs, 0.75),
-        medians.len(),
-        pct(&medians, 0.50),
-        pct(&medians, 0.90),
-    );
-    for kind in ["remark", "doc", "header"] {
-        let mut l = lines.remove(kind).unwrap_or_default();
-        let mut c = chars.remove(kind).unwrap_or_default();
-        l.sort_unstable();
-        c.sort_unstable();
+    fn region(&mut self, r: &comment_crusher::scan::Region, language: &str) {
+        let n = r.end_line - r.start_line + 1;
+        self.over_1 += usize::from(n > 1);
+        self.over_5 += usize::from(n > 5);
+        let kind = if r.header {
+            self.header_by_language
+                .entry(language.to_string())
+                .or_default()
+                .push(r.chars);
+            "header"
+        } else if r.kind == comment_crusher::syntax::CommentKind::Doc {
+            "doc"
+        } else {
+            "remark"
+        };
+        self.lines.entry(kind).or_default().push(n);
+        self.chars.entry(kind).or_default().push(r.chars);
+    }
+
+    fn render(mut self) -> String {
+        let mut medians: Vec<usize> = self
+            .header_by_language
+            .values()
+            .map(|v| median(v.clone()))
+            .collect();
+        medians.sort_unstable();
+        self.shares
+            .sort_by(|a, b| a.partial_cmp(b).expect("finite"));
+        self.docs.sort_unstable();
+        let mut out = String::from(
+            "# Concern: the corpus statistics every threshold in default_config.toml is \
+derived from | Non-concern: which bound is chosen from them (default_config.toml argues that) \
+| IO: none\n# Re-record with: UPDATE_CORPUS_SNAPSHOT=1 cargo test --test corpus\n\n",
+        );
         let _ = write!(
             out,
-            "\n[{kind}]\nlines_p50 = {}\nlines_p75 = {}\nlines_p90 = {}\nchars_p90 = {}\n\
-chars_p99 = {}\n",
-            pct(&l, 0.50),
-            pct(&l, 0.75),
-            pct(&l, 0.90),
-            pct(&c, 0.90),
-            pct(&c, 0.99)
+            "repo_comment_share_median = {:.3}\nprose_documents = {}\nprose_lines_p50 = {}\n\
+prose_lines_p75 = {}\ncomments_over_1_line = {}\ncomments_over_5_lines = {}\n\
+header_languages = {}\nheader_chars_language_median_p50 = {}\n\
+header_chars_language_median_p90 = {}\n",
+            self.shares[self.shares.len() / 2],
+            self.docs.len(),
+            pct(&self.docs, 0.50),
+            pct(&self.docs, 0.75),
+            self.over_1,
+            self.over_5,
+            medians.len(),
+            pct(&medians, 0.50),
+            pct(&medians, 0.90),
         );
+        for kind in ["remark", "doc", "header"] {
+            let mut l = self.lines.remove(kind).unwrap_or_default();
+            let mut c = self.chars.remove(kind).unwrap_or_default();
+            l.sort_unstable();
+            c.sort_unstable();
+            let _ = write!(
+                out,
+                "\n[{kind}]\nlines_p50 = {}\nlines_p75 = {}\nlines_p90 = {}\nchars_p90 = {}\n\
+chars_p99 = {}\n",
+                pct(&l, 0.50),
+                pct(&l, 0.75),
+                pct(&l, 0.90),
+                pct(&c, 0.90),
+                pct(&c, 0.99)
+            );
+        }
+        out
     }
+}
+
+/// Recording them stops a citation drifting when the corpus moves, and stops a hand-rolled
+/// harness measuring the corpus a different way from the engine.
+#[test]
+fn the_cited_figures_reproduce() {
+    let root = corpus_root();
+    let config = Config::defaults().expect("defaults");
+    let mut figures = Figures::default();
+    for (_, dir) in repos(&root) {
+        figures.gather(&config, &dir);
+    }
+    let out = figures.render();
     let path = Path::new(env!("CARGO_MANIFEST_DIR")).join(FIGURES);
     if std::env::var_os("UPDATE_CORPUS_SNAPSHOT").is_some() {
         std::fs::write(&path, &out).expect("write figures");
@@ -367,7 +399,7 @@ chars_p99 = {}\n",
     assert_eq!(
         out.trim(),
         std::fs::read_to_string(&path).unwrap_or_default().trim(),
-        "the corpus figures moved. Re-record and re-read every `# Measured:` line against them."
+        "the corpus figures moved. Re-record, then re-read every threshold against them."
     );
 }
 
@@ -376,6 +408,12 @@ fn median(mut v: Vec<usize>) -> usize {
     v[v.len() / 2]
 }
 
+#[expect(
+    clippy::cast_precision_loss,
+    clippy::cast_possible_truncation,
+    clippy::cast_sign_loss,
+    reason = "a percentile index over a corpus of thousands"
+)]
 fn pct(v: &[usize], p: f64) -> usize {
     v[((v.len() as f64 - 1.0) * p).round() as usize]
 }
