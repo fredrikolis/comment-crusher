@@ -3,15 +3,15 @@
 
 repo_comment_share_median = 0.184
 prose_lines_p75 = 90
-comments_over_1_line = 22160
-comments_over_5_lines = 6778
+comments_over_1_line = 22158
+comments_over_5_lines = 6770
 header_chars_language_median_p90 = 344
 
 [remark]
-chars_p90 = 164
+chars_p90 = 163
 
 [doc]
-chars_p90 = 314
+chars_p90 = 312
 lines_p75 = 8
 
 [header]

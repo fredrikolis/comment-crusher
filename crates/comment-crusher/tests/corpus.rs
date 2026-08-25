@@ -409,7 +409,7 @@ fn the_cited_figures_reproduce() {
 
 fn median(mut v: Vec<usize>) -> usize {
     v.sort_unstable();
-    v[v.len() / 2]
+    pct(&v, 0.50)
 }
 
 #[expect(
@@ -419,5 +419,6 @@ fn median(mut v: Vec<usize>) -> usize {
     reason = "a percentile index over a corpus of thousands"
 )]
 fn pct(v: &[usize], p: f64) -> usize {
+    assert!(!v.is_empty(), "no measurement to take a percentile of");
     v[((v.len() as f64 - 1.0) * p).round() as usize]
 }

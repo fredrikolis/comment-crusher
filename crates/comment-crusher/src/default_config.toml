@@ -29,8 +29,8 @@ doc_max_lines = 8
 # corpus-figures.toml: header.lines_p75.
 header_max_lines = 13
 # corpus-figures.toml: chars_p90 per kind, as the line bounds are per kind.
-max_chars = 164
-doc_max_chars = 314
+max_chars = 163
+doc_max_chars = 312
 header_max_chars = 971
 
 # A file whose language resolved but whose bytes are not text.
@@ -66,8 +66,10 @@ strings = [
 ]
 
 [languages.c]
+# `.h` is C or C++ and cannot be told apart, so both dialects' doc markers are declared.
 extensions = [".c", ".h"]
 line = ["//"]
+doc_line = ["///"]
 block = [["/*", "*/"]]
 doc_block = [["/**", "*/"]]
 strings = [{ open = '"', close = '"' }, { open = "'", close = "'", char_literal = true }]

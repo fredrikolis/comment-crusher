@@ -79,6 +79,7 @@ OUTPUT (--format json)
            "diagnostics":[{code,severity,message,location,help,docs_url,allowance}],
            "pagination":{"files":{count,has_more,next_cursor},"languages":{...},...}},
    "meta":{"request_id":..., "timestamp":...}}
+  `--version` answers the same envelope with `data` of `{name, version}` and no report.
 
   `allowance` names the reason a bound was widened for the file, when one was.
 

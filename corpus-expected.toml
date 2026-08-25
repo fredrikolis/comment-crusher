@@ -1012,8 +1012,8 @@ code_chars = 158
 ["requests".python]
 files = 37
 lines = 11997
-comment_chars = 78286
-code_chars = 216318
+comment_chars = 80332
+code_chars = 214272
 
 ["requests".restructuredtext]
 files = 16

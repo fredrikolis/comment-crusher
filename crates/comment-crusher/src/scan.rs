@@ -123,11 +123,13 @@ fn count_body(text: &str) -> (usize, usize) {
     (prose, example)
 }
 
-/// The marker is stripped first; a fence is the one convention every doc dialect shares.
+/// What a declared marker can start with, so `{-` opens a fence too.
+const MARKER_CHARS: &str = r#"/*#-;%!<>={}'"|+()[]~$@:."#;
+
 fn is_fence(line: &str) -> bool {
     let body = line
         .trim_start()
-        .trim_start_matches(|c: char| "/*#-;%!<>=".contains(c))
+        .trim_start_matches(|c: char| MARKER_CHARS.contains(c))
         .trim_start();
     body.starts_with("```") || body.starts_with("~~~")
 }

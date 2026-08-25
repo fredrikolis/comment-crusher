@@ -387,7 +387,11 @@ const CASES: &[(&str, &str, usize)] = &[
         4,
     ),
     ("bicep", "// n\nvar s = '''\n// not a comment\n'''\n", 1),
-    ("c", "// n\nint x = 1;\n/* b */\nchar *s = \"// no\";\n", 2),
+    (
+        "c",
+        "// n\nint x = 1;\n/* b */\nchar *s = \"// no\";\n/// d\nint y = 2;\n",
+        3,
+    ),
     ("clj", "; n\n(def x 1)\n", 1),
     ("cmake", "# n\nset(X 1)\n#[[ b ]]\nset(Y 2)\n", 2),
     ("coffee", "# n\nx = 1\n### b ###\ny = 2\n", 2),
