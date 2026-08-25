@@ -38,7 +38,7 @@ level = "deny"
 [rules.doc-length]
 # Applies to `prose = true` languages only. Code files are bounded by comment-ratio.
 level = "deny"
-# Measured: the corpus's 725 prose documents run to a median of 25 lines, p75 of 89.
+# Was the corpus p75 when set; it has since drifted to 89, and a bound does not follow it up.
 max_lines = 77
 
 # Every knob below is documented under LANGUAGE TABLE in `comment-crusher --help`.

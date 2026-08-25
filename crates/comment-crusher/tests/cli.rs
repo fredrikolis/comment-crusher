@@ -565,3 +565,26 @@ fn the_rejection_message_counts_only_what_it_names() {
     let strict = message(&[allow.as_slice(), &["--warnings-as-errors"]].concat());
     assert!(strict.contains("1 warnings are errors"), "{strict}");
 }
+
+/// A filename the platform allows but UTF-8 does not must cost that one path, not the report.
+#[cfg(unix)]
+#[test]
+fn a_filename_that_is_not_utf8_does_not_discard_the_other_findings() {
+    use std::os::unix::ffi::OsStrExt as _;
+    let dir = tempfile::tempdir().expect("tempdir");
+    write(dir.path(), "lean.rs", &lean_rust());
+    let bad = dir
+        .path()
+        .join(std::ffi::OsStr::from_bytes(b"\xff\xfebad.rs"));
+    std::fs::write(&bad, lean_rust()).expect("write");
+
+    let out = run(dir.path(), &[".", "--format", "json"]);
+    assert_eq!(code(&out), 0, "{}", stdout(&out));
+    let v: serde_json::Value = serde_json::from_str(&stdout(&out)).expect("valid JSON");
+    assert_eq!(
+        v["data"]["files"].as_array().map_or(0, Vec::len),
+        2,
+        "{}",
+        stdout(&out)
+    );
+}

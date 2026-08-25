@@ -54,8 +54,8 @@ Across the 42 repositories the tests measure, the median comment share is 15.6%,
 is under their documents' p75 of 89. `comment-block` is policy, not a measurement.
 
 **Comment** is markers, their delimiters, doc comments and docstrings. **Code** is strings,
-heredoc bodies, the shebang, and fenced examples in a doc comment. The two are counted in
-characters and sum to the whole file, so a trailing `// why` costs what it occupies.
+heredoc bodies, the shebang, and fenced examples in a doc comment. Counted in characters, the
+two sum to every non-whitespace character, so a trailing `// why` costs what it occupies.
 
 A doc comment gets more room than a remark. A file's banner is exempt from the ratio up to
 `header_max_chars` and charged past it, so a small file can carry a mandated licence line.

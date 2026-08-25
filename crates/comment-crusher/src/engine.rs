@@ -19,6 +19,7 @@ fn is_binary(bytes: &[u8]) -> bool {
 
 #[derive(Debug, Clone, Serialize)]
 pub struct FileStat {
+    #[serde(serialize_with = "crate::diagnostic::wire_path")]
     pub path: PathBuf,
     pub language: String,
     pub lines: usize,

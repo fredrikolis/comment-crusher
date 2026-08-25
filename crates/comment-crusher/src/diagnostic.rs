@@ -45,9 +45,26 @@ struct Span {
     length: usize,
 }
 
+/// A path that is not UTF-8 is still a path: it goes out lossily rather than costing the
+/// caller every other finding in the tree.
+pub fn wire_path<S: serde::Serializer>(path: &Path, s: S) -> Result<S::Ok, S::Error> {
+    s.serialize_str(&path.to_string_lossy())
+}
+
+#[expect(clippy::ref_option, reason = "serde hands the field by reference")]
+fn wire_path_opt<S: serde::Serializer>(path: &Option<PathBuf>, s: S) -> Result<S::Ok, S::Error> {
+    match path {
+        Some(p) => wire_path(p, s),
+        None => s.serialize_none(),
+    }
+}
+
 #[derive(Debug, Clone, Serialize)]
 struct Location {
-    #[serde(skip_serializing_if = "Option::is_none")]
+    #[serde(
+        skip_serializing_if = "Option::is_none",
+        serialize_with = "wire_path_opt"
+    )]
     file: Option<PathBuf>,
     #[serde(skip_serializing_if = "Option::is_none")]
     span: Option<Span>,
