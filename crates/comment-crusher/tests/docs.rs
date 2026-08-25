@@ -33,6 +33,9 @@ fn the_readme_quotes_the_bounds_that_ship() {
             .expect("corpus.toml")
             .matches("[[repo]]")
             .count();
+    let ratio = t["rules"]["comment-ratio"]["max_ratio"]
+        .as_float()
+        .expect("max_ratio is a float");
     let claims = [
         (format!("{languages} languages"), "the language count"),
         (format!("{repos} repositories"), "the corpus size"),
@@ -65,6 +68,11 @@ fn the_readme_quotes_the_bounds_that_ship() {
                 bound(&t, "comment-ratio", "min_chars")
             ),
             "comment-ratio.min_chars",
+        ),
+        (format!("{:.0}%,", ratio * 100.0), "comment-ratio.max_ratio"),
+        (
+            format!("| {} line,", bound(&t, "comment-block", "max_lines")),
+            "comment-block.max_lines",
         ),
     ];
     let missing: Vec<&str> = claims

@@ -10,18 +10,25 @@ use crate::config::{CONFIG_FILE, Config, LoadFailure, Located};
 use crate::diagnostic::Level;
 use crate::engine::{Engine, FileStat, Report};
 
-/// A reader that closed the pipe got what it wanted; `println!` panics on it.
+/// `println!` panics on a closed pipe, and a linter in a pipeline must not.
 pub fn say(line: &str) {
     use std::io::Write as _;
     let out = std::io::stdout();
     let mut out = out.lock();
     let wrote = writeln!(out, "{line}").and_then(|()| out.flush());
-    // A closed reader got what it wanted; a full disk did not, and must not read as success.
+    // A closed reader got what it wanted; a full disk did not. main.rs decides the exit.
     if let Err(e) = wrote
         && e.kind() != std::io::ErrorKind::BrokenPipe
     {
-        std::process::exit(Failure::Internal.exit());
+        WRITE_FAILED.store(true, std::sync::atomic::Ordering::Relaxed);
     }
+}
+
+static WRITE_FAILED: std::sync::atomic::AtomicBool = std::sync::atomic::AtomicBool::new(false);
+
+#[must_use]
+pub fn write_failed() -> bool {
+    WRITE_FAILED.load(std::sync::atomic::Ordering::Relaxed)
 }
 
 /// Not TOML, and TOML the tool refuses, are different mistakes with different repairs.
@@ -315,7 +322,7 @@ impl Cli {
             let (flag, inline) = a
                 .split_once('=')
                 .map_or((a.as_str(), None), |(f, v)| (f, Some(v)));
-            if is(flag, "version") {
+            if is(flag, "version") && inline.is_none() {
                 version = true;
             } else if is(flag, "format") {
                 json = inline.map_or_else(

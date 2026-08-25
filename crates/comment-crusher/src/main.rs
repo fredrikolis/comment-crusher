@@ -2,11 +2,14 @@
 
 use clap::Parser;
 use clap::error::ErrorKind;
-use comment_crusher::cli::{Cli, EXIT_BAD_ARGS, say};
+use comment_crusher::cli::{Cli, EXIT_BAD_ARGS, say, write_failed};
 
 fn main() -> std::process::ExitCode {
     if Cli::version_request() {
-        return u8::try_from(Cli::version_only()).unwrap_or(1).into();
+        let code = Cli::version_only();
+        return u8::try_from(if write_failed() { 1 } else { code })
+            .unwrap_or(1)
+            .into();
     }
     let code = match Cli::try_parse() {
         Ok(cli) => cli.run(),
@@ -27,5 +30,6 @@ fn main() -> std::process::ExitCode {
             EXIT_BAD_ARGS
         }
     };
+    let code = if write_failed() { 1 } else { code };
     u8::try_from(code).unwrap_or(1).into()
 }
