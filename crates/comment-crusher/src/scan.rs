@@ -55,6 +55,15 @@ impl Scan {
     }
 }
 
+/// A comment just read, before it becomes a `Region`.
+struct Found {
+    span: (usize, usize),
+    start_line: usize,
+    own_line: bool,
+    kind: CommentKind,
+    opener: String,
+}
+
 /// A component, its `<script>`, a template within that; and self-embedding terminates.
 const MAX_EMBED_DEPTH: usize = 3;
 
@@ -333,9 +342,14 @@ impl<'a> Scanner<'a> {
         (self.line, self.own_line())
     }
 
-    fn push_region(&mut self, found: (usize, usize, usize, bool, CommentKind, String)) {
-        let (start_byte, end_byte, start, own_line, kind, opener) = found;
-        let span = (start_byte, end_byte);
+    fn push_region(&mut self, found: Found) {
+        let Found {
+            span,
+            start_line: start,
+            own_line,
+            kind,
+            opener,
+        } = found;
         let header = own_line && !self.saw_code && self.raw.is_empty();
         let ends_line = self.src[span.1.min(self.src.len())..]
             .chars()
@@ -365,7 +379,13 @@ impl<'a> Scanner<'a> {
             .map_or(self.src.len(), |n| self.i + n);
         let span = (self.i, end);
         self.i = end;
-        self.push_region((span.0, span.1, start, own, kind, tok.to_string()));
+        self.push_region(Found {
+            span,
+            start_line: start,
+            own_line: own,
+            kind,
+            opener: tok.to_string(),
+        });
     }
 
     /// Byte past the closing delimiter, or `None` when the block never closes.
@@ -399,7 +419,13 @@ impl<'a> Scanner<'a> {
         self.count_newlines(self.i, j);
         let span = (self.i, end);
         self.i = end;
-        self.push_region((span.0, span.1, start, own, kind, open.to_string()));
+        self.push_region(Found {
+            span,
+            start_line: start,
+            own_line: own,
+            kind,
+            opener: open.to_string(),
+        });
     }
 
     /// A string is code; a docstring opening its own line is prose.
@@ -413,14 +439,13 @@ impl<'a> Scanner<'a> {
             self.count_newlines(self.i, end);
             let span = (self.i, end);
             self.i = end;
-            self.push_region((
-                span.0,
-                span.1,
-                start,
-                own,
-                CommentKind::Doc,
-                spec.open.clone(),
-            ));
+            self.push_region(Found {
+                span,
+                start_line: start,
+                own_line: own,
+                kind: CommentKind::Doc,
+                opener: spec.open.clone(),
+            });
         } else {
             self.advance_to(end);
         }
