@@ -674,15 +674,48 @@ fn overlay(base: &mut Table, path: &Path) -> std::result::Result<(), LoadFailure
 /// Later layers overlay earlier ones key by key. `global.exclude` is the one additive key:
 /// naming a directory of your own should not silently drop `target` and `node_modules`.
 fn merge(base: &mut Table, layer: Table) {
+    merge_in(base, layer, "");
+}
+
+fn merge_in(base: &mut Table, layer: Table, at: &str) {
     for (k, v) in layer {
+        let here = if at.is_empty() {
+            k.clone()
+        } else {
+            format!("{at}.{k}")
+        };
         match (base.get_mut(&k), v) {
-            (Some(Value::Table(bt)), Value::Table(lt)) => merge(bt, lt),
-            (Some(Value::Array(ba)), Value::Array(la)) if k == "exclude" => ba.extend(la),
+            (Some(Value::Table(bt)), Value::Table(lt)) => merge_in(bt, lt, &here),
+            (Some(Value::Array(ba)), Value::Array(la)) if here == "global.exclude" => {
+                ba.extend(la);
+            }
             (_, v) => {
                 base.insert(k, v);
             }
         }
     }
+}
+
+/// One convention for every path a report carries: relative to the root it is about.
+#[must_use]
+pub fn relative_to(root: &Path, path: &Path) -> PathBuf {
+    let Ok(abs) = path.canonicalize() else {
+        return path.to_path_buf();
+    };
+    let Ok(root) = root.canonicalize() else {
+        return path.to_path_buf();
+    };
+    if let Ok(inside) = abs.strip_prefix(&root) {
+        return inside.to_path_buf();
+    }
+    let shared = root
+        .components()
+        .zip(abs.components())
+        .take_while(|(a, b)| a == b)
+        .count();
+    let mut out: PathBuf = std::iter::repeat_n("..", root.components().count() - shared).collect();
+    out.extend(abs.components().skip(shared));
+    out
 }
 
 fn directory_of(path: &Path) -> PathBuf {

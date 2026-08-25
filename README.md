@@ -13,14 +13,13 @@ error: src/parser.rs [comment-ratio] 41% comment (2104/5117 chars), budget is 15
 
 ## No file is exempt
 
-An allowance widens a bound for the paths it names, and only widens it:
+A gas expands to occupy whatever volume it is given; an LLM fills whatever space is available
+with words. So the budget has to bind, and an allowance widens a bound for the paths it names
+without ever unbinding it:
 
 - it **cannot remove** a bound or switch a rule off,
 - it **stops at a hundredfold** of what ships,
 - it **cannot pass what the field allows**, and a ratio never reaches 1.
-
-A gas expands to occupy whatever volume it is given; an LLM fills whatever space is available
-with words.
 
 ```toml
 [[allow]]
@@ -59,8 +58,9 @@ answer holds in CI, in a hook, and against a file an agent just wrote. Exit code
 | `doc-length` | a prose document (`.md`, `.rst`, `.adoc`, `.txt`, and kin) | 90 lines |
 | `unreadable` | a resolved file that is binary or cannot be read | deny |
 
-The median comment share is 18% and the 75th-percentile document is 90 lines, across the
-43 repositories the tests measure. `comment-block` is policy, not a measurement.
+The median comment share is 18% and the 75th-percentile document is 90 lines, across the 43
+repositories the tests measure. **`comment-block` is policy**, the one rule not derived from
+them.
 
 **Comment** is markers, their delimiters, doc comments and docstrings. **Code** is strings,
 heredoc bodies, the shebang, and fenced examples inside any comment. Counted in characters, the

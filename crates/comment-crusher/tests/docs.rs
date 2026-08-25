@@ -8,9 +8,12 @@
 use comment_crusher::cli::Cli;
 use std::path::Path;
 
+/// Whitespace-flattened, so rewrapping a paragraph cannot fail a claim that still holds.
 fn readme() -> String {
-    std::fs::read_to_string(Path::new(env!("CARGO_MANIFEST_DIR")).join("../../README.md"))
-        .expect("README.md")
+    let text =
+        std::fs::read_to_string(Path::new(env!("CARGO_MANIFEST_DIR")).join("../../README.md"))
+            .expect("README.md");
+    text.split_whitespace().collect::<Vec<_>>().join(" ")
 }
 
 fn defaults() -> toml::Table {

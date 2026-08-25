@@ -38,6 +38,8 @@ const REJECTED_RULE: &str = "config.rejected";
 /// Exit codes an agent branches on, from the CLI standard.
 pub const EXIT_BAD_ARGS: i32 = 2;
 const EXIT_VALIDATION: i32 = 3;
+const EXIT_NOT_FOUND: i32 = 24;
+const EXIT_INTERNAL: i32 = 1;
 
 /// The wire code and the exit code are one decision, so they are one value.
 #[derive(Debug, Clone, Copy)]
@@ -59,8 +61,8 @@ impl Failure {
     const fn exit(self) -> i32 {
         match self {
             Self::BadArguments => EXIT_BAD_ARGS,
-            Self::NotFound => 24,
-            Self::Internal => 1,
+            Self::NotFound => EXIT_NOT_FOUND,
+            Self::Internal => EXIT_INTERNAL,
         }
     }
 }
@@ -431,7 +433,7 @@ impl Cli {
                 });
                 let path = found.map_or_else(
                     || PathBuf::from(CONFIG_FILE),
-                    |p| root.map_or_else(|| p.clone(), |r| relative_to(&r, &p)),
+                    |p| root.map_or_else(|| p.clone(), |r| crate::config::relative_to(&r, &p)),
                 );
                 return Ok(Report {
                     files: Vec::new(),
@@ -527,13 +529,6 @@ impl Cli {
         }
         failure.exit()
     }
-}
-
-fn relative_to(root: &Path, path: &Path) -> PathBuf {
-    root.canonicalize()
-        .ok()
-        .and_then(|r| path.strip_prefix(&r).ok().map(Path::to_path_buf))
-        .unwrap_or_else(|| path.to_path_buf())
 }
 
 /// A configuration failure is a finding about a file.

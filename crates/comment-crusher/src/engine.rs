@@ -187,25 +187,8 @@ impl<'a> Engine<'a> {
         }
     }
 
-    /// One convention for every path in a report: relative to the root it is about, with
-    /// `..` where a target lies outside it. A consumer joins root and path and gets the file.
     fn relative(&self, path: &Path) -> PathBuf {
-        let Ok(abs) = path.canonicalize() else {
-            return path.to_path_buf();
-        };
-        if let Ok(inside) = abs.strip_prefix(&self.root) {
-            return inside.to_path_buf();
-        }
-        let shared = self
-            .root
-            .components()
-            .zip(abs.components())
-            .take_while(|(a, b)| a == b)
-            .count();
-        let mut out: PathBuf =
-            std::iter::repeat_n("..", self.root.components().count() - shared).collect();
-        out.extend(abs.components().skip(shared));
-        out
+        crate::config::relative_to(&self.root, path)
     }
 
     fn rooted(&self, path: &Path) -> Option<PathBuf> {
