@@ -598,9 +598,9 @@ fn a_header_is_exempt_only_up_to_the_size_a_banner_really_is() {
     );
 }
 
-/// A tag attribute names a language, and the name has to reach a table that scans it: `scss`
-/// once named `css`, which has no `//`, so every line comment in a `<style lang="scss">` was
-/// silently code. The marker per value is written out here, not read back from the table.
+/// A tag attribute names a language, and the name has to reach a table that scans it: point
+/// `scss` at `css`, which has no `//`, and every line comment in the block becomes code. The
+/// marker per value is written out here, not read back from the table.
 #[test]
 fn every_tag_attribute_reaches_the_language_it_names() {
     // (attribute value, a marker that language really uses, comments it opens)

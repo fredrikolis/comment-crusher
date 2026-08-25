@@ -143,8 +143,7 @@ Non-concern: choosing the corpus (corpus.toml) or asserting over it (tests/corpu
     out
 }
 
-/// Not "its language appears in the corpus": the token itself must have fired on real source,
-/// which is how a Pascal directive and a fixed-form Fortran comment were found mis-declared.
+/// Not "its language appears in the corpus": the token itself must have fired on real source.
 #[test]
 fn every_comment_marker_has_fired_on_real_source() {
     let root = corpus_root();

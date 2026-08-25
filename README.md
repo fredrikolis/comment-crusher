@@ -57,16 +57,15 @@ is under their documents' p75 of 89. `comment-block` is policy, not a measuremen
 heredoc bodies, the shebang, and fenced examples in a doc comment. Counted in characters, the
 two sum to every non-whitespace character, so a trailing `// why` costs what it occupies.
 
-A doc comment gets more room than a remark. A banner is exempt from the ratio up to
-`header_max_chars`, so a file whose only comment is its banner measures 0% and every character
-below it is still charged. `skip_header = false` charges the banner too.
+**A banner is exempt** from the ratio up to `header_max_chars`, so a file whose only comment
+is its banner measures 0%, and every character below it is still charged; `skip_header =
+false` charges the banner too. A doc comment gets more room than a remark.
 
 ## Languages
 
-Resolved by exact filename, then extension, then the `#!` interpreter, so `CMakeLists.txt`
-is CMake and a git hook is measured like anything else. Unknown languages are skipped;
-adding one is a row in `default_config.toml`.
-
+- Resolved by exact filename, then extension, then the `#!` interpreter, so `CMakeLists.txt`
+  is CMake and a git hook is measured like anything else. An unknown language is skipped, and
+  adding one is a row in `default_config.toml`.
 - Nested blocks in 16 languages, heredocs in 6, docstrings in 4, raw strings, char literals.
 - `<script>` and `<style>` scanned as the language their tag names, across HTML, Vue, Svelte
   and Astro; named, never guessed, so a `type=` the table does not map leaves its body code.

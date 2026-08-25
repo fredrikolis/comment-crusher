@@ -127,7 +127,7 @@ impl<'a> Engine<'a> {
                     || !e
                         .path()
                         .file_name()
-                        .is_some_and(|n| n == ".git" || names.iter().any(|x| n == x.as_str()))
+                        .is_some_and(|n| Self::pruned_name(&names, n))
             });
             out.extend(
                 b.build()
@@ -209,7 +209,6 @@ impl<'a> Engine<'a> {
             if is_binary(&bytes) {
                 return None;
             }
-            // Lossy here too: one decode policy, whichever way the language resolved.
             let text = String::from_utf8_lossy(&bytes).into_owned();
             let head = text.lines().next().unwrap_or_default();
             let syn = self.config.language_of_shebang(head)?;

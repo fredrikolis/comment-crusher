@@ -38,7 +38,7 @@ level = "deny"
 [rules.doc-length]
 # Applies to `prose = true` languages only. Code files are bounded by comment-ratio.
 level = "deny"
-# Was the corpus p75 when set; it has since drifted to 89, and a bound does not follow it up.
+# Policy anchored to a measurement taken once: a bound does not follow the corpus upward.
 max_lines = 77
 
 # Every knob below is documented under LANGUAGE TABLE in `comment-crusher --help`.

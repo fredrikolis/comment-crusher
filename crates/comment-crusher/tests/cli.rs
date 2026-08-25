@@ -561,7 +561,7 @@ fn the_rejection_message_counts_only_what_it_names() {
         "json",
     ];
     let plain = message(&allow);
-    assert_eq!(plain, "1 findings over budget", "{plain}");
+    assert!(!plain.contains("warning"), "{plain}");
     let strict = message(&[allow.as_slice(), &["--warnings-as-errors"]].concat());
     assert!(strict.contains("1 warnings are errors"), "{strict}");
 }

@@ -56,7 +56,7 @@ OUTPUT (--format json)
    "data":{"files":[{path,language,prose,lines,code_chars,comment_chars}],
            "languages":[{language,files,lines,comment_chars,code_chars}],
            "diagnostics":[{code,severity,message,location,help,docs_url,allowance}],
-           "pagination":{"files":{count,has_more,next_cursor},"diagnostics":{...}}},
+           "pagination":{"files":{count,has_more,next_cursor},"languages":{...},"diagnostics":{...}}},
    "meta":{"request_id":..., "timestamp":...}}
 
   `allowance` names the reason a bound was widened for the file, when one was.
@@ -199,6 +199,7 @@ impl Page {
 #[derive(Serialize)]
 struct Pagination {
     files: Page,
+    languages: Page,
     diagnostics: Page,
 }
 
@@ -263,10 +264,20 @@ impl Cli {
     fn scan() -> (bool, bool) {
         // Clap owns each option's arity, so the pre-parse asks it rather than keeping a copy.
         let command = <Self as clap::CommandFactory>::command();
+        // Every spelling comes from clap too, so a new alias cannot leave this blind.
+        let named = |flag: &str| {
+            command.get_arguments().find(|a| {
+                a.get_long().is_some_and(|l| format!("--{l}") == flag)
+                    || a.get_short().is_some_and(|c| format!("-{c}") == flag)
+                    || a.get_all_aliases()
+                        .into_iter()
+                        .flatten()
+                        .any(|l| format!("--{l}") == flag)
+            })
+        };
+        let is = |flag: &str, id: &str| named(flag).is_some_and(|a| a.get_id() == id);
         let arity = |flag: &str| -> usize {
-            command
-                .get_arguments()
-                .find(|a| a.get_long().is_some_and(|l| format!("--{l}") == flag))
+            named(flag)
                 .and_then(clap::Arg::get_num_args)
                 .map_or(0, |n| n.min_values())
         };
@@ -281,14 +292,19 @@ impl Cli {
             it.next_if(|a: &String| !a.starts_with('-'))
         };
         while let Some(a) = args.next() {
-            match a.as_str() {
-                "--version" | "-V" => version = true,
-                "--format=json" => json = true,
-                "--format" => json = value(&mut args).as_deref() == Some("json"),
-                flag => {
-                    for _ in 0..arity(flag) {
-                        value(&mut args);
-                    }
+            let (flag, inline) = a
+                .split_once('=')
+                .map_or((a.as_str(), None), |(f, v)| (f, Some(v)));
+            if is(flag, "version") {
+                version = true;
+            } else if is(flag, "format") {
+                json = inline.map_or_else(
+                    || value(&mut args).as_deref() == Some("json"),
+                    |v| v == "json",
+                );
+            } else if inline.is_none() {
+                for _ in 0..arity(flag) {
+                    value(&mut args);
                 }
             }
         }
@@ -397,6 +413,8 @@ impl Cli {
     }
 
     fn print_json(&self, report: &Report, rejected: bool) -> i32 {
+        let languages = language_totals(report);
+        let language_count = languages.len();
         let envelope = Envelope {
             status: if rejected { "error" } else { "success" },
             error: rejected.then(|| ErrorBody {
@@ -405,10 +423,11 @@ impl Cli {
             }),
             data: Data {
                 files: &report.files,
-                languages: language_totals(report),
+                languages,
                 diagnostics: &report.diagnostics,
                 pagination: Pagination {
                     files: Page::whole(report.files.len()),
+                    languages: Page::whole(language_count),
                     diagnostics: Page::whole(report.diagnostics.len()),
                 },
             },
@@ -496,6 +515,7 @@ pub fn error_json(code: &str, message: &str) -> String {
             diagnostics: &[],
             pagination: Pagination {
                 files: Page::whole(0),
+                languages: Page::whole(0),
                 diagnostics: Page::whole(0),
             },
         },
