@@ -156,7 +156,7 @@ impl Config {
     ) -> std::result::Result<Self, LoadFailure> {
         let mut cfg = Self::from_file(root, explicit)?;
         for (glob, setting) in cli_allow {
-            let set = vec![parse_setting(setting, &cfg.base).map_err(LoadFailure::Argv)?];
+            let set = vec![parse_setting(setting).map_err(LoadFailure::Argv)?];
             let globs = build_globs(std::slice::from_ref(glob)).map_err(LoadFailure::Argv)?;
             cfg.allowances.push(Allowance {
                 reason: "--allow".to_string(),
@@ -193,7 +193,7 @@ impl Config {
                 .unwrap_or_default(),
         )?;
 
-        let allowances = build_allowances(table, &base)?;
+        let allowances = build_allowances(table)?;
 
         let sets: HashMap<String, Vec<RawEmbed>> = section(table, "embed_sets")?;
         let raw_langs: HashMap<String, RawLanguage> = section(table, "languages")?;
@@ -329,7 +329,7 @@ impl Resolve for Config {
     }
 }
 
-fn build_allowances(table: &Table, base: &Rules) -> Result<Vec<Allowance>> {
+fn build_allowances(table: &Table) -> Result<Vec<Allowance>> {
     let declared: Vec<RawAllow> = table
         .get("allow")
         .cloned()
@@ -347,7 +347,7 @@ fn build_allowances(table: &Table, base: &Rules) -> Result<Vec<Allowance>> {
             set: raw
                 .set
                 .iter()
-                .map(|s| parse_setting(s, base))
+                .map(|s| parse_setting(s))
                 .collect::<Result<_>>()?,
         });
     }
@@ -520,11 +520,26 @@ impl Widenable {
     /// lines, well inside a hundred times the shipped bound.
     const CEILING: f64 = 100.0;
 
+    /// The built-in default, read once. A repo that already widened a bound must not have
+    /// its own value multiplied again: the hundredfold is against what ships.
+    fn shipped(self) -> Option<f64> {
+        static SHIPPED: std::sync::OnceLock<Option<Rules>> = std::sync::OnceLock::new();
+        SHIPPED
+            .get_or_init(|| {
+                toml::from_str::<Table>(DEFAULTS)
+                    .ok()
+                    .and_then(|t| t.get("rules").and_then(Value::as_table).cloned())
+                    .and_then(|r| Rules::from_table(&r).ok())
+            })
+            .as_ref()
+            .map(|base| Self::of(self, base))
+    }
+
     #[expect(
         clippy::cast_precision_loss,
-        reason = "shipped line counts are two-digit numbers"
+        reason = "shipped counts are two-digit numbers"
     )]
-    const fn shipped(self, base: &Rules) -> f64 {
+    const fn of(self, base: &Rules) -> f64 {
         match self {
             Self::CommentRatio => base.comment_ratio.max_ratio,
             Self::BlockLines => base.comment_block.max_lines as f64,
@@ -586,7 +601,7 @@ impl Bound {
 }
 
 /// `comment-ratio.max_ratio=0.4` -> the dotted path and its typed value.
-fn parse_setting(s: &str, base: &Rules) -> Result<(Widenable, f64)> {
+fn parse_setting(s: &str) -> Result<(Widenable, f64)> {
     let Some((path, raw)) = s.split_once('=') else {
         bail!("`{s}` is not <rule>.<field>=<value>");
     };
@@ -608,7 +623,10 @@ fn parse_setting(s: &str, base: &Rules) -> Result<(Widenable, f64)> {
     if bound.which.counts_whole() && value.fract() != 0.0 {
         bail!("`{s}` is a line or character count, and {value} is not a whole number");
     }
-    let ceiling = bound.which.shipped(base) * Widenable::CEILING;
+    let Some(shipped) = bound.which.shipped() else {
+        bail!("the built-in defaults are invalid, so no ceiling can be computed");
+    };
+    let ceiling = shipped * Widenable::CEILING;
     if value > ceiling {
         bail!(
             "`{s}` exceeds {ceiling:.0}, a hundredfold; past that a bound is not widened, it is gone"

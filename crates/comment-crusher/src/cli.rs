@@ -277,6 +277,11 @@ impl Cli {
 
     /// A word where an option's value goes is that value, not a flag.
     fn scan() -> (bool, bool) {
+        static ONCE: std::sync::OnceLock<(bool, bool)> = std::sync::OnceLock::new();
+        *ONCE.get_or_init(Self::read_argv)
+    }
+
+    fn read_argv() -> (bool, bool) {
         // Clap owns each option's arity, so the pre-parse asks rather than copying it.
         let command = <Self as clap::CommandFactory>::command();
         // Spellings come from clap too, so a new alias cannot leave this blind.

@@ -156,10 +156,9 @@ fn every_comment_marker_has_fired_on_real_source() {
         for (token, opener) in &syn.openers {
             if let comment_crusher::syntax::Opener::Str(_) = opener {
                 let key = format!("{} {token}", syn.name);
-                if !strings_seen.contains(&key)
-                    && !strings_seen
-                        .iter()
-                        .any(|f| f.ends_with(&format!(" {token}")))
+                if !strings_seen
+                    .iter()
+                    .any(|f| f.ends_with(&format!(" {token}")))
                 {
                     unfired.push(format!("{key} (string delimiter)"));
                 }

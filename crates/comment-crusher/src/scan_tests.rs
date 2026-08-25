@@ -372,7 +372,11 @@ fn no_language_reads_a_marker_inside_its_own_string_as_a_comment() {
 /// One case per language in the shipped table, in that language's real syntax.
 const CASES: &[(&str, &str, usize)] = &[
     ("adb", "-- n\nX : Integer := 1;\n", 1),
-    ("cls", "// n\nInteger x = 1;\n/* b */\nString s = 0;\n", 2),
+    (
+        "cls",
+        "// n\nInteger x = 1;\n/* b */\nString s = 'not // a comment';\n",
+        2,
+    ),
     ("adoc", "// n\nSome text\n", 1),
     ("asm", "; n\nmov eax, 1\n", 1),
     ("astro", "---\n// fm\n---\n<!-- b -->\n<p>x</p>\n", 2),

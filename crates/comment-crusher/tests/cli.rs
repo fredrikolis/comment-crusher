@@ -606,3 +606,20 @@ fn a_closed_reader_is_not_a_crash() {
         assert_ne!(status.code(), Some(101), "{args:?} panicked");
     }
 }
+
+/// The hundredfold is against what ships, not against whatever the repo already granted
+/// itself, or a widened bound compounds every time it is widened again.
+#[test]
+fn the_allowance_ceiling_does_not_compound_with_the_repo_budget() {
+    let dir = tempfile::tempdir().expect("tempdir");
+    write(dir.path(), "docs/long.md", &"a line\n".repeat(500));
+    write(
+        dir.path(),
+        ".comment-crusher.toml",
+        "[rules.doc-length]\nmax_lines = 5000\n\n[[allow]]\npaths = [\"docs/**\"]\n\
+         reason = \"x\"\nset = [\"doc-length.max_lines=400000\"]\n",
+    );
+    let out = run(dir.path(), &["docs"]);
+    assert_eq!(code(&out), 3, "{}", stdout(&out));
+    assert!(stdout(&out).contains("9000"), "{}", stdout(&out));
+}

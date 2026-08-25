@@ -59,8 +59,8 @@ two sum to every non-whitespace character, so a trailing `// why` costs what it 
 
 **A banner is discounted**, not exempt: the ratio ignores its first `header_max_chars` and
 charges the rest like any comment, so a file carrying only a short banner measures 0% while a
-long one still fails. `skip_header = false` charges it whole. A doc comment gets more room
-than a remark.
+long one still fails. `skip_header = false` charges it whole. Under `comment-block`, a doc
+comment gets more lines than a remark.
 
 ## Languages
 
