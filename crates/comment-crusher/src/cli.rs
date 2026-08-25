@@ -54,7 +54,7 @@ OUTPUT (--format json)
    "error":{"code":..., "message":...},
    "data":{"files":[{path,language,prose,lines,code_chars,comment_chars}],
            "languages":[{language,files,lines,comment_chars,code_chars}],
-           "diagnostics":[{code,severity,message,location,help}],
+           "diagnostics":[{code,severity,message,location,help,docs_url}],
            "pagination":{"files":{count,has_more},"diagnostics":{count,has_more}}}}
 
   A warning `allowance.unused` reports a --allow glob that matched none of the files

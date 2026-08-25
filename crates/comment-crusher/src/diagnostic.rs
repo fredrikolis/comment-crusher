@@ -80,6 +80,7 @@ struct Wire<'a> {
     message: &'a str,
     location: Location,
     help: &'a str,
+    docs_url: String,
     #[serde(skip_serializing_if = "Option::is_none")]
     allowance: Option<&'a str>,
 }
@@ -103,13 +104,25 @@ impl Serialize for Diagnostic {
                 }),
             },
             help: self.help,
+            docs_url: format!("{DOCS}#{}", self.section()),
             allowance: self.allowance.as_deref(),
         }
         .serialize(s)
     }
 }
 
+/// The README is the documentation, so a code points at the section that defines it.
+const DOCS: &str = "https://github.com/fredrikolis/comment-crusher";
+
 impl Diagnostic {
+    fn section(&self) -> &'static str {
+        match self.rule.split('.').next().unwrap_or(self.rule) {
+            "config" => "use",
+            "allowance" => "no-file-is-exempt",
+            _ => "what-it-measures",
+        }
+    }
+
     pub fn new(
         rule: &'static str,
         level: Level,
