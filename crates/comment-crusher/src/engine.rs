@@ -83,6 +83,16 @@ impl<'a> Engine<'a> {
                 .then(a.line.cmp(&b.line))
                 .then(a.rule.cmp(b.rule))
         });
+        let measured: Vec<PathBuf> = report.files.iter().map(|f| f.path.clone()).collect();
+        for glob in self.config.argv_globs_matching_none(&measured) {
+            report.diagnostics.push(Diagnostic::new(
+                "allowance.unused",
+                Level::Warn,
+                Path::new(&glob),
+                "matched none of the files measured, so it widened nothing".to_string(),
+                "Write the glob relative to the budget file, or to where you invoked the tool.",
+            ));
+        }
         report
     }
 
@@ -96,6 +106,15 @@ impl<'a> Engine<'a> {
             }
             let mut b = WalkBuilder::new(t);
             b.hidden(false).git_ignore(true).require_git(false);
+            // Pruned, not filtered afterwards: a committed vendor tree is never descended.
+            let names: Vec<String> = self.config.exclude.clone();
+            b.filter_entry(move |e| {
+                !e.file_type().is_some_and(|f| f.is_dir())
+                    || !e
+                        .path()
+                        .file_name()
+                        .is_some_and(|n| n == ".git" || names.iter().any(|x| n == x.as_str()))
+            });
             out.extend(
                 b.build()
                     .filter_map(Result::ok)
@@ -110,10 +129,13 @@ impl<'a> Engine<'a> {
     }
 
     fn excluded(&self, path: &Path) -> bool {
-        self.relative(path).components().any(|c| {
-            let name = c.as_os_str();
-            name == ".git" || self.config.exclude.iter().any(|e| name == e.as_str())
-        })
+        self.relative(path)
+            .components()
+            .any(|c| self.pruned_name(c.as_os_str()))
+    }
+
+    fn pruned_name(&self, name: &std::ffi::OsStr) -> bool {
+        name == ".git" || self.config.exclude.iter().any(|e| name == e.as_str())
     }
 
     /// Never fatal: one bad file must not cost the whole report.

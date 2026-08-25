@@ -31,6 +31,8 @@ OUTPUT (--format json)
            "diagnostics":[{code,severity,message,location,help}],
            "pagination":{"files":{count,has_more},"diagnostics":{count,has_more}}}}
 
+  A warning `allowance.unused` reports a --allow glob that matched none of the files
+  measured, so it widened nothing.
   `error` appears only when status is error. A field with no value is omitted, never null.
   `comment_chars` counts every comment in a file; a rule may judge a subset and says so.
   `location.span` is a byte offset and length; `location.start`/`end` are 1-based line and
@@ -54,10 +56,11 @@ LANGUAGE TABLE (crates/comment-crusher/src/default_config.toml)
     nested_block         `/* /* */ */` closes once, not twice
     strings              [open, close] regions whose contents are CODE, not comment
       multiline          may cross a newline; without it a bad open self-heals at end of line
+      escape             what quotes a delimiter inside; a backslash unless set to ""
       docstring          opening a line makes it a doc comment (Python, Elixir)
+      char_literal       only a string if it closes within a few chars on the same line
     doc_prefixes         what may precede a docstring and still leave it one: Elixir
                          writes `@moduledoc """`, never `"""` at the margin
-      char_literal       only a string if it closes within a few chars on the same line
     hash_raw_strings     r"..." and r#"..."# raw strings
     heredoc              <<WORD and <<-'WORD' bodies are code until a line equal to WORD
     prose                measured by doc-length, never by comment-ratio
@@ -420,9 +423,8 @@ fn place(text: &str, offset: usize) -> (usize, usize) {
     (line, column)
 }
 
-/// The one producer of a failed envelope.
-///
-/// `data` is therefore present on every reply the `--help` contract describes.
+/// The envelope for a run that produced no report at all, so `data` is empty rather than
+/// absent: every reply carries the shape the `--help` contract describes.
 pub fn error_json(code: &str, message: &str) -> String {
     let envelope: Envelope<'_> = Envelope {
         status: "error",

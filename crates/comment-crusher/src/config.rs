@@ -114,6 +114,7 @@ pub struct Allowance {
     pub reason: String,
     globs: GlobSet,
     set: Vec<(Widenable, f64)>,
+    from_argv: Option<String>,
 }
 
 pub struct Config {
@@ -130,7 +131,6 @@ pub struct Config {
 }
 
 impl Config {
-    /// Where the budget for `root` comes from, if any file supplies one.
     pub fn source_path(root: &Path, explicit: Option<&Path>) -> Option<PathBuf> {
         explicit.map_or_else(|| find_upward(root), |p| Some(p.to_path_buf()))
     }
@@ -159,6 +159,7 @@ impl Config {
                 reason: "--allow".to_string(),
                 globs,
                 set,
+                from_argv: Some(glob.clone()),
             });
         }
         Ok(cfg)
@@ -168,13 +169,13 @@ impl Config {
         let mut table: Table = toml::from_str(DEFAULTS)
             .context("built-in default config is invalid")
             .map_err(|e| LoadFailure::File(e, None))?;
-        let found = explicit.map_or_else(|| find_upward(root), |p| Some(p.to_path_buf()));
-        let base = match &found {
+        let base = match Self::source_path(root, explicit) {
             Some(p) => {
-                overlay(&mut table, p)?;
-                directory_of(p)
+                overlay(&mut table, &p)?;
+                directory_of(&p)
             }
-            None => directory_of(root),
+            // No budget file to anchor to, so a glob is read from where it was typed.
+            None => std::env::current_dir().unwrap_or_else(|_| directory_of(root)),
         };
         Self::build(&table, base).map_err(|e| LoadFailure::File(e, None))
     }
@@ -264,6 +265,18 @@ impl Config {
         self.langs.iter()
     }
 
+    /// A glob typed on argv that matched nothing widened nothing.
+    pub fn argv_globs_matching_none(&self, measured: &[PathBuf]) -> Vec<String> {
+        self.allowances
+            .iter()
+            .filter_map(|a| {
+                a.from_argv
+                    .clone()
+                    .filter(|_| !measured.iter().any(|p| a.globs.is_match(p)))
+            })
+            .collect()
+    }
+
     fn matching(&self, rel: &Path) -> Vec<&Allowance> {
         self.allowances
             .iter()
@@ -309,6 +322,7 @@ fn build_allowances(table: &Table, base: &Rules) -> Result<Vec<Allowance>> {
     for raw in declared {
         allowances.push(Allowance {
             reason: raw.reason,
+            from_argv: None,
             globs: build_globs(&raw.paths)?,
             set: raw
                 .set

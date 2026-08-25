@@ -21,6 +21,16 @@ fn run(dir: &Path, args: &[&str]) -> Output {
         .expect("binary runs")
 }
 
+/// Without `--root`, which every other case pins: the default anchor is what argv globs are
+/// read against, and it is the one thing `--root` hides.
+fn run_bare(dir: &Path, args: &[&str]) -> Output {
+    Command::new(BIN)
+        .args(args)
+        .current_dir(dir)
+        .output()
+        .expect("binary runs")
+}
+
 fn code(out: &Output) -> i32 {
     out.status.code().unwrap_or(-1)
 }
@@ -453,4 +463,61 @@ fn a_file_that_cannot_be_read_says_so_under_its_own_code() {
             assert!(stdout(&out).contains("unreadable.io"), "{}", stdout(&out));
         }
     }
+}
+
+/// With no budget file to anchor to, a glob is read from where it was typed, and one that
+/// matched nothing says so rather than widening in silence.
+#[test]
+fn an_allow_glob_is_read_from_the_working_directory_and_reports_matching_nothing() {
+    let dir = tempfile::tempdir().expect("tempdir");
+    write(dir.path(), "docs/long.md", &"a line\n".repeat(500));
+
+    let widened = run_bare(
+        dir.path(),
+        &["docs", "--allow", "docs/**", "doc-length.max_lines=600"],
+    );
+    assert_eq!(code(&widened), 0, "{}", stdout(&widened));
+
+    let missed = run_bare(
+        dir.path(),
+        &["docs", "--allow", "nothing/**", "doc-length.max_lines=600"],
+    );
+    assert_eq!(code(&missed), 3, "{}", stdout(&missed));
+    assert!(
+        stdout(&missed).contains("allowance.unused"),
+        "{}",
+        stdout(&missed)
+    );
+}
+
+/// --config overrides the walk-up, and naming one that is not there is a missing path.
+#[test]
+fn an_explicit_config_replaces_the_one_the_walk_would_have_found() {
+    let dir = tempfile::tempdir().expect("tempdir");
+    write(dir.path(), "docs/long.md", &"a line\n".repeat(500));
+    write(
+        dir.path(),
+        ".comment-crusher.toml",
+        "[rules.doc-length]\nmax_lines = 600\n",
+    );
+    assert_eq!(code(&run(dir.path(), &["docs"])), 0);
+
+    write(
+        dir.path(),
+        "strict.toml",
+        "[rules.doc-length]\nmax_lines = 10\n",
+    );
+    let out = run(dir.path(), &["docs", "--config", "strict.toml"]);
+    assert_eq!(code(&out), 3, "{}", stdout(&out));
+
+    let missing = run(
+        dir.path(),
+        &["docs", "--config", "nope.toml", "--format", "json"],
+    );
+    assert_eq!(code(&missing), 24, "{}", stdout(&missing));
+    assert!(
+        stdout(&missing).contains("not_found"),
+        "{}",
+        stdout(&missing)
+    );
 }

@@ -1,4 +1,4 @@
-// Concern: fails a file whose language resolved but which could not be read at all | Non-concern: reading it (engine.rs), or decoding one that is not UTF-8 | IO: (path, error) -> Diagnostic
+// Concern: fails a resolved file nothing can be measured in, whether it is binary or unreadable | Non-concern: reading it or deciding it is binary (engine.rs) | IO: (path, error) -> Diagnostic
 
 use serde::Deserialize;
 use std::path::Path;
