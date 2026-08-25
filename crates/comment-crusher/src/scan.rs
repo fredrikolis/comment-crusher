@@ -457,7 +457,6 @@ impl<'a> Scanner<'a> {
         let mut j = self.i + spec.open.len();
         while j < self.src.len() {
             let rest = &self.src[j..];
-            // Unreachable: `j` is a boundary below the length.
             let Some(ch) = rest.chars().next() else { break };
             if ch == '\n' && !spec.multiline {
                 return None;
