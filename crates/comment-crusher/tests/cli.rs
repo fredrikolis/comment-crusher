@@ -654,3 +654,19 @@ fn one_path_convention_and_no_file_counted_twice() {
         .unwrap_or_default();
     assert_eq!(paths, vec!["../outside/b.rs", "src/a.rs"], "{paths:?}");
 }
+
+/// A banner big enough to discount must not carry a file under the floor and out of the
+/// rule: the floor is the file's real size, the ratio is what it is charged.
+#[test]
+fn a_discounted_banner_does_not_lift_a_file_out_of_the_rule() {
+    let dir = tempfile::tempdir().expect("tempdir");
+    let banner = format!("// {}\n", "x".repeat(250));
+    write(
+        dir.path(),
+        "fat.rs",
+        &format!("{banner}fn f() -> u32 {{ 1 }}\n"),
+    );
+    let out = run(dir.path(), &["fat.rs", "--format", "json"]);
+    assert_eq!(code(&out), 3, "{}", stdout(&out));
+    assert!(stdout(&out).contains("comment-ratio"), "{}", stdout(&out));
+}

@@ -17,8 +17,7 @@ pub struct Config {
     pub count_doc_comments: bool,
     pub min_chars: usize,
     pub skip_header: bool,
-    /// How much of the header the exemption covers. Beyond it the header counts like any
-    /// other comment, so an essay cannot shelter under a banner's name.
+    /// Beyond it a header counts like any comment, so an essay cannot shelter under one.
     pub header_free_chars: usize,
 }
 
@@ -30,14 +29,15 @@ pub fn check(cfg: &Config, file: &Path, scan: &Scan) -> Option<Diagnostic> {
     if cfg.level == Level::Allow || cfg.max_ratio <= 0.0 {
         return None;
     }
+    // The file's real size, so a discounted banner cannot carry it under the floor.
+    if scan.charged_chars(cfg.count_doc_comments, None) + scan.code_chars < cfg.min_chars {
+        return None;
+    }
     let comment = scan.charged_chars(
         cfg.count_doc_comments,
         cfg.skip_header.then_some(cfg.header_free_chars),
     );
     let total = comment + scan.code_chars;
-    if total < cfg.min_chars {
-        return None;
-    }
     let ratio = comment as f64 / total as f64;
     if ratio <= cfg.max_ratio {
         return None;

@@ -1,7 +1,5 @@
 # Concern: the comment budget this repo holds itself to | Non-concern: what makes a comment worth keeping | IO: none
-# The defaults are the product. This repo grants itself no allowance, and states one fact the
-# defaults cannot know: CLAUDE.md mandates a first-line annotation on every file, capped at
-# 200 characters, so that is the fixed cost a body is not charged for here.
+# CLAUDE.md caps every file's annotation at 200 characters, so that is the fixed cost here.
 
 [rules.comment-ratio]
 header_free_chars = 200
