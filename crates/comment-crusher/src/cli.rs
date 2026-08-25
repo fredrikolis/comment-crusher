@@ -255,8 +255,13 @@ impl Meta {
 }
 
 impl Cli {
-    /// Read straight off argv, before clap: a rejected invocation still owes the caller an
-    /// answer in the shape it asked for, and a version request outranks everything.
+    /// The legend `--help` prints, for a test to hold to what the binary does.
+    #[must_use]
+    pub const fn after_help() -> &'static str {
+        AFTER_HELP
+    }
+
+    /// Before clap: a rejected invocation still owes an answer in the shape it asked for.
     pub fn wants_json() -> bool {
         Self::scan().0
     }
