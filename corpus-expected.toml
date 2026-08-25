@@ -662,10 +662,10 @@ comment_chars = 161
 code_chars = 2246504
 
 ["mono-basic".make]
-files = 37
-lines = 782
+files = 50
+lines = 1146
 comment_chars = 382
-code_chars = 20676
+code_chars = 29532
 
 ["mono-basic".markdown]
 files = 3
@@ -1472,10 +1472,10 @@ comment_chars = 0
 code_chars = 31596
 
 ["uri-perl".perl]
-files = 74
-lines = 7502
-comment_chars = 73621
-code_chars = 70682
+files = 134
+lines = 11818
+comment_chars = 82793
+code_chars = 157291
 
 ["uri-perl".plaintext]
 files = 4

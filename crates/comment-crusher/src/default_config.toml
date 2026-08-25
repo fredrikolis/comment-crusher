@@ -214,7 +214,8 @@ strings = [
 ]
 
 [languages.perl]
-extensions = [".pl", ".pm"]
+# `.t` is where Perl keeps its tests, and they are Perl.
+extensions = [".pl", ".pm", ".t"]
 interpreters = ["perl"]
 line = ["#"]
 # POD is a closed set of commands, any of which opens a block that `=cut` or the file ends.
@@ -375,7 +376,7 @@ line_anchored = true
 line = ["#", ";"]
 
 [languages.make]
-extensions = [".mk"]
+extensions = [".mk", ".make"]
 filenames = ["Makefile", "makefile", "GNUmakefile"]
 line = ["#"]
 
