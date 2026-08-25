@@ -411,6 +411,19 @@ fn a_broken_config_arrives_as_a_located_diagnostic() {
     );
     assert!(!d["message"].as_str().unwrap_or_default().contains('\n'));
     assert_eq!(code(&out), 3);
+
+    // A syntax error carries the place the parser pointed at, not only prose about it.
+    write(
+        dir.path(),
+        ".comment-crusher.toml",
+        "this is = = not toml\n",
+    );
+    let out = run(dir.path(), &["a.rs", "--format", "json"]);
+    let v: serde_json::Value = serde_json::from_str(&stdout(&out)).expect("valid JSON");
+    let loc = &v["data"]["diagnostics"][0]["location"];
+    assert_eq!(loc["start"]["line"], 1, "{loc}");
+    assert_eq!(loc["start"]["column"], 6, "{loc}");
+    assert_eq!(loc["span"]["offset"], 5, "{loc}");
 }
 
 /// A file the scanner cannot read is reported as that, under its own code — never counted

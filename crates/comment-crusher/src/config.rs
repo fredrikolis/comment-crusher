@@ -149,7 +149,7 @@ impl Config {
         explicit: Option<&Path>,
         cli_allow: &[(String, String)],
     ) -> std::result::Result<Self, LoadFailure> {
-        let mut cfg = Self::from_file(root, explicit).map_err(LoadFailure::File)?;
+        let mut cfg = Self::from_file(root, explicit)?;
         for (glob, setting) in cli_allow {
             let set = vec![parse_setting(setting, &cfg.base).map_err(LoadFailure::Argv)?];
             let globs = build_globs(std::slice::from_ref(glob)).map_err(LoadFailure::Argv)?;
@@ -162,9 +162,10 @@ impl Config {
         Ok(cfg)
     }
 
-    fn from_file(root: &Path, explicit: Option<&Path>) -> Result<Self> {
-        let mut table: Table =
-            toml::from_str(DEFAULTS).context("built-in default config is invalid")?;
+    fn from_file(root: &Path, explicit: Option<&Path>) -> std::result::Result<Self, LoadFailure> {
+        let mut table: Table = toml::from_str(DEFAULTS)
+            .context("built-in default config is invalid")
+            .map_err(|e| LoadFailure::File(e, None))?;
         let found = explicit.map_or_else(|| find_upward(root), |p| Some(p.to_path_buf()));
         let base = match &found {
             Some(p) => {
@@ -173,7 +174,7 @@ impl Config {
             }
             None => directory_of(root),
         };
-        Self::build(&table, base)
+        Self::build(&table, base).map_err(|e| LoadFailure::File(e, None))
     }
 
     fn build(table: &Table, root: PathBuf) -> Result<Self> {
@@ -553,11 +554,16 @@ fn parse_setting(s: &str, base: &Rules) -> Result<(Widenable, f64)> {
     Ok((*field, value))
 }
 
-fn overlay(base: &mut Table, path: &Path) -> Result<()> {
-    let text =
-        std::fs::read_to_string(path).with_context(|| format!("reading {}", path.display()))?;
-    let layer: Table =
-        toml::from_str(&text).with_context(|| format!("parsing {}", path.display()))?;
+/// The parser's own byte range travels with the error, so the reader is not left to find
+/// the place again from prose.
+fn overlay(base: &mut Table, path: &Path) -> std::result::Result<(), LoadFailure> {
+    let text = std::fs::read_to_string(path)
+        .with_context(|| format!("reading {}", path.display()))
+        .map_err(|e| LoadFailure::File(e, None))?;
+    let layer: Table = toml::from_str(&text).map_err(|e| {
+        let span = e.span().map(|s| (s.start, s.end.saturating_sub(s.start)));
+        LoadFailure::File(anyhow::anyhow!("parsing {}: {e}", path.display()), span)
+    })?;
     merge(base, layer);
     Ok(())
 }
@@ -603,5 +609,6 @@ fn find_upward(from: &Path) -> Option<PathBuf> {
 #[derive(Debug)]
 pub enum LoadFailure {
     Argv(anyhow::Error),
-    File(anyhow::Error),
+    /// With the byte offset and length the parser pointed at, where it pointed at any.
+    File(anyhow::Error, Option<(usize, usize)>),
 }

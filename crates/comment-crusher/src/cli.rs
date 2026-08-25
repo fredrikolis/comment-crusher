@@ -287,12 +287,12 @@ impl Cli {
             Ok(config) => config,
             // The caller's own invocation, not a fact about any file in the repo.
             Err(LoadFailure::Argv(e)) => return Err(("bad_arguments", e)),
-            Err(LoadFailure::File(e)) => {
+            Err(LoadFailure::File(e, span)) => {
                 let path = Config::source_path(&anchor, self.config.as_deref())
                     .unwrap_or_else(|| PathBuf::from(CONFIG_FILE));
                 return Ok(Report {
                     files: Vec::new(),
-                    diagnostics: vec![config_diagnostic(&path, &format!("{e:#}"))],
+                    diagnostics: vec![config_diagnostic(&path, &format!("{e:#}"), span)],
                 });
             }
         };
@@ -382,15 +382,40 @@ impl Cli {
 /// A configuration failure is a finding about a file.
 ///
 /// So it reaches an agent as one, not as a multi-line blob it must read as prose.
-fn config_diagnostic(path: &Path, message: &str) -> crate::Diagnostic {
+fn config_diagnostic(
+    path: &Path,
+    message: &str,
+    span: Option<(usize, usize)>,
+) -> crate::Diagnostic {
     let first = message.lines().next().unwrap_or(message);
-    crate::Diagnostic::new(
+    let d = crate::Diagnostic::new(
         CONFIG_RULE,
         Level::Deny,
         path,
         first.to_string(),
         "Fix the configuration, or point --config at one that parses.",
-    )
+    );
+    let Some((offset, length)) = span else {
+        return d;
+    };
+    let text = std::fs::read_to_string(path).unwrap_or_default();
+    let (start, end) = (place(&text, offset), place(&text, offset + length));
+    d.at(start.0)
+        .spanning(offset, offset + length, end.0)
+        .columns(start.1, end.1)
+}
+
+/// The 1-based line and column a byte offset falls on.
+fn place(text: &str, offset: usize) -> (usize, usize) {
+    let before = text.get(..offset).unwrap_or(text);
+    let line = before.matches('\n').count() + 1;
+    let column = before
+        .rsplit_once('\n')
+        .map_or(before, |(_, l)| l)
+        .chars()
+        .count()
+        + 1;
+    (line, column)
 }
 
 /// The one producer of a failed envelope.
