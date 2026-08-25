@@ -99,7 +99,7 @@ pub struct Cli {
     #[arg(long, value_name = "FILE")]
     pub config: Option<PathBuf>,
 
-    /// Widen a budget for the paths a glob matches, e.g.
+    /// Widen a budget for the paths a glob matches, up to a hundred times what ships, e.g.
     /// --allow 'docs/**/*.md' doc-length.max_lines=2000
     #[arg(long, num_args = 2, value_names = ["GLOB", "RULE.FIELD=VALUE"], action = clap::ArgAction::Append)]
     pub allow: Vec<String>,
