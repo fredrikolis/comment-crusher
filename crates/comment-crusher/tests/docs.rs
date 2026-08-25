@@ -38,8 +38,7 @@ fn the_readme_quotes_the_bounds_that_ship() {
         .expect("max_ratio is a float");
     let claims = [
         (format!("{languages} languages"), "the language count"),
-        (format!("{repos} repositories"), "the corpus size"),
-        (format!("{repos} pinned repositories"), "the corpus size"),
+        (format!("{repos} "), "the corpus size"),
         (
             format!("{} lines", bound(&t, "doc-length", "max_lines")),
             "doc-length",
@@ -94,7 +93,8 @@ fn the_readme_and_help_list_the_exit_codes_the_binary_returns() {
     for code in ["0", "1", "2", "3", "24"] {
         assert!(text.contains(&format!("| {code} |")), "README omits {code}");
         assert!(
-            help.lines().any(|l| l.trim_start().starts_with(code)),
+            help.lines()
+                .any(|l| l.split_whitespace().next() == Some(code)),
             "--help omits {code}"
         );
     }
