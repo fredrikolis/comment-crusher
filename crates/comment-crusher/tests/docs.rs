@@ -142,3 +142,43 @@ fn every_shipped_bound_is_widenable() {
         "shipped bounds no allowance can widen: {missing:?}"
     );
 }
+
+/// Each derived bound equals the corpus figure its `# Measured:` line names, so a bound and
+/// its basis cannot drift apart.
+#[test]
+fn every_derived_bound_matches_its_figure() {
+    let t = defaults();
+    let f: toml::Table = toml::from_str(
+        &std::fs::read_to_string(
+            Path::new(env!("CARGO_MANIFEST_DIR")).join("../../corpus-figures.toml"),
+        )
+        .expect("corpus-figures.toml"),
+    )
+    .expect("figures parse");
+    let derived = [
+        ("doc-length.max_lines", f["prose_lines_p75"].clone()),
+        (
+            "comment-ratio.header_free_chars",
+            f["header_chars_language_median_p90"].clone(),
+        ),
+        ("comment-block.max_chars", f["remark"]["chars_p90"].clone()),
+        ("comment-block.doc_max_lines", f["doc"]["lines_p75"].clone()),
+        ("comment-block.doc_max_chars", f["doc"]["chars_p90"].clone()),
+        (
+            "comment-block.header_max_lines",
+            f["header"]["lines_p75"].clone(),
+        ),
+        (
+            "comment-block.header_max_chars",
+            f["header"]["chars_p90"].clone(),
+        ),
+    ];
+    for (path, figure) in derived {
+        let (rule, field) = path.split_once('.').expect("dotted");
+        assert_eq!(
+            t["rules"][rule][field].to_string(),
+            figure.to_string(),
+            "{path} no longer equals the figure it cites"
+        );
+    }
+}

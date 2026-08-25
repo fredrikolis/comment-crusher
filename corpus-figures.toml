@@ -1,0 +1,33 @@
+# Concern: the corpus statistics every `# Measured:` line in default_config.toml cites | Non-concern: which bound is chosen from them (default_config.toml argues that) | IO: none
+# Re-record with: UPDATE_CORPUS_SNAPSHOT=1 cargo test --test corpus
+
+repo_comment_share_median = 0.184
+prose_documents = 726
+prose_lines_p50 = 25
+prose_lines_p75 = 90
+comments_over_1_line = 22160
+comments_over_5_lines = 6778
+header_languages = 48
+header_chars_language_median_p50 = 90
+header_chars_language_median_p90 = 344
+
+[remark]
+lines_p50 = 1
+lines_p75 = 2
+lines_p90 = 5
+chars_p90 = 164
+chars_p99 = 702
+
+[doc]
+lines_p50 = 4
+lines_p75 = 8
+lines_p90 = 14
+chars_p90 = 314
+chars_p99 = 874
+
+[header]
+lines_p50 = 4
+lines_p75 = 13
+lines_p90 = 24
+chars_p90 = 971
+chars_p99 = 1057
