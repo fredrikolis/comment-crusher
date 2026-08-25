@@ -472,33 +472,23 @@ impl Widenable {
     /// `min_chars` decides whether a rule applies and `level` whether it runs, so setting
     /// either would exempt a path rather than widen it, and a ratio of 1 can never be
     /// exceeded. This list is what makes "no file is exempt" true.
-    const ALL: &'static [(&'static str, &'static str, Self, f64)] = &[
-        (comment_ratio::NAME, "max_ratio", Self::CommentRatio, 1.0),
-        (
-            comment_block::NAME,
-            "max_lines",
-            Self::BlockLines,
-            f64::INFINITY,
-        ),
-        (
+    const ALL: &'static [Bound] = &[
+        Bound::new(comment_ratio::NAME, "max_ratio", Self::CommentRatio, 1.0),
+        Bound::new(comment_block::NAME, "max_lines", Self::BlockLines, INF),
+        Bound::new(
             comment_block::NAME,
             "doc_max_lines",
             Self::BlockDocLines,
-            f64::INFINITY,
+            INF,
         ),
-        (
+        Bound::new(
             comment_block::NAME,
             "header_max_lines",
             Self::BlockHeaderLines,
-            f64::INFINITY,
+            INF,
         ),
-        (
-            comment_block::NAME,
-            "max_chars",
-            Self::BlockChars,
-            f64::INFINITY,
-        ),
-        (doc_length::NAME, "max_lines", Self::DocLines, f64::INFINITY),
+        Bound::new(comment_block::NAME, "max_chars", Self::BlockChars, INF),
+        Bound::new(doc_length::NAME, "max_lines", Self::DocLines, INF),
     ];
 
     /// The corpus's longest prose document is 3419 lines against a shipped 77, so a
@@ -539,19 +529,42 @@ impl Widenable {
     }
 }
 
+/// One bound an allowance may widen, and how far the field itself goes.
+struct Bound {
+    rule: &'static str,
+    field: &'static str,
+    which: Widenable,
+    limit: f64,
+}
+
+/// Bounded only by the hundredfold ceiling.
+const INF: f64 = f64::INFINITY;
+
+impl Bound {
+    const fn new(rule: &'static str, field: &'static str, which: Widenable, limit: f64) -> Self {
+        Self {
+            rule,
+            field,
+            which,
+            limit,
+        }
+    }
+
+    fn path(&self) -> String {
+        format!("{}.{}", self.rule, self.field)
+    }
+}
+
 /// `comment-ratio.max_ratio=0.4` -> the dotted path and its typed value.
 fn parse_setting(s: &str, base: &Rules) -> Result<(Widenable, f64)> {
     let Some((path, raw)) = s.split_once('=') else {
         bail!("`{s}` is not <rule>.<field>=<value>");
     };
     let path = path.trim();
-    let Some((_, _, field, limit)) = Widenable::ALL
-        .iter()
-        .find(|(rule, key, _, _)| path == format!("{rule}.{key}"))
-    else {
+    let Some(bound) = Widenable::ALL.iter().find(|b| path == b.path()) else {
         let names = Widenable::ALL
             .iter()
-            .map(|(rule, key, _, _)| format!("{rule}.{key}"))
+            .map(Bound::path)
             .collect::<Vec<_>>()
             .join(", ");
         bail!("`{path}` is not a bound an allowance may widen. One of: {names}");
@@ -559,16 +572,16 @@ fn parse_setting(s: &str, base: &Rules) -> Result<(Widenable, f64)> {
     let Ok(value) = raw.trim().parse::<f64>() else {
         bail!("`{s}` is not a number");
     };
-    if !value.is_finite() || value <= 0.0 || value >= *limit {
+    if !value.is_finite() || value <= 0.0 || value >= bound.limit {
         bail!("`{s}` would leave the path exempt; an allowance only ever widens a bound");
     }
-    let ceiling = field.shipped(base) * Widenable::CEILING;
+    let ceiling = bound.which.shipped(base) * Widenable::CEILING;
     if value > ceiling {
         bail!(
             "`{s}` exceeds {ceiling:.0}, a hundredfold; past that a bound is not widened, it is gone"
         );
     }
-    Ok((*field, value))
+    Ok((bound.which, value))
 }
 
 /// The parser's own byte range travels with the error, so the reader is not left to find
