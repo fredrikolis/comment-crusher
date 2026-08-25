@@ -24,15 +24,36 @@ fn bound(table: &toml::Table, rule: &str, field: &str) -> String {
     table["rules"][rule][field].to_string()
 }
 
-fn claims(
-    t: &toml::Table,
-    languages: usize,
-    repos: usize,
-    ratio: f64,
-) -> Vec<(String, &'static str)> {
+/// How many languages declare a construct, so the README cannot hand-count it wrong.
+fn declaring(t: &toml::Table) -> (usize, usize, usize, usize) {
+    let langs = t["languages"].as_table().expect("languages");
+    let count = |f: &dyn Fn(&toml::Value) -> bool| langs.values().filter(|l| f(l)).count();
+    (
+        langs.len(),
+        count(&|l| l.get("nested_block").is_some()),
+        count(&|l| l.get("heredoc").is_some()),
+        count(&|l| {
+            l.get("strings")
+                .and_then(toml::Value::as_array)
+                .is_some_and(|v| {
+                    v.iter()
+                        .any(|s| s.get("docstring").and_then(toml::Value::as_bool) == Some(true))
+                })
+        }),
+    )
+}
+
+fn claims(t: &toml::Table, repos: usize, ratio: f64) -> Vec<(String, &'static str)> {
+    let (languages, nested, heredoc, docstring) = declaring(t);
     vec![
         (format!("{languages} languages"), "the language count"),
         (format!("{repos} repositor"), "the corpus size"),
+        (
+            format!("Nested blocks in {nested} languages"),
+            "the nesting count",
+        ),
+        (format!("heredocs in {heredoc}"), "the heredoc count"),
+        (format!("docstrings in {docstring}"), "the docstring count"),
         (
             format!("{repos} pinned repositor"),
             "the corpus size, again",
@@ -82,7 +103,6 @@ fn claims(
 fn the_readme_quotes_the_bounds_that_ship() {
     let t = defaults();
     let text = readme();
-    let languages = t["languages"].as_table().expect("languages").len();
     let repos =
         std::fs::read_to_string(Path::new(env!("CARGO_MANIFEST_DIR")).join("../../corpus.toml"))
             .expect("corpus.toml")
@@ -91,7 +111,7 @@ fn the_readme_quotes_the_bounds_that_ship() {
     let ratio = t["rules"]["comment-ratio"]["max_ratio"]
         .as_float()
         .expect("max_ratio is a float");
-    let claims = claims(&t, languages, repos, ratio);
+    let claims = claims(&t, repos, ratio);
     let missing: Vec<&str> = claims
         .iter()
         .filter(|(needle, _)| !text.contains(needle.as_str()))
@@ -184,4 +204,46 @@ fn every_derived_bound_matches_its_figure() {
             "{path} no longer equals the figure it cites"
         );
     }
+}
+
+/// Every language knob the table uses is documented, or `--help` goes silently incomplete
+/// when a twentieth is added.
+#[test]
+fn every_language_knob_is_in_the_help_table() {
+    let t = defaults();
+    let table = Cli::after_help()
+        .split("LANGUAGE TABLE")
+        .nth(1)
+        .expect("LANGUAGE TABLE section")
+        .to_string();
+    let mut keys = std::collections::BTreeSet::new();
+    let collect = |v: &toml::Value, keys: &mut std::collections::BTreeSet<String>| {
+        if let Some(m) = v.as_table() {
+            for (k, inner) in m {
+                keys.insert(k.clone());
+                if let Some(list) = inner.as_array() {
+                    for item in list {
+                        if let Some(sub) = item.as_table() {
+                            keys.extend(sub.keys().cloned());
+                        }
+                    }
+                }
+            }
+        }
+    };
+    for lang in t["languages"].as_table().expect("languages").values() {
+        collect(lang, &mut keys);
+    }
+    for set in t["embed_sets"].as_table().expect("embed_sets").values() {
+        for item in set.as_array().into_iter().flatten() {
+            collect(item, &mut keys);
+        }
+    }
+    // Resolution keys and the attribute values a tag maps are named in prose, not as knobs.
+    let described = ["extensions", "filenames", "interpreters", "map"];
+    let missing: Vec<&String> = keys
+        .iter()
+        .filter(|k| !described.contains(&k.as_str()) && !table.contains(k.as_str()))
+        .collect();
+    assert!(missing.is_empty(), "knobs --help never names: {missing:?}");
 }

@@ -134,6 +134,8 @@ LANGUAGE TABLE (crates/comment-crusher/src/default_config.toml)
       skip               text after `open` that cancels the match: `{#if` is a directive
 
 SEE ALSO
+  comment-crusher --version        the name and version, as an envelope
+  comment-crusher --stats          per-language totals above the findings
   .comment-crusher.toml            the repo's budget and its allowances"##;
 
 #[derive(Copy, Clone, PartialEq, Eq, ValueEnum)]

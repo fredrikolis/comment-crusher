@@ -660,7 +660,7 @@ fn overlay(base: &mut Table, path: &Path) -> std::result::Result<(), LoadFailure
         .with_context(|| format!("reading {}", path.display()))
         .map_err(LoadFailure::Rejected)?;
     let layer: Table = toml::from_str(&text).map_err(|e| {
-        let message = anyhow::anyhow!("parsing {}: {e}", path.display());
+        let message = anyhow::anyhow!("{e}");
         match e.span() {
             Some(s) => LoadFailure::Syntax(message, Located::of(&text, s.start, s.end)),
             None => LoadFailure::Rejected(message),

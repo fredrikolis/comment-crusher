@@ -349,24 +349,31 @@ fn a_php_attribute_is_not_a_comment() {
 #[test]
 fn no_language_reads_a_marker_inside_its_own_string_as_a_comment() {
     let cfg = Config::defaults().unwrap();
-    let mut checked = 0usize;
+    let mut checked = std::collections::BTreeSet::new();
+    let mut qualifies = std::collections::BTreeSet::new();
     for syn in cfg.languages() {
-        let Some(spec) = syn.strings.iter().find(|s| !s.docstring) else {
-            continue;
-        };
-        let Some((token, _)) = syn
+        let string = syn.strings.iter().find(|s| !s.docstring);
+        let marker = syn
             .openers
             .iter()
-            .find(|(_, o)| matches!(o, Opener::Line(_) | Opener::Block { .. }))
-        else {
+            .find(|(_, o)| matches!(o, Opener::Line(_) | Opener::Block { .. }));
+        let (Some(spec), Some((token, _))) = (string, marker) else {
             continue;
         };
+        qualifies.insert(syn.name.clone());
         let src = format!("{}{token} n{}\n", spec.open, spec.close);
         let scan = crate::scan::scan_in(&src, syn, &cfg);
         assert_eq!(scan.regions.len(), 0, "{}: {src:?}", syn.name);
-        checked += 1;
+        checked.insert(syn.name.clone());
     }
-    assert!(checked > 40, "only {checked} languages exercised");
+    // Set difference, not a floor: a floor passes while a third of the table stops resolving.
+    let missing: Vec<_> = qualifies.difference(&checked).collect();
+    assert!(missing.is_empty(), "not exercised: {missing:?}");
+    assert!(
+        checked.len() > 70,
+        "only {} languages qualify",
+        checked.len()
+    );
 }
 
 /// One case per language in the shipped table, in that language's real syntax.
