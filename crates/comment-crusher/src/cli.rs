@@ -421,10 +421,18 @@ impl Cli {
                     LoadFailure::Syntax(e, s) => (SYNTAX_RULE, e, Some(s)),
                     other => (REJECTED_RULE, other.into_error(), None),
                 };
-                // Relative to the root, as every file finding is.
-                let root = self.root.clone().unwrap_or_else(|| anchor.clone());
-                let path = Config::source_path(&anchor, self.config.as_deref())
-                    .map_or_else(|| PathBuf::from(CONFIG_FILE), |p| relative_to(&root, &p));
+                // Relative to the root; without --root, the budget file's own directory.
+                let found = Config::source_path(&anchor, self.config.as_deref());
+                let root = self.root.clone().or_else(|| {
+                    found
+                        .as_deref()
+                        .and_then(Path::parent)
+                        .map(Path::to_path_buf)
+                });
+                let path = found.map_or_else(
+                    || PathBuf::from(CONFIG_FILE),
+                    |p| root.map_or_else(|| p.clone(), |r| relative_to(&r, &p)),
+                );
                 return Ok(Report {
                     files: Vec::new(),
                     diagnostics: vec![config_diagnostic(code, &path, &format!("{e:#}"), span)],

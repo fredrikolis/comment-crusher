@@ -555,7 +555,7 @@ impl Widenable {
 
     #[expect(
         clippy::cast_precision_loss,
-        reason = "shipped counts are two-digit numbers"
+        reason = "shipped counts are far below f64 precision"
     )]
     const fn of(self, base: &Rules) -> f64 {
         match self {

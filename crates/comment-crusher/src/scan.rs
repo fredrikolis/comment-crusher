@@ -123,8 +123,9 @@ fn count_body(text: &str) -> (usize, usize) {
     (prose, example)
 }
 
-/// What a declared marker can start with, so `{-` opens a fence too.
-const MARKER_CHARS: &str = r#"/*#-;%!<>={}'"|+()[]~$@:."#;
+/// The punctuation declared markers are made of; a word marker like `REM ` is not, since
+/// stripping letters would eat prose.
+const MARKER_CHARS: &str = r"!#%'(*+-/:;<=[{|";
 
 fn is_fence(line: &str) -> bool {
     let body = line
@@ -223,7 +224,7 @@ impl<'a> Scanner<'a> {
         }
     }
 
-    /// The markup is code; the body is the language the tag names, or code if that is unknown.
+    /// The markup is code; the body is the language the tag names, or code if unknown.
     fn take_embed(&mut self) -> bool {
         if self.depth >= MAX_EMBED_DEPTH {
             return false;
@@ -542,7 +543,7 @@ impl<'a> Scanner<'a> {
         true
     }
 
-    /// The one place a line number moves, so its two callers cannot drift.
+    /// The one place a line number moves, so its callers cannot drift.
     fn count_newlines(&mut self, from: usize, to: usize) {
         for (off, ch) in self.src[from..to.min(self.src.len())].char_indices() {
             if ch == '\n' {
