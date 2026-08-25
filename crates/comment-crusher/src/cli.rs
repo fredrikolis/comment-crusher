@@ -159,8 +159,7 @@ pub struct Cli {
     #[arg(long)]
     pub warnings_as_errors: bool,
 
-    /// Print the version and exit. Answered before clap runs, so a rejected invocation can
-    /// still say what it is.
+    /// Print the version envelope and exit.
     #[arg(short = 'V', long)]
     pub version: bool,
 }
@@ -300,19 +299,17 @@ impl Cli {
         }
     }
 
-    pub fn version_only(json: bool) -> i32 {
-        let version = env!("CARGO_PKG_VERSION");
-        if json {
-            println!(
-                "{}",
-                serde_json::json!({
-                    "status": "success",
-                    "data": { "name": "comment-crusher", "version": version },
-                })
-            );
-        } else {
-            println!("comment-crusher {version}");
-        }
+    /// An envelope whatever the format: the CLI standard fixes this one reply's shape.
+    pub fn version_only(_json: bool) -> i32 {
+        let meta = Meta::now();
+        println!(
+            "{}",
+            serde_json::json!({
+                "status": "success",
+                "data": { "name": "comment-crusher", "version": env!("CARGO_PKG_VERSION") },
+                "meta": { "request_id": meta.request_id, "timestamp": meta.timestamp },
+            })
+        );
         0
     }
 

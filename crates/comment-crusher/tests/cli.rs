@@ -360,19 +360,15 @@ fn warnings_as_errors_escalates_a_warning_and_nothing_else() {
 #[test]
 fn version_answers_in_the_requested_shape_whatever_else_is_wrong() {
     let dir = tempfile::tempdir().expect("tempdir");
-    let plain = run(dir.path(), &["--version"]);
-    assert_eq!(code(&plain), 0);
-    assert!(
-        stdout(&plain).starts_with("comment-crusher "),
-        "{}",
-        stdout(&plain)
-    );
-
-    let json = run(dir.path(), &["--format", "json", "-V"]);
-    let v: serde_json::Value = serde_json::from_str(&stdout(&json)).expect("valid JSON");
-    assert_eq!(v["status"], "success");
-    assert_eq!(v["data"]["name"], "comment-crusher");
-    assert!(v["data"]["version"].as_str().is_some(), "version envelope");
+    // The standard makes it an envelope whether or not --format json was asked for.
+    for args in [vec!["--version"], vec!["--format", "json", "-V"]] {
+        let out = run(dir.path(), &args);
+        assert_eq!(code(&out), 0);
+        let v: serde_json::Value = serde_json::from_str(&stdout(&out)).expect("valid JSON");
+        assert_eq!(v["status"], "success");
+        assert_eq!(v["data"]["name"], "comment-crusher");
+        assert!(v["data"]["version"].as_str().is_some(), "{}", stdout(&out));
+    }
 
     // A version request outranks an argument clap would otherwise reject.
     assert_eq!(
