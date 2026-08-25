@@ -52,6 +52,16 @@ fn a_docstring_is_prose_only_when_it_opens_a_line() {
     assert_eq!(s.regions.len(), 1);
     assert_eq!(s.regions[0].kind, CommentKind::Doc);
     assert_eq!(run("py", "x = \"\"\"data\"\"\"\n").regions.len(), 0);
+
+    // Elixir never writes one at the margin: `@moduledoc` is what precedes every real doc.
+    let ex = run("ex", "@moduledoc \"\"\"\nWhat it is.\n\"\"\"\n");
+    assert_eq!(ex.regions.len(), 1, "{:?}", ex.regions);
+    assert_eq!(ex.regions[0].kind, CommentKind::Doc);
+    assert_eq!(
+        run("ex", "x = \"\"\"\ndata\n\"\"\"\n").regions.len(),
+        0,
+        "an undeclared prefix leaves a heredoc string code"
+    );
 }
 
 #[test]
@@ -376,7 +386,11 @@ const CASES: &[(&str, &str, usize)] = &[
     ("dart", "// n\nvar x = 1;\n/* b */\nvar y = 2;\n", 2),
     ("dockerfile", "# n\nFROM alpine\n", 1),
     ("env", "# n\nKEY=value\n", 1),
-    ("ex", "# n\nx = 1\n", 1),
+    (
+        "ex",
+        "defmodule M do\n  @moduledoc \"\"\"\n  What it is.\n  \"\"\"\n\n  # n\n  def f, do: 1\nend\n",
+        2,
+    ),
     ("elm", "-- n\nx = 1\n{- b -}\ny = 2\n", 2),
     ("erl", "% n\nf() -> ok.\n", 1),
     ("fish", "# n\nset x 1\n", 1),

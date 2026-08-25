@@ -55,6 +55,8 @@ LANGUAGE TABLE (crates/comment-crusher/src/default_config.toml)
     strings              [open, close] regions whose contents are CODE, not comment
       multiline          may cross a newline; without it a bad open self-heals at end of line
       docstring          opening a line makes it a doc comment (Python, Elixir)
+    doc_prefixes         what may precede a docstring and still leave it one: Elixir
+                         writes `@moduledoc """`, never `"""` at the margin
       char_literal       only a string if it closes within a few chars on the same line
     hash_raw_strings     r"..." and r#"..."# raw strings
     heredoc              <<WORD and <<-'WORD' bodies are code until a line equal to WORD

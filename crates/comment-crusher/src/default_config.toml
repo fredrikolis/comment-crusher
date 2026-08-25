@@ -234,6 +234,7 @@ strings = [{ open = '"', close = '"' }]
 [languages.elixir]
 extensions = [".ex", ".exs"]
 line = ["#"]
+doc_prefixes = ["@moduledoc", "@doc", "@typedoc", "@shortdoc"]
 strings = [
   { open = '"""', close = '"""', multiline = true, docstring = true },
   { open = '"', close = '"' },

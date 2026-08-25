@@ -40,6 +40,8 @@ pub struct Syntax {
     pub openers: Vec<(String, Opener)>,
     pub exceptions: Vec<String>,
     pub line_anchored: bool,
+    /// What may precede a docstring and still leave it one.
+    pub doc_prefixes: Vec<String>,
     pub embeds: Vec<EmbedSpec>,
 }
 

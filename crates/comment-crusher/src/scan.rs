@@ -170,6 +170,11 @@ impl<'a> Scanner<'a> {
         self.rest().chars().next()
     }
 
+    fn opens_doc(&self) -> bool {
+        let before = self.src[self.line_start..self.i].trim_start();
+        before.is_empty() || self.syn.doc_prefixes.iter().any(|p| before.trim_end() == p)
+    }
+
     fn own_line(&self) -> bool {
         self.src[self.line_start..self.i].trim().is_empty()
     }
@@ -403,7 +408,7 @@ impl<'a> Scanner<'a> {
         let Some(end) = self.string_end(spec) else {
             return false;
         };
-        let is_doc = spec.docstring && own;
+        let is_doc = spec.docstring && self.opens_doc();
         if is_doc {
             self.count_newlines(self.i, end);
             let span = (self.i, end);

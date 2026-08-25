@@ -61,6 +61,8 @@ struct RawLanguage {
     #[serde(default)]
     line_anchored: bool,
     #[serde(default)]
+    doc_prefixes: Vec<String>,
+    #[serde(default)]
     strings: Vec<RawString>,
     #[serde(default)]
     embed: Vec<RawEmbed>,
@@ -388,6 +390,7 @@ fn resolve_syntax(
         openers,
         exceptions: raw.exceptions.clone(),
         line_anchored: raw.line_anchored,
+        doc_prefixes: raw.doc_prefixes.clone(),
         embeds: embed_specs
             .into_iter()
             .map(resolve_embed)

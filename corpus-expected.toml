@@ -883,6 +883,24 @@ lines = 115
 comment_chars = 380
 code_chars = 1688
 
+["req".elixir]
+files = 54
+lines = 16591
+comment_chars = 84231
+code_chars = 262902
+
+["req".markdown]
+files = 3
+lines = 2058
+comment_chars = 0
+code_chars = 63164
+
+["req".yaml]
+files = 1
+lines = 72
+comment_chars = 0
+code_chars = 1145
+
 ["requests".batch]
 files = 1
 lines = 263

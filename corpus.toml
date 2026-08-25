@@ -229,3 +229,9 @@ name = "nixpkgs-fmt"
 language = "nix"
 url = "https://github.com/nix-community/nixpkgs-fmt"
 rev = "bdb15b4c7e0cb49ae091dd43113d0a938afae02c"
+
+[[repo]]
+name = "req"
+language = "elixir"
+url = "https://github.com/wojtekmach/req"
+rev = "290118154f7183f67e49dba1f6755113e38bf4be" # v0.7.3
