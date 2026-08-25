@@ -39,6 +39,8 @@ pub struct Syntax {
     pub strings: Vec<StringSpec>,
     pub openers: Vec<(String, Opener)>,
     pub exceptions: Vec<String>,
+    pub cancel_after: Vec<String>,
+    pub open_after: Vec<String>,
     pub line_anchored: bool,
     pub doc_prefixes: Vec<String>,
     pub embeds: Vec<EmbedSpec>,
@@ -46,11 +48,12 @@ pub struct Syntax {
 
 impl Syntax {
     /// More than one can match: `/**/` is `/*` `*/`, not an unterminated `/**`.
-    pub fn matching_openers(
-        &self,
-        rest: &str,
+    pub fn matching_openers<'a>(
+        &'a self,
+        rest: &'a str,
+        before: &'a str,
         own_line: bool,
-    ) -> impl Iterator<Item = (&str, &Opener)> {
+    ) -> impl Iterator<Item = (&'a str, &'a Opener)> {
         self.openers
             .iter()
             .filter(move |(tok, op)| {
@@ -58,7 +61,13 @@ impl Syntax {
                 let anchored = self.line_anchored && matches!(op, Opener::Line(_));
                 rest.starts_with(tok.as_str())
                     && !(comment && self.exceptions.iter().any(|e| rest.starts_with(e)))
-                    && (own_line || !anchored)
+                    && !(comment && self.cancel_after.iter().any(|e| before.ends_with(e)))
+                    && (own_line
+                        || !anchored
+                        || self
+                            .open_after
+                            .iter()
+                            .any(|e| before.trim_end().ends_with(e)))
             })
             .map(|(tok, op)| (tok.as_str(), op))
     }

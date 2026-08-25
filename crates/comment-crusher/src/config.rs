@@ -59,6 +59,10 @@ struct RawLanguage {
     #[serde(default)]
     exceptions: Vec<String>,
     #[serde(default)]
+    cancel_after: Vec<String>,
+    #[serde(default)]
+    open_after: Vec<String>,
+    #[serde(default)]
     line_anchored: bool,
     #[serde(default)]
     doc_prefixes: Vec<String>,
@@ -362,35 +366,38 @@ fn section<T: for<'de> Deserialize<'de> + Default>(table: &Table, key: &str) -> 
     )
 }
 
+fn comment_openers(raw: &RawLanguage) -> Vec<(String, Opener)> {
+    let mut openers: Vec<(String, Opener)> = Vec::new();
+    for (toks, kind) in [
+        (&raw.doc_line, CommentKind::Doc),
+        (&raw.line, CommentKind::Plain),
+    ] {
+        openers.extend(toks.iter().map(|t| (t.clone(), Opener::Line(kind))));
+    }
+    for (pairs, kind) in [
+        (&raw.doc_block, CommentKind::Doc),
+        (&raw.block, CommentKind::Plain),
+    ] {
+        openers.extend(pairs.iter().map(|p| {
+            (
+                p[0].clone(),
+                Opener::Block {
+                    close: p[1].clone(),
+                    kind,
+                },
+            )
+        }));
+    }
+    openers
+}
+
 fn resolve_syntax(
     name: &str,
     raw: &RawLanguage,
     sets: &HashMap<String, Vec<RawEmbed>>,
 ) -> Result<Syntax> {
     let embed_specs = gather_embeds(raw, sets)?;
-    let mut openers: Vec<(String, Opener)> = Vec::new();
-    for (toks, kind) in [
-        (&raw.doc_line, CommentKind::Doc),
-        (&raw.line, CommentKind::Plain),
-    ] {
-        for t in toks {
-            openers.push((t.clone(), Opener::Line(kind)));
-        }
-    }
-    for (pairs, kind) in [
-        (&raw.doc_block, CommentKind::Doc),
-        (&raw.block, CommentKind::Plain),
-    ] {
-        for p in pairs {
-            openers.push((
-                p[0].clone(),
-                Opener::Block {
-                    close: p[1].clone(),
-                    kind,
-                },
-            ));
-        }
-    }
+    let mut openers = comment_openers(raw);
     let strings: Vec<StringSpec> = raw
         .strings
         .iter()
@@ -420,6 +427,8 @@ fn resolve_syntax(
         strings,
         openers,
         exceptions: raw.exceptions.clone(),
+        cancel_after: raw.cancel_after.clone(),
+        open_after: raw.open_after.clone(),
         line_anchored: raw.line_anchored,
         doc_prefixes: raw.doc_prefixes.clone(),
         embeds: embed_specs

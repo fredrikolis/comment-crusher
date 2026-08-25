@@ -85,6 +85,9 @@ LANGUAGE TABLE (crates/comment-crusher/src/default_config.toml)
                          Pascal directive
     line_anchored        a line comment only opens where nothing but whitespace precedes it,
                          so a URL cannot open one where there are no strings to hide in
+    open_after           text that opens one anyway, anchored or not: Tcl's `;`
+    cancel_after         text before the marker that cancels it: `:` ahead of a CSS `//`
+                         is a scheme separator, not a comment
     block / doc_block    [open, close] pairs
     nested_block         `/* /* */ */` closes once, not twice
     strings              [open, close] regions whose contents are CODE, not comment

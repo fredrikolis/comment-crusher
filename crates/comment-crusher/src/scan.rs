@@ -318,7 +318,11 @@ impl<'a> Scanner<'a> {
     fn take_opener(&mut self) -> bool {
         let candidates: Vec<(String, Opener)> = self
             .syn
-            .matching_openers(self.rest(), self.own_line())
+            .matching_openers(
+                self.rest(),
+                &self.src[self.line_start..self.i],
+                self.own_line(),
+            )
             .map(|(t, o)| (t.to_owned(), o.clone()))
             .collect();
         // An unterminated block really does comment out the rest of the file; `/**/` is not one.

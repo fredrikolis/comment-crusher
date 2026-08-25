@@ -304,8 +304,8 @@ strings = [{ open = '"', close = '"' }, { open = "'", close = "'" }]
 
 [languages.scss]
 extensions = [".scss", ".sass", ".less"]
-line_anchored = true
 line = ["//"]
+cancel_after = [":"]
 block = [["/*", "*/"]]
 strings = [{ open = '"', close = '"' }, { open = "'", close = "'" }]
 
@@ -553,6 +553,7 @@ strings = [{ open = '"', close = '"' }]
 
 [languages.gas]
 extensions = [".s"]
+# Anchored, not cancelled: `mov r0, #1` is an ARM immediate, and it follows a space.
 line_anchored = true
 line = ["#"]
 block = [["/*", "*/"]]
@@ -568,12 +569,15 @@ strings = [{ open = '"', close = '"' }, { open = "'", close = "'" }]
 extensions = [".tcl", ".tk"]
 interpreters = ["tclsh", "wish"]
 line_anchored = true
+# A `#` opens a comment only where a command starts: the margin, or just past a `;`.
+open_after = [";"]
 line = ["#"]
 strings = [{ open = '"', close = '"', multiline = true }]
 
 [languages.awk]
 extensions = [".awk"]
 interpreters = ["awk", "gawk", "mawk"]
+# Anchored: `/#/` is a regex literal, and `/` is also division, so neither is declarable.
 line_anchored = true
 line = ["#"]
 strings = [{ open = '"', close = '"' }]
@@ -670,9 +674,11 @@ line = ["#"]
 
 [languages.stylus]
 extensions = [".styl"]
-line_anchored = true
 line = ["//"]
+# A trailing `// note` is a comment; the `//` in `url(https://x)` is a scheme separator.
+cancel_after = [":"]
 block = [["/*", "*/"]]
+strings = [{ open = '"', close = '"' }, { open = "'", close = "'" }]
 
 [languages.pug]
 extensions = [".pug", ".jade"]
