@@ -184,8 +184,8 @@ struct ErrorBody {
     message: String,
 }
 
-/// Per collection, because one `has_more` shared between two says nothing about either. A
-/// run reports whole trees, so neither is ever truncated.
+/// Per collection, because one `has_more` across three says nothing about any of them. A run
+/// reports whole trees, so none is ever truncated.
 #[derive(Serialize)]
 struct Page {
     count: usize,

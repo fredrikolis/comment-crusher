@@ -513,6 +513,10 @@ impl<'a> Scanner<'a> {
         if !self.syn.heredoc || !self.rest().starts_with("<<") {
             return false;
         }
+        // `a<<item` is a shift or an append. A heredoc never opens against an identifier.
+        if self.i > 0 && prev_is_ident(&self.src[..self.i]) {
+            return false;
+        }
         let Some((word, indented)) = heredoc_word(&self.src[self.i + 2..]) else {
             return false;
         };

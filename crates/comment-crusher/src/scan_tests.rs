@@ -65,6 +65,15 @@ fn a_heredoc_body_is_code() {
     let s = run("sh", "cat <<EOF\n# not a comment\nEOF\n# a comment\n");
     assert_eq!(s.regions.len(), 1);
     assert_eq!(s.regions[0].start_line, 4);
+
+    // `a<<item` appends and `1<<SHIFT` shifts; neither opens a body that runs to EOF.
+    for (ext, src) in [
+        ("rb", "a = []\na<<item\n# a real comment\nputs a\n"),
+        ("php", "$m = 1<<SHIFT;\n// a real comment\n"),
+    ] {
+        let s = run(ext, src);
+        assert_eq!(s.regions.len(), 1, "{ext}: {src:?}");
+    }
 }
 
 #[test]
