@@ -450,7 +450,11 @@ const CASES: &[(&str, &str, usize)] = &[
         "// n\nx := 1;\n{ b }\ny := 2;\n(* c *)\nz := 3;\n",
         3,
     ),
-    ("pl", "# n\nmy $x = 1;\n=pod\nb\n=cut\nmy $y = 2;\n", 2),
+    (
+        "pl",
+        "# n\nmy $x = 1;\n=pod\nb\n=cut\nmy $v0 = 1;\n=over\nc\n=cut\nmy $v1 = 1;\n=item\nc\n=cut\nmy $v2 = 1;\n=back\nc\n=cut\nmy $v3 = 1;\n=begin\nc\n=cut\nmy $v4 = 1;\n=for\nc\n=cut\n",
+        7,
+    ),
     (
         "php",
         "// n\n$x = 1;\n# also\n$y = 2;\n/* b */\n$s = \"// no\";\n",

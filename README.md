@@ -50,7 +50,7 @@ answer holds in CI, in a hook, and against a file an agent just wrote. Exit code
 | `doc-length` | a prose document (`.md`, `.rst`, `.adoc`, `.txt`, and kin) | 90 lines |
 | `unreadable` | a resolved file that is binary or cannot be read | deny |
 
-Across the 43 repositories the tests measure, the median comment share is 15.6% and the
+Across the 43 repositories the tests measure, the median comment share is 18% and the
 75th-percentile document is 90 lines. `comment-block` is policy, not a measurement.
 
 **Comment** is markers, their delimiters, doc comments and docstrings. **Code** is strings,

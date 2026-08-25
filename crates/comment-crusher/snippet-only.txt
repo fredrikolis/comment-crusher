@@ -8,6 +8,11 @@ gas #
 julia #=
 lisp #|
 lua --[[
+perl =back
+perl =begin
+perl =for
+perl =item
+perl =over
 perl =pod
 php #
 ruby =begin

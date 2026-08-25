@@ -1474,8 +1474,8 @@ code_chars = 31596
 ["uri-perl".perl]
 files = 74
 lines = 7502
-comment_chars = 13722
-code_chars = 130581
+comment_chars = 73621
+code_chars = 70682
 
 ["uri-perl".plaintext]
 files = 4

@@ -8,7 +8,7 @@ exclude = ["target", "node_modules", "vendor", "dist", "build", ".venv"]
 [rules.comment-ratio]
 # Characters, not lines, so a trailing `// why` costs what it occupies.
 level = "deny"
-# Measured where this rule applies, prose excluded: per-repo median of the 43 pinned, 15.6%.
+# Measured, prose excluded: the 43 pinned repos' median share is 18%. 15% ships, under it.
 max_ratio = 0.15
 # Doc comments count too; at file scope they are usually the larger share.
 count_doc_comments = true
@@ -22,13 +22,13 @@ header_max_chars = 344
 [rules.comment-block]
 # One block comment, or one unbroken run of adjacent line comments.
 level = "deny"
-# Policy, not a measurement: the corpus runs past this 19820 times at 1, still 6317 at 5.
+# Policy, not a measurement: the corpus runs past this 21257 times at 1, still 6685 at 5.
 max_lines = 1
 # Measured: p75 of the corpus's doc comments, whose median is 4 and p90 14.
 doc_max_lines = 8
 # Measured: p75 of the corpus's headers, whose median is 4 and p90 24.
 header_max_lines = 18
-# A backstop between the corpus p90 of 223 and its p99 of 983, not either of them.
+# A backstop between the corpus p90 of 222 and its p99 of 985, not either of them.
 max_chars = 400
 
 # A file whose language resolved but whose bytes are not text.
@@ -217,7 +217,17 @@ strings = [
 extensions = [".pl", ".pm"]
 interpreters = ["perl"]
 line = ["#"]
-block = [["=pod", "=cut"]]
+# POD is a closed set of commands, any of which opens a block that `=cut` or the file ends.
+block = [
+  ["=pod", "=cut"],
+  ["=head", "=cut"],
+  ["=over", "=cut"],
+  ["=item", "=cut"],
+  ["=back", "=cut"],
+  ["=begin", "=cut"],
+  ["=encoding", "=cut"],
+  ["=for", "=cut"],
+]
 heredoc = true
 strings = [{ open = '"', close = '"' }, { open = "'", close = "'" }]
 
