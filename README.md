@@ -35,18 +35,22 @@ Generated trees are not measured: `.gitignore` applies, plus `target`, `node_mod
 
 ```sh
 cargo install --git https://github.com/fredrikolis/comment-crusher
-comment-crusher src/parser.rs  # one file, the agent-hook path; add --format json
+comment-crusher src/parser.rs --format editor  # path:line:column: severity[rule]: message
+comment-crusher src/parser.rs --format json    # one envelope to branch on
+comment-crusher install-hook --claude          # measure what an agent just edited, in its session
 ```
 
-The budget lives in `.comment-crusher.toml`, found by walking up from the target, so one
-answer holds in CI, in a hook, and against a file an agent just wrote. Exit codes:
+The budget lives in `.comment-crusher.toml`, found by walking up from the target, so one answer
+holds in CI, in a hook, and against a file an agent just wrote. The installed entry runs
+`comment-crusher hook --claude` on `PostToolUse` and hands back the findings for what was
+written, in a repo that declared a budget and nowhere else. Exit codes:
 
 | Code | Meaning |
 |---|---|
 | 0 | nothing over budget |
 | 1 | internal error |
 | 2 | argv rejected, including a bad `--allow` value |
-| 3 | a file over budget, or the budget file rejected |
+| 3 | a file over budget, or a budget or settings file rejected |
 | 24 | no such path |
 
 ## What it measures

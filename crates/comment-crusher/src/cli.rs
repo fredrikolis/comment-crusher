@@ -3,43 +3,17 @@
 use std::path::{Path, PathBuf};
 
 use anyhow::{Result, bail};
-use clap::{Parser, ValueEnum};
+use clap::{Parser, Subcommand, ValueEnum};
 use serde::Serialize;
 
 use crate::config::{CONFIG_FILE, Config, LoadFailure, Located};
 use crate::diagnostic::Level;
 use crate::engine::{Engine, FileStat, Report};
-
-/// `println!` panics on a closed pipe, and a linter in a pipeline must not.
-pub fn say(line: &str) {
-    use std::io::Write as _;
-    let out = std::io::stdout();
-    let mut out = out.lock();
-    let wrote = writeln!(out, "{line}").and_then(|()| out.flush());
-    // A closed reader got what it wanted; a full disk did not. main.rs decides the exit.
-    if let Err(e) = wrote
-        && e.kind() != std::io::ErrorKind::BrokenPipe
-    {
-        WRITE_FAILED.store(true, std::sync::atomic::Ordering::Relaxed);
-    }
-}
-
-static WRITE_FAILED: std::sync::atomic::AtomicBool = std::sync::atomic::AtomicBool::new(false);
-
-#[must_use]
-pub fn write_failed() -> bool {
-    WRITE_FAILED.load(std::sync::atomic::Ordering::Relaxed)
-}
+use crate::exit::{EXIT_BAD_ARGS, EXIT_INTERNAL, EXIT_NOT_FOUND, EXIT_VALIDATION, say};
 
 /// Not TOML, and TOML the tool refuses, are different mistakes with different repairs.
 const SYNTAX_RULE: &str = "config.syntax";
 const REJECTED_RULE: &str = "config.rejected";
-
-/// Exit codes an agent branches on, from the CLI standard.
-pub const EXIT_BAD_ARGS: i32 = 2;
-const EXIT_VALIDATION: i32 = 3;
-const EXIT_NOT_FOUND: i32 = 24;
-const EXIT_INTERNAL: i32 = 1;
 
 /// The wire code and the exit code are one decision, so they are one value.
 #[derive(Debug, Clone, Copy)]
@@ -70,8 +44,17 @@ impl Failure {
 const AFTER_HELP: &str = r##"EXAMPLES
   comment-crusher .                                  measure a tree
   comment-crusher src/parser.rs --format json        one file, for a machine
+  comment-crusher src/parser.rs --format editor      one file, as an editor locates it
   comment-crusher . --stats                          per-language totals
   comment-crusher . --allow 'docs/**/*.md' doc-length.max_lines=2000
+
+OUTPUT (--format editor)
+  path:line:column: severity[rule]: message
+    help: what to do about it
+  One finding per pair of lines, in the shape a problem matcher, a language server client
+  and an agent already parse. A finding about a whole file carries no line and column, one
+  about the run no path either; the message ends in `(allowance: ...)` where a bound was
+  widened for it. Nothing else is printed, so silence is a clean run.
 
 OUTPUT (--format json)
   {"status":"success"|"error",
@@ -96,10 +79,24 @@ OUTPUT (--format json)
   `location.span` is a byte offset and length; `location.start`/`end` are 1-based line and
   character column.
 
+VERBS
+  install-hook --claude [FILE]     add the PostToolUse entry to a settings file, ours only
+                                   [default: ~/.claude/settings.json]; a repo's own
+                                   .claude/settings.json scopes it to that repo. Running it
+                                   twice changes nothing; --uninstall removes just our entry
+  Both answer in the format the run asked for; `hook --claude` answers the harness in its
+  own envelope, since that is the only shape it reads.
+
+  hook --claude                    what the entry runs: a PostToolUse event on stdin, and
+                                   the findings for the file it names as additionalContext.
+                                   Silent where no budget file sits above that path, or where
+                                   a walk from the budget would not reach it: what CI never
+                                   measures, this never reports
+
 EXIT CODES
   0   nothing over budget
   2   bad_arguments: argv itself was rejected, a --allow value included
-  3   validation_error: a file is over budget, or the budget file was rejected
+  3   validation_error: a file is over budget, or a budget or settings file was rejected
   24  not_found: a path does not exist
   1   internal error
 
@@ -144,6 +141,8 @@ pub enum Format {
     Human,
     /// One envelope an agent can branch on.
     Json,
+    /// `path:line:column: severity[rule]: message`, as an editor or an agent reads it.
+    Editor,
 }
 
 #[derive(Parser)]
@@ -160,6 +159,9 @@ agent just edited.",
     after_long_help = AFTER_HELP
 )]
 pub struct Cli {
+    #[command(subcommand)]
+    pub command: Option<Command>,
+
     /// Files or directories to measure.
     #[arg(default_value = ".")]
     pub paths: Vec<PathBuf>,
@@ -178,8 +180,8 @@ pub struct Cli {
     #[arg(long, value_name = "DIR")]
     pub root: Option<PathBuf>,
 
-    /// How to render the report.
-    #[arg(long, value_enum, default_value_t = Format::Human)]
+    /// How to render the report. Also the shape a verb answers in, before or after it.
+    #[arg(long, value_enum, default_value_t = Format::Human, global = true)]
     pub format: Format,
 
     /// Print per-language totals above the findings. Human format only; JSON always carries
@@ -194,6 +196,73 @@ pub struct Cli {
     /// Print the version envelope and exit.
     #[arg(short = 'V', long)]
     pub version: bool,
+}
+
+#[derive(Subcommand)]
+pub enum Command {
+    /// Add the `PostToolUse` entry to a settings file, or remove it.
+    InstallHook(InstallHook),
+    /// Hook entry point: a `PostToolUse` event on stdin.
+    Hook(HookEntry),
+}
+
+#[derive(clap::Args)]
+pub struct InstallHook {
+    /// Claude Code, the harness these verbs speak to.
+    #[arg(long, required = true)]
+    pub claude: bool,
+
+    /// Settings file to edit [default: ~/.claude/settings.json].
+    #[arg(value_name = "FILE")]
+    pub file: Option<PathBuf>,
+
+    /// Remove the entry this tool added, and nothing else.
+    #[arg(long)]
+    pub uninstall: bool,
+}
+
+#[derive(clap::Args)]
+pub struct HookEntry {
+    /// Read a Claude Code hook event.
+    #[arg(long, required = true)]
+    pub claude: bool,
+}
+
+impl Command {
+    fn run(&self, format: Format) -> i32 {
+        match self {
+            Self::InstallHook(a) => install_hook(a, format),
+            Self::Hook(_) => crate::hook::respond(),
+        }
+    }
+}
+
+/// Answered in the format the run asked for.
+fn install_hook(args: &InstallHook, format: Format) -> i32 {
+    match crate::hook::install(args.file.as_deref(), args.uninstall) {
+        Ok(done) => {
+            match format {
+                Format::Json => say(&success_json(&serde_json::json!({
+                    "outcome": done.outcome,
+                    "path": done.path.to_string_lossy(),
+                }))),
+                Format::Human | Format::Editor => say(&done.message),
+            }
+            0
+        }
+        Err((code, message)) => {
+            let wire = if code == EXIT_BAD_ARGS {
+                "bad_arguments"
+            } else {
+                "validation_error"
+            };
+            match format {
+                Format::Json => say(&error_json(wire, &message)),
+                Format::Human | Format::Editor => say(&format!("comment-crusher: {message}")),
+            }
+            code
+        }
+    }
 }
 
 #[derive(Serialize)]
@@ -360,6 +429,9 @@ impl Cli {
 
     /// Renders its own failures: a JSON caller gets an envelope, never prose it cannot parse.
     pub fn run(&self) -> i32 {
+        if let Some(command) = &self.command {
+            return command.run(self.format);
+        }
         match self.report() {
             Ok(report) => self.print(&report),
             Err((code, e)) => self.print_error(code, &format!("{e:#}")),
@@ -368,13 +440,9 @@ impl Cli {
 
     /// An envelope whatever the format: the standard fixes this reply's shape.
     pub fn version_only() -> i32 {
-        let meta = Meta::now();
-        say(&serde_json::json!({
-            "status": "success",
-            "data": { "name": "comment-crusher", "version": env!("CARGO_PKG_VERSION") },
-            "meta": { "request_id": meta.request_id, "timestamp": meta.timestamp },
-        })
-        .to_string());
+        say(&success_json(&serde_json::json!({
+            "name": "comment-crusher", "version": env!("CARGO_PKG_VERSION"),
+        })));
         0
     }
 
@@ -467,6 +535,13 @@ impl Cli {
                 print_findings(report);
                 i32::from(rejected) * EXIT_VALIDATION
             }
+            // Silence is a clean run: a hook can pass the output on whole.
+            Format::Editor => {
+                for d in &report.diagnostics {
+                    say(&d.editor());
+                }
+                i32::from(rejected) * EXIT_VALIDATION
+            }
         }
     }
 
@@ -528,6 +603,10 @@ impl Cli {
         match self.format {
             Format::Human => say(&format!("comment-crusher: {message}")),
             Format::Json => say(&error_json(failure.code(), message)),
+            Format::Editor => say(&format!(
+                "comment-crusher: error[{}]: {message}",
+                failure.code()
+            )),
         }
         failure.exit()
     }
@@ -556,6 +635,17 @@ fn config_diagnostic(
     d.at(at.start.0)
         .spanning(at.offset, at.offset + at.length, at.end.0)
         .columns(at.start.1, at.end.1)
+}
+
+/// The envelope every answer that is not a report wears, so one shape covers them all.
+fn success_json(data: &serde_json::Value) -> String {
+    let meta = Meta::now();
+    serde_json::json!({
+        "status": "success",
+        "data": data,
+        "meta": { "request_id": meta.request_id, "timestamp": meta.timestamp },
+    })
+    .to_string()
 }
 
 /// The envelope for a run that produced no report at all, so `data` is empty rather than
@@ -611,11 +701,7 @@ fn language_totals(report: &Report) -> Vec<LanguageTotal<'_>> {
 
 fn print_findings(report: &Report) {
     for d in &report.diagnostics {
-        let note = d
-            .allowance
-            .as_ref()
-            .map_or_else(String::new, |a| format!(" (allowance: {a})"));
-        say(&format!("{}{note}", d.human()));
+        say(&format!("{}{}", d.human(), d.note()));
     }
     let (comment, code) = report.totals();
     let total = comment + code;

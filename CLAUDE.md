@@ -24,7 +24,8 @@
 | `rules/` | one module per rule, each owning its `Config` and check |
 | `engine.rs` | walking, parallelism, per-file dispatch |
 | `cli.rs` | the CLI surface, the report, and the `--help` legend |
-| `diagnostic.rs`, `lib.rs`, `main.rs` | one finding and its two shapes; the crate; argv |
+| `hook/` | the agent hook: its verbs, the event it answers, the settings file it edits |
+| `diagnostic.rs`, `lib.rs`, `main.rs` | one finding and its three shapes; the crate; argv |
 | `../../../corpus.toml`, `corpus-expected.toml`, `corpus-figures.toml` | the pinned repos, their totals, and the statistics every threshold derives from |
 
 ## Before every change

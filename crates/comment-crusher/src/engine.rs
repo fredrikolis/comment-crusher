@@ -162,6 +162,37 @@ impl<'a> Engine<'a> {
         name == ".git" || exclude.iter().any(|e| name == e.as_str())
     }
 
+    /// Would the walk reach this file? Naming one skips the question, and a caller reporting
+    /// what CI will say must ask it. One listing per level, so the ignore stack answers.
+    pub fn reaches(&self, file: &Path) -> bool {
+        let Some(rel) = self.rooted(file) else {
+            return false;
+        };
+        if self.excluded(file) {
+            return false;
+        }
+        let mut here = self.root.clone();
+        for part in rel.components() {
+            let child = here.join(part);
+            if !Self::listed(&here, &child) {
+                return false;
+            }
+            here = child;
+        }
+        true
+    }
+
+    fn listed(dir: &Path, child: &Path) -> bool {
+        WalkBuilder::new(dir)
+            .hidden(false)
+            .git_ignore(true)
+            .require_git(false)
+            .max_depth(Some(1))
+            .build()
+            .filter_map(Result::ok)
+            .any(|e| e.path() == child)
+    }
+
     /// Never fatal: one bad file must not cost the whole report.
     /// Nothing was measured in it: the file is still counted, with zeroes for both totals.
     fn declined(

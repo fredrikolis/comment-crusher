@@ -1,4 +1,4 @@
-// Concern: one finding — its rule, severity, location and message — and the two shapes it prints in | Non-concern: deciding that a finding exists (rules/ owns that) | IO: (finding) -> text or JSON
+// Concern: one finding — its rule, severity, location and message — and the three shapes it prints in | Non-concern: deciding that a finding exists (rules/ owns that) | IO: (finding) -> text or JSON
 
 use serde::{Deserialize, Serialize};
 use std::path::{Path, PathBuf};
@@ -194,15 +194,43 @@ impl Diagnostic {
         self
     }
 
-    pub fn human(&self) -> String {
-        let at = self.line.map_or_else(String::new, |l| format!(":{l}"));
-        let where_ = self.file.as_ref().map_or_else(
+    fn where_(&self) -> String {
+        self.file.as_ref().map_or_else(
             || "comment-crusher".to_string(),
             |f| f.display().to_string(),
-        );
+        )
+    }
+
+    pub fn note(&self) -> String {
+        self.allowance
+            .as_ref()
+            .map_or_else(String::new, |a| format!(" (allowance: {a})"))
+    }
+
+    pub fn human(&self) -> String {
+        let at = self.line.map_or_else(String::new, |l| format!(":{l}"));
         format!(
-            "{}: {where_}{at} [{}] {}",
-            self.level, self.rule, self.message
+            "{}: {}{at} [{}] {}",
+            self.level,
+            self.where_(),
+            self.rule,
+            self.message
+        )
+    }
+
+    /// `path:line:column: severity[rule]: message`, then the rule's help beneath it.
+    pub fn editor(&self) -> String {
+        let at = self.line.map_or_else(String::new, |l| {
+            format!(":{l}:{}", self.start_column.unwrap_or(1))
+        });
+        format!(
+            "{}{at}: {}[{}]: {}{}\n  help: {}",
+            self.where_(),
+            self.level.severity(),
+            self.rule,
+            self.message,
+            self.note(),
+            self.help
         )
     }
 

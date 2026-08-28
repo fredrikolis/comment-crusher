@@ -2,7 +2,8 @@
 
 use clap::Parser;
 use clap::error::ErrorKind;
-use comment_crusher::cli::{Cli, EXIT_BAD_ARGS, say, write_failed};
+use comment_crusher::cli::Cli;
+use comment_crusher::exit::{EXIT_BAD_ARGS, say, write_failed};
 
 fn main() -> std::process::ExitCode {
     if Cli::version_request() {

@@ -210,8 +210,23 @@ fn a_file_in_no_known_language_is_not_guessed_at() {
 #[test]
 fn a_shebang_names_the_language_of_a_file_with_no_extension() {
     let dir = tempfile::tempdir().expect("tempdir");
+    write(
+        dir.path(),
+        "pre-commit",
+        "#!/usr/bin/env bash\n# note\necho hi\n",
+    );
+    let out = run(dir.path(), &["pre-commit", "--format", "json"]);
+    let v: serde_json::Value = serde_json::from_str(&stdout(&out)).expect("valid JSON");
+    assert_eq!(v["data"]["files"][0]["language"], "shell");
+}
+
+/// A verb shadows a path of the same name, as it does in every tool with verbs. `./hook` is
+/// the way back, and the only file this can happen to is one named after a verb.
+#[test]
+fn a_path_spelled_like_a_verb_is_measured_when_it_is_spelled_as_a_path() {
+    let dir = tempfile::tempdir().expect("tempdir");
     write(dir.path(), "hook", "#!/usr/bin/env bash\n# note\necho hi\n");
-    let out = run(dir.path(), &["hook", "--format", "json"]);
+    let out = run(dir.path(), &["./hook", "--format", "json"]);
     let v: serde_json::Value = serde_json::from_str(&stdout(&out)).expect("valid JSON");
     assert_eq!(v["data"]["files"][0]["language"], "shell");
 }
@@ -694,4 +709,270 @@ fn a_budget_key_the_defaults_never_declared_is_refused() {
         "[[allow]]\npaths = [\"*.rs\"]\nreason = \"x\"\nset = [\"doc-length.max_lines=200\"]\n",
     );
     assert_eq!(code(&run(dir.path(), &["a.rs"])), 0);
+}
+
+/// The shape an editor's problem matcher and an agent both parse, so a hook passes it on whole.
+#[test]
+fn editor_format_locates_every_finding_by_line_and_column() {
+    let dir = tempfile::tempdir().expect("tempdir");
+    write(dir.path(), "fat.rs", &over_budget_rust());
+    let out = run(dir.path(), &["fat.rs", "--format", "editor"]);
+    assert_eq!(code(&out), 3);
+    let text = stdout(&out);
+    assert!(text.contains("fat.rs: error[comment-ratio]: "), "{text}");
+    assert!(text.contains("\n  help: "), "{text}");
+    let block = text
+        .lines()
+        .find(|l| l.contains("[comment-block."))
+        .expect("a block finding");
+    let (at, rest) = block
+        .split_once(": error[")
+        .expect("the severity follows the location");
+    assert!(at.starts_with("fat.rs:"), "{block}");
+    let numbers: Vec<&str> = at.split(':').skip(1).collect();
+    assert_eq!(numbers.len(), 2, "line and column, both named: {block}");
+    assert!(
+        numbers
+            .iter()
+            .all(|n| n.parse::<usize>().is_ok_and(|v| v > 0)),
+        "{block}"
+    );
+    assert!(rest.contains("]: "), "{block}");
+
+    write(dir.path(), "lean.rs", &lean_rust());
+    let clean = run(dir.path(), &["lean.rs", "--format", "editor"]);
+    assert_eq!(code(&clean), 0);
+    assert_eq!(stdout(&clean), "", "silence is a clean run");
+}
+
+/// A failed run is a finding too, in the same shape: one parse reads the whole output.
+#[test]
+fn editor_format_reports_a_rejected_invocation_as_a_diagnostic() {
+    let dir = tempfile::tempdir().expect("tempdir");
+    let out = run(dir.path(), &["nope.rs", "--format", "editor"]);
+    assert_eq!(code(&out), 24);
+    assert!(
+        stdout(&out).starts_with("comment-crusher: error[not_found]: "),
+        "{}",
+        stdout(&out)
+    );
+}
+
+fn run_stdin(dir: &Path, args: &[&str], input: &str) -> Output {
+    use std::io::Write as _;
+    let mut child = Command::new(BIN)
+        .args(args)
+        .current_dir(dir)
+        .stdin(std::process::Stdio::piped())
+        .stdout(std::process::Stdio::piped())
+        .spawn()
+        .expect("binary runs");
+    child
+        .stdin
+        .take()
+        .expect("stdin")
+        .write_all(input.as_bytes())
+        .expect("write");
+    child.wait_with_output().expect("output")
+}
+
+/// Twice is safe to document only if the second run changes nothing, and a settings file holds
+/// permissions a user accepted: everything that is not ours survives both verbs.
+#[test]
+fn install_hook_is_idempotent_and_touches_only_its_own_entry() {
+    let dir = tempfile::tempdir().expect("tempdir");
+    let settings = dir.path().join("settings.json");
+    std::fs::write(
+        &settings,
+        r#"{"permissions":{"allow":["Bash"]},"hooks":{"PostToolUse":[{"matcher":"Write","hooks":[{"type":"command","command":"other-tool"}]}]}}"#,
+    )
+    .expect("write");
+    let file = settings.to_string_lossy().into_owned();
+
+    let first = run_bare(dir.path(), &["install-hook", "--claude", &file]);
+    assert_eq!(code(&first), 0, "{}", stdout(&first));
+    assert!(
+        stdout(&first).contains("hook installed"),
+        "{}",
+        stdout(&first)
+    );
+    let again = run_bare(dir.path(), &["install-hook", "--claude", &file]);
+    assert!(stdout(&again).contains("already"), "{}", stdout(&again));
+
+    let read = |p: &Path| -> serde_json::Value {
+        serde_json::from_str(&std::fs::read_to_string(p).expect("settings")).expect("JSON")
+    };
+    let v = read(&settings);
+    let list = v["hooks"]["PostToolUse"].as_array().expect("array");
+    assert_eq!(
+        list.len(),
+        2,
+        "one entry of ours beside the one already there"
+    );
+    assert_eq!(list[0]["hooks"][0]["command"], "other-tool");
+    assert_eq!(
+        list[1]["hooks"][0]["command"],
+        "comment-crusher hook --claude"
+    );
+    assert_eq!(v["permissions"]["allow"][0], "Bash");
+
+    let out = run_bare(
+        dir.path(),
+        &["install-hook", "--claude", "--uninstall", &file],
+    );
+    assert!(stdout(&out).contains("removed"), "{}", stdout(&out));
+    let v = read(&settings);
+    let list = v["hooks"]["PostToolUse"].as_array().expect("array");
+    assert_eq!(list.len(), 1, "only ours was removed");
+    assert_eq!(list[0]["hooks"][0]["command"], "other-tool");
+    assert_eq!(v["permissions"]["allow"][0], "Bash");
+    let out = run_bare(
+        dir.path(),
+        &["install-hook", "--claude", "--uninstall", &file],
+    );
+    assert!(stdout(&out).contains("nothing changed"), "{}", stdout(&out));
+}
+
+/// The hook entry point: what the agent is handed for the file it just wrote.
+#[test]
+fn the_hook_answers_an_event_with_the_findings_for_the_file_it_names() {
+    let dir = tempfile::tempdir().expect("tempdir");
+    write(
+        dir.path(),
+        ".comment-crusher.toml",
+        "[rules.comment-ratio]\nmin_chars = 200\n",
+    );
+    write(dir.path(), "fat.rs", &over_budget_rust());
+    let event = format!(
+        r#"{{"tool_name":"Edit","cwd":"{}","tool_input":{{"file_path":"fat.rs"}}}}"#,
+        dir.path().display()
+    );
+    let out = run_stdin(dir.path(), &["hook", "--claude"], &event);
+    // Never nonzero: a file over budget is not a failure of the tool call that wrote it.
+    assert_eq!(code(&out), 0);
+    let v: serde_json::Value = serde_json::from_str(&stdout(&out)).expect("valid JSON");
+    assert_eq!(v["hookSpecificOutput"]["hookEventName"], "PostToolUse");
+    let context = v["hookSpecificOutput"]["additionalContext"]
+        .as_str()
+        .expect("context");
+    assert!(
+        context.contains("fat.rs: error[comment-ratio]: "),
+        "{context}"
+    );
+    assert!(context.contains("  help: "), "{context}");
+    assert!(
+        context.contains(&format!("# paths relative to {}", dir.path().display())),
+        "the paths are relative to something the reader can open: {context}"
+    );
+    let message = v["systemMessage"].as_str().expect("systemMessage");
+    assert!(
+        message.contains("fat.rs: error[comment-ratio]"),
+        "{message}"
+    );
+    assert!(
+        !message.contains("  help: "),
+        "the user reads the findings, the agent the help under each: {message}"
+    );
+}
+
+/// The opt-in gate: no budget file above the path, no measuring and nothing said.
+#[test]
+fn the_hook_says_nothing_about_a_repo_that_declared_no_budget() {
+    let dir = tempfile::tempdir().expect("tempdir");
+    write(dir.path(), "fat.rs", &over_budget_rust());
+    let event = format!(
+        r#"{{"tool_name":"Edit","cwd":"{}","tool_input":{{"file_path":"fat.rs"}}}}"#,
+        dir.path().display()
+    );
+    let out = run_stdin(dir.path(), &["hook", "--claude"], &event);
+    assert_eq!(code(&out), 0);
+    assert_eq!(stdout(&out), "");
+}
+
+/// What CI never walks to, the hook never reports: naming a path skips the ignore rules a
+/// walk applies, and a finding CI will not raise is a false alarm.
+#[test]
+fn the_hook_says_nothing_about_a_file_the_walk_would_never_reach() {
+    let dir = tempfile::tempdir().expect("tempdir");
+    write(
+        dir.path(),
+        ".comment-crusher.toml",
+        "[rules.comment-ratio]\nmin_chars = 200\n",
+    );
+    write(dir.path(), ".gitignore", "artifacts/\n");
+    write(dir.path(), "artifacts/fat.rs", &over_budget_rust());
+    let event = format!(
+        r#"{{"tool_name":"Write","cwd":"{}","tool_input":{{"file_path":"artifacts/fat.rs"}}}}"#,
+        dir.path().display()
+    );
+    let out = run_stdin(dir.path(), &["hook", "--claude"], &event);
+    assert_eq!(code(&out), 0);
+    assert_eq!(
+        stdout(&out),
+        "",
+        "the same tree measured by a walk says nothing either"
+    );
+    assert_eq!(
+        code(&run(dir.path(), &["."])),
+        0,
+        "and neither does the walk"
+    );
+}
+
+/// An event that will not parse is the harness contract broken, which is worth saying loudly:
+/// staying quiet would hide it for as long as the entry stays installed.
+#[test]
+fn the_hook_refuses_an_event_it_cannot_read() {
+    let dir = tempfile::tempdir().expect("tempdir");
+    let out = run_stdin(dir.path(), &["hook", "--claude"], "not json");
+    assert_eq!(code(&out), 2);
+    assert!(stdout(&out).contains("not JSON"), "{}", stdout(&out));
+}
+
+/// A verb answers a machine in the same envelope every other answer wears.
+#[test]
+fn the_install_verb_answers_in_the_format_the_run_asked_for() {
+    let dir = tempfile::tempdir().expect("tempdir");
+    let file = dir
+        .path()
+        .join("settings.json")
+        .to_string_lossy()
+        .into_owned();
+    let added = run_bare(
+        dir.path(),
+        &["install-hook", "--claude", &file, "--format", "json"],
+    );
+    assert_eq!(code(&added), 0, "{}", stdout(&added));
+    let v: serde_json::Value = serde_json::from_str(&stdout(&added)).expect("an envelope");
+    assert_eq!(v["status"], "success");
+    assert_eq!(v["data"]["outcome"], "added");
+
+    // Before the verb or after it: one flag, one answer.
+    let removed = run_bare(
+        dir.path(),
+        &[
+            "--format",
+            "json",
+            "install-hook",
+            "--claude",
+            "--uninstall",
+            &file,
+        ],
+    );
+    let v: serde_json::Value = serde_json::from_str(&stdout(&removed)).expect("an envelope");
+    assert_eq!(v["data"]["outcome"], "removed");
+
+    let refused = run_bare(
+        dir.path(),
+        &[
+            "install-hook",
+            "--claude",
+            "/nope/settings.json",
+            "--format",
+            "json",
+        ],
+    );
+    assert_eq!(code(&refused), 3);
+    let v: serde_json::Value = serde_json::from_str(&stdout(&refused)).expect("an envelope");
+    assert_eq!(v["error"]["code"], "validation_error");
 }
