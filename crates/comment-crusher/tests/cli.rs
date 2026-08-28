@@ -1052,3 +1052,33 @@ fn each_kind_of_comment_is_told_how_its_own_bound_is_met() {
         "one reason each, not one for all: {kinds:?}"
     );
 }
+
+/// The guide is rendered from the shipped table, in both shapes: a bound that moves cannot
+/// leave either stale, and an agent reads the table without cutting it out of prose.
+#[test]
+fn the_config_guide_prints_every_rule_at_the_value_that_ships() {
+    let dir = tempfile::tempdir().expect("tempdir");
+    let out = run_bare(dir.path(), &["--config-guide"]);
+    assert_eq!(code(&out), 0);
+    let text = stdout(&out);
+    assert!(text.contains("[[allow]]"), "{text}");
+    assert!(text.contains("reason ="), "an allowance states one: {text}");
+    assert!(
+        text.contains("max_ratio = 0.15"),
+        "the table is in the text too: {text}"
+    );
+
+    let json = run_bare(dir.path(), &["--config-guide", "--format", "json"]);
+    let v: serde_json::Value = serde_json::from_str(&stdout(&json)).expect("an envelope");
+    assert!(
+        v["data"]["guide"]
+            .as_str()
+            .is_some_and(|g| g.trim_end() == text.trim_end()),
+        "the machine gets the same guide"
+    );
+    let defaults: toml::Table =
+        toml::from_str(include_str!("../src/default_config.toml")).expect("defaults");
+    let shipped = serde_json::to_value(&defaults).expect("the shipped table as JSON");
+    assert_eq!(v["data"]["shipped"]["rules"], shipped["rules"]);
+    assert_eq!(v["data"]["shipped"]["global"], shipped["global"]);
+}

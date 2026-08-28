@@ -64,7 +64,8 @@ OUTPUT (--format json)
            "diagnostics":[{code,severity,message,location,help,docs_url,allowance}],
            "pagination":{"files":{count,has_more,next_cursor},"languages":{...},...}},
    "meta":{"request_id":..., "timestamp":...}}
-  `--version` answers the same envelope with `data` of `{name, version}` and no report.
+  `--version` answers the same envelope with `data` of `{name, version}` and no report, and
+  `--config-guide` with `data` of `{guide, shipped}`: the text, and the shipped table itself.
 
   `allowance` names the reason a bound was widened for the file, when one was.
 
@@ -122,6 +123,7 @@ LANGUAGE TABLE (crates/comment-crusher/src/default_config.toml)
       skip               text after `open` that cancels the match: `{#if` is a directive
 
 SEE ALSO
+  comment-crusher --config-guide   what a budget file may say, and what ships
   comment-crusher --version        the name and version, as an envelope
   comment-crusher --stats          per-language totals above the findings
   .comment-crusher.toml            the repo's budget and its allowances"##;
@@ -188,6 +190,10 @@ pub struct Cli {
     /// Print the version envelope and exit.
     #[arg(short = 'V', long)]
     pub version: bool,
+
+    /// Print what a .comment-crusher.toml may say, every rule and global at its shipped value.
+    #[arg(long)]
+    pub config_guide: bool,
 }
 
 #[derive(Subcommand)]
@@ -286,6 +292,61 @@ fn install_hook(args: &InstallHook, format: Format) -> i32 {
             code
         }
     }
+}
+
+/// The guide `--config-guide` prints, in the shape of the file it describes. The rule table
+/// is not written here: it is rendered from the shipped defaults, so it cannot drift.
+const CONFIG_GUIDE: &str = r#"WRITING A BUDGET — comment-crusher
+
+1. .comment-crusher.toml at the repository root, tracked:
+
+     # Concern: the comment budget this repo holds itself to | Non-concern: what makes a
+     # comment worth keeping | IO: none
+     [rules.comment-ratio]
+     header_free_chars = 200
+
+     [[allow]]
+     paths = ["docs/spec.md"]
+     reason = "the specification is the product"
+     set = ["doc-length.max_lines=2000"]
+
+   - A run takes the nearest one, walking up from its target. The `hook` verb takes the one at
+     the file's own git root and no other, so a repo that declared none is never measured.
+   - Name only what differs from what ships. Every rule ships on and denying.
+   - A key the defaults never declare is refused, `[[allow]]` excepted, so a typo fails the
+     run instead of silently setting nothing.
+   - [global] exclude adds directory names to the pruned list, never replaces it.
+
+2. Allowances widen a bound for the paths they name. They never unbind one:
+
+   - a rule cannot be switched off, and a bound cannot be removed
+   - a hundredfold of what ships is the ceiling, and a ratio never reaches 1
+   - reason is required, and is printed beside every finding it covers
+   - --allow GLOB RULE.FIELD=VALUE does the same for a single run
+
+3. Every rule and global, at the value that ships. The language table is its own
+   section of --help, and a budget file may override entries there too:
+
+"#;
+
+/// The one place a caller learns what a budget file may say, in both shapes: the text a person
+/// reads, and the table an agent branches on.
+fn config_guide() -> anyhow::Result<(String, serde_json::Value)> {
+    let budget = crate::config::shipped_budget()?;
+    let indented: String = toml::to_string_pretty(&budget)?
+        .lines()
+        .map(|l| {
+            if l.is_empty() {
+                String::from("\n")
+            } else {
+                format!("     {l}\n")
+            }
+        })
+        .collect();
+    Ok((
+        format!("{CONFIG_GUIDE}{indented}"),
+        serde_json::to_value(&budget)?,
+    ))
 }
 
 #[derive(Serialize)]
@@ -452,6 +513,20 @@ impl Cli {
 
     /// Renders its own failures: a JSON caller gets an envelope, never prose it cannot parse.
     pub fn run(&self) -> i32 {
+        if self.config_guide {
+            return match config_guide() {
+                Ok((text, shipped)) => {
+                    match self.format {
+                        Format::Json => say(&success_json(
+                            &serde_json::json!({ "guide": text, "shipped": shipped }),
+                        )),
+                        Format::Human | Format::Editor => say(&text),
+                    }
+                    0
+                }
+                Err(e) => self.print_error(Failure::Internal, &format!("{e:#}")),
+            };
+        }
         if let Some(command) = &self.command {
             return command.run(self.format);
         }

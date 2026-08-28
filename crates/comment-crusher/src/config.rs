@@ -334,6 +334,20 @@ pub fn widenable(path: &str) -> bool {
     Widenable::ALL.iter().any(|b| b.path() == path)
 }
 
+/// The shipped budget, every global and every rule: the guide and a run render the same table,
+/// so what one shows is what the other enforces.
+pub fn shipped_budget() -> Result<Table> {
+    let table = shipped_table()?;
+    let mut out = Table::new();
+    for key in ["global", "rules"] {
+        let value = table
+            .get(key)
+            .with_context(|| format!("the built-in defaults declare no [{key}]"))?;
+        out.insert(key.to_string(), value.clone());
+    }
+    Ok(out)
+}
+
 fn shipped_table() -> Result<Table> {
     toml::from_str(DEFAULTS).context("built-in default config is invalid")
 }
