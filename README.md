@@ -41,9 +41,9 @@ comment-crusher install-hook --claude          # measure what an agent just edit
 ```
 
 The budget lives in `.comment-crusher.toml`, found by walking up from the target, so one answer
-holds in CI, in a hook, and against a file an agent just wrote. The installed entry runs
-`comment-crusher hook --claude` on `PostToolUse` and hands back the findings for what was
-written, in a repo that declared a budget and nowhere else. Exit codes:
+holds in CI, in a pre-commit hook and against a single file. The `hook` verb reads the budget at
+the file's own git root instead: it answers a `PostToolUse` event with the findings for the file
+it names, and says nothing where that root declared no budget. Exit codes:
 
 | Code | Meaning |
 |---|---|

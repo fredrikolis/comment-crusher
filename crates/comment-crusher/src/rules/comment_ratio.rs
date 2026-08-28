@@ -7,7 +7,8 @@ use crate::diagnostic::{Diagnostic, Level};
 use crate::scan::Scan;
 
 pub const NAME: &str = "comment-ratio";
-const HELP: &str = "Extract what needed explaining, or delete what the code already says.";
+const HELP: &str = "Delete comments rather than compress them. Only a why the code cannot \
+state earns its space.";
 
 #[derive(Debug, Clone, Deserialize)]
 #[serde(deny_unknown_fields)]

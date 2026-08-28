@@ -758,6 +758,16 @@ fn editor_format_reports_a_rejected_invocation_as_a_diagnostic() {
     );
 }
 
+/// A repo the hook will answer for: a git root, with the budget declared at it.
+fn budgeted_repo(dir: &Path) {
+    std::fs::create_dir_all(dir.join(".git")).expect("mkdir");
+    write(
+        dir,
+        ".comment-crusher.toml",
+        "[rules.comment-ratio]\nmin_chars = 200\n",
+    );
+}
+
 fn run_stdin(dir: &Path, args: &[&str], input: &str) -> Output {
     use std::io::Write as _;
     let mut child = Command::new(BIN)
@@ -837,11 +847,7 @@ fn install_hook_is_idempotent_and_touches_only_its_own_entry() {
 #[test]
 fn the_hook_answers_an_event_with_the_findings_for_the_file_it_names() {
     let dir = tempfile::tempdir().expect("tempdir");
-    write(
-        dir.path(),
-        ".comment-crusher.toml",
-        "[rules.comment-ratio]\nmin_chars = 200\n",
-    );
+    budgeted_repo(dir.path());
     write(dir.path(), "fat.rs", &over_budget_rust());
     let event = format!(
         r#"{{"tool_name":"Edit","cwd":"{}","tool_input":{{"file_path":"fat.rs"}}}}"#,
@@ -875,9 +881,33 @@ fn the_hook_answers_an_event_with_the_findings_for_the_file_it_names() {
     );
 }
 
-/// The opt-in gate: no budget file above the path, no measuring and nothing said.
+/// The opt-in gate, and the whole reason it is the git root that answers: a hook installed
+/// for every session must not measure a repo from a budget file sitting above it, and must
+/// say nothing at all where there is no repo.
 #[test]
 fn the_hook_says_nothing_about_a_repo_that_declared_no_budget() {
+    let above = tempfile::tempdir().expect("tempdir");
+    write(
+        above.path(),
+        ".comment-crusher.toml",
+        "[rules.comment-ratio]\nmin_chars = 200\n",
+    );
+    let repo = above.path().join("repo");
+    std::fs::create_dir_all(repo.join(".git")).expect("mkdir");
+    write(&repo, "fat.rs", &over_budget_rust());
+    let event = format!(
+        r#"{{"tool_name":"Edit","cwd":"{}","tool_input":{{"file_path":"fat.rs"}}}}"#,
+        repo.display()
+    );
+    let out = run_stdin(&repo, &["hook", "--claude"], &event);
+    assert_eq!(code(&out), 0);
+    assert_eq!(
+        stdout(&out),
+        "",
+        "a budget above the repo is not this repo's"
+    );
+
+    // And with no repository at all: nothing to be the root of, so nothing to answer for.
     let dir = tempfile::tempdir().expect("tempdir");
     write(dir.path(), "fat.rs", &over_budget_rust());
     let event = format!(
@@ -894,11 +924,7 @@ fn the_hook_says_nothing_about_a_repo_that_declared_no_budget() {
 #[test]
 fn the_hook_says_nothing_about_a_file_the_walk_would_never_reach() {
     let dir = tempfile::tempdir().expect("tempdir");
-    write(
-        dir.path(),
-        ".comment-crusher.toml",
-        "[rules.comment-ratio]\nmin_chars = 200\n",
-    );
+    budgeted_repo(dir.path());
     write(dir.path(), ".gitignore", "artifacts/\n");
     write(dir.path(), "artifacts/fat.rs", &over_budget_rust());
     let event = format!(
@@ -975,4 +1001,54 @@ fn the_install_verb_answers_in_the_format_the_run_asked_for() {
     assert_eq!(code(&refused), 3);
     let v: serde_json::Value = serde_json::from_str(&stdout(&refused)).expect("an envelope");
     assert_eq!(v["error"]["code"], "validation_error");
+}
+
+/// A header, a doc comment and a comment are over budget for different reasons, so each
+/// finding carries its own way out — and every one of them says cut, not reword.
+#[test]
+fn each_kind_of_comment_is_told_how_its_own_bound_is_met() {
+    let dir = tempfile::tempdir().expect("tempdir");
+    let banner =
+        "// a banner line describing this whole file at some considerable length\n".repeat(14);
+    let doc = "/// a doc line restating the signature and its arguments at some length\n".repeat(9);
+    let plain = "// a plain comment running on about the code that sits just below it\n".repeat(3);
+    write(
+        dir.path(),
+        "kinds.rs",
+        &format!(
+            "{banner}fn head() -> u32 {{ 0 }}\n{doc}fn f() -> u32 {{ 1 }}\n{plain}fn g() -> u32 {{ 2 }}\n"
+        ),
+    );
+    let out = run(dir.path(), &["kinds.rs", "--format", "json"]);
+    let v: serde_json::Value = serde_json::from_str(&stdout(&out)).expect("valid JSON");
+    let diagnostics = v["data"]["diagnostics"].as_array().expect("array");
+    let help_for = |pick: &dyn Fn(&str) -> bool| -> String {
+        diagnostics
+            .iter()
+            .find(|d| d["message"].as_str().is_some_and(pick))
+            .and_then(|d| d["help"].as_str())
+            .unwrap_or_default()
+            .to_string()
+    };
+    let kinds = [
+        help_for(&|m: &str| m.starts_with("file header")),
+        help_for(&|m: &str| m.starts_with("doc comment")),
+        help_for(&|m: &str| m.starts_with("comment ")),
+        help_for(&|m: &str| m.contains("% comment (")),
+    ];
+    for help in &kinds {
+        let cuts = ["Delete", "Keep only", "Cut"]
+            .iter()
+            .any(|verb| help.starts_with(verb));
+        assert!(cuts, "the way out is less text, not other text: {help}");
+        assert!(help.contains(". "), "and it says why: {help}");
+    }
+    let mut distinct = kinds.to_vec();
+    distinct.sort();
+    distinct.dedup();
+    assert_eq!(
+        distinct.len(),
+        4,
+        "one reason each, not one for all: {kinds:?}"
+    );
 }

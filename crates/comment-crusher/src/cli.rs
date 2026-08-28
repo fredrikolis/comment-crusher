@@ -81,17 +81,8 @@ OUTPUT (--format json)
 
 VERBS
   install-hook --claude [FILE]     add the PostToolUse entry to a settings file, ours only
-                                   [default: ~/.claude/settings.json]; a repo's own
-                                   .claude/settings.json scopes it to that repo. Running it
-                                   twice changes nothing; --uninstall removes just our entry
-  Both answer in the format the run asked for; `hook --claude` answers the harness in its
-  own envelope, since that is the only shape it reads.
-
-  hook --claude                    what the entry runs: a PostToolUse event on stdin, and
-                                   the findings for the file it names as additionalContext.
-                                   Silent where no budget file sits above that path, or where
-                                   a walk from the budget would not reach it: what CI never
-                                   measures, this never reports
+  hook --claude                    what that entry runs, one event at a time
+  Each verb's own --help carries its contract; both answer in the format the run asked for.
 
 EXIT CODES
   0   nothing over budget
@@ -153,8 +144,9 @@ pub enum Format {
     long_about = "Measures the comment characters, the longest single comment, and the length \
 of every document under the paths given, and fails the ones over budget.\n\n\
 The budget lives in .comment-crusher.toml, found by walking up from the target, so one repo \
-answer holds whether the tool runs in CI, in a pre-commit hook, or against a single file an \
-agent just edited.",
+answer holds whether the tool runs in CI, in a pre-commit hook, or against a single file. The \
+`hook` verb reads the budget at the file's own git root instead, so a repo that declared none \
+is never measured.",
     after_help = AFTER_HELP,
     after_long_help = AFTER_HELP
 )]
@@ -206,7 +198,23 @@ pub enum Command {
     Hook(HookEntry),
 }
 
+const INSTALL_HELP: &str = r"EXAMPLES
+  comment-crusher install-hook --claude                        ~/.claude/settings.json
+  comment-crusher install-hook --claude .claude/settings.json  this repo alone
+  comment-crusher install-hook --claude --uninstall            remove our entry, no other
+
+OUTPUT
+  One line, or an envelope under --format json: `data` of {outcome, path}, where outcome is
+  added, already_present, removed or not_present. Running it twice changes nothing. Every
+  other key in the file, and the order they sit in, is kept.
+
+EXIT CODES
+  0   the file now says what was asked
+  2   bad_arguments: no HOME, and no FILE to fall back on
+  3   validation_error: the settings file could not be read, parsed or replaced";
+
 #[derive(clap::Args)]
+#[command(after_help = INSTALL_HELP, after_long_help = INSTALL_HELP)]
 pub struct InstallHook {
     /// Claude Code, the harness these verbs speak to.
     #[arg(long, required = true)]
@@ -221,7 +229,22 @@ pub struct InstallHook {
     pub uninstall: bool,
 }
 
+const HOOK_HELP: &str = r#"WHAT IT ANSWERS
+  One PostToolUse event on stdin, and on stdout the envelope Claude Code reads:
+  {"systemMessage":..., "hookSpecificOutput":{"hookEventName":"PostToolUse",
+   "additionalContext": the findings for the file the event names}}
+
+SILENCE
+  Nothing is printed unless the file's own git root holds a .comment-crusher.toml and a walk
+  from that root reaches the file: what CI never measures, this never reports, and a budget
+  above the repository is never borrowed.
+
+EXIT CODES
+  0   whatever it found, since a file over budget is not a failure of the call that wrote it
+  2   bad_arguments: the event could not be read, or was not JSON"#;
+
 #[derive(clap::Args)]
+#[command(after_help = HOOK_HELP, after_long_help = HOOK_HELP)]
 pub struct HookEntry {
     /// Read a Claude Code hook event.
     #[arg(long, required = true)]

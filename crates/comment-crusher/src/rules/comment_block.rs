@@ -10,7 +10,12 @@ use crate::syntax::CommentKind;
 pub const NAME: &str = "comment-block";
 const LINES: &str = "comment-block.lines";
 const CHARS: &str = "comment-block.chars";
-const HELP: &str = "One line, or change the shape of what needed a paragraph.";
+const HELP: &str = "Delete rather than rewrap. Keep only what a reader cannot derive from the \
+code; git owns the history.";
+const DOC_HELP: &str = "Keep only what an outside reader cannot derive from the signature. \
+Anything the signature already carries changes twice on every edit.";
+const HEADER_HELP: &str = "Keep only what the file's name and code cannot say. A banner that \
+narrates the file rots as the file changes.";
 
 #[derive(Debug, Clone, Deserialize)]
 #[serde(deny_unknown_fields)]
@@ -30,7 +35,7 @@ pub fn check(cfg: &Config, file: &Path, scan: &Scan) -> Vec<Diagnostic> {
     }
     let mut out = Vec::new();
     for r in &scan.regions {
-        let (limit, chars, what) = bound(cfg, r);
+        let (limit, chars, what, help) = bound(cfg, r);
         if limit > 0 && r.lines() > limit {
             out.push(
                 Diagnostic::new(
@@ -38,7 +43,7 @@ pub fn check(cfg: &Config, file: &Path, scan: &Scan) -> Vec<Diagnostic> {
                     cfg.level,
                     file,
                     format!("{what} spans {} lines, budget is {limit}", r.lines()),
-                    HELP,
+                    help,
                 )
                 .at(r.start_line)
                 .spanning(r.start, r.end, r.end_line)
@@ -51,7 +56,7 @@ pub fn check(cfg: &Config, file: &Path, scan: &Scan) -> Vec<Diagnostic> {
                     cfg.level,
                     file,
                     format!("{what} is {} chars, budget is {chars}", r.chars),
-                    HELP,
+                    help,
                 )
                 .at(r.start_line)
                 .spanning(r.start, r.end, r.end_line)
@@ -62,12 +67,23 @@ pub fn check(cfg: &Config, file: &Path, scan: &Scan) -> Vec<Diagnostic> {
     out
 }
 
-const fn bound(cfg: &Config, r: &Region) -> (usize, usize, &'static str) {
+/// Each kind is over budget for its own reason, so each is told its own way out.
+const fn bound(cfg: &Config, r: &Region) -> (usize, usize, &'static str, &'static str) {
     if r.header {
-        (cfg.header_max_lines, cfg.header_max_chars, "file header")
+        (
+            cfg.header_max_lines,
+            cfg.header_max_chars,
+            "file header",
+            HEADER_HELP,
+        )
     } else if matches!(r.kind, CommentKind::Doc) {
-        (cfg.doc_max_lines, cfg.doc_max_chars, "doc comment")
+        (
+            cfg.doc_max_lines,
+            cfg.doc_max_chars,
+            "doc comment",
+            DOC_HELP,
+        )
     } else {
-        (cfg.max_lines, cfg.max_chars, "comment")
+        (cfg.max_lines, cfg.max_chars, "comment", HELP)
     }
 }

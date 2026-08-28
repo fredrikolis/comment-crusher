@@ -10,6 +10,8 @@
 3. **Skip, never guess.** A wrong number is worse than no number.
 4. **No fixtures.** Real code pinned by SHA, or an inline snippet. Nothing invented.
 5. **One repo answer.** The same budget holds in CI, in a hook, and against a single file.
+   A repo declares it at its git root, which is the only file the hook reads: a repo that
+   declared none is never measured.
 6. **Simplicity is king.** Least complexity. Adding a language is configuration, not code.
 
 ## Layout, relative to `crates/comment-crusher/src/`

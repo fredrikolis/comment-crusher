@@ -7,7 +7,8 @@ use crate::diagnostic::{Diagnostic, Level};
 use crate::scan::Scan;
 
 pub const NAME: &str = "doc-length";
-const HELP: &str = "Split it, or grant an allowance in .comment-crusher.toml with a reason.";
+const HELP: &str = "Delete text first: every line is a claim the next change must keep true. \
+Split it, or allow it in .comment-crusher.toml with a reason.";
 
 #[derive(Debug, Clone, Deserialize)]
 #[serde(deny_unknown_fields)]

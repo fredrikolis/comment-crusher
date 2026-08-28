@@ -10,12 +10,12 @@ use std::path::{Path, PathBuf};
 
 use serde_json::{Value, json};
 
-use crate::config::Config;
+use crate::config::{CONFIG_FILE, Config};
 use crate::diagnostic::Level;
 use crate::exit::{EXIT_BAD_ARGS, EXIT_VALIDATION, say};
 use crate::{Diagnostic, Engine};
 
-/// What one install did, for a caller that renders it in the format the run asked for.
+/// What one install did, for the caller that renders it.
 pub struct Installed {
     pub path: PathBuf,
     pub outcome: &'static str,
@@ -55,7 +55,7 @@ pub fn respond() -> i32 {
         say("comment-crusher: the hook event is not JSON");
         return EXIT_BAD_ARGS;
     };
-    // Exit 0 from here on: an over-budget file is a fact about the file, not a failed call.
+    // Exit 0 from here: what it finds is about the file, not about the call.
     let Some(file) = written(&event) else {
         return 0;
     };
@@ -77,10 +77,22 @@ fn written(event: &Value) -> Option<PathBuf> {
         .find(|p| p.is_file())
 }
 
-/// The same answer CI gives, or none: no budget above the path, or no walk that reaches it.
+/// The repo's own budget: a hook in every session must never answer from a budget above it.
+fn repo_budget(file: &Path) -> Option<PathBuf> {
+    let mut dir = file.parent()?;
+    loop {
+        if dir.join(".git").exists() {
+            let budget = dir.join(CONFIG_FILE);
+            return budget.is_file().then_some(budget);
+        }
+        dir = dir.parent()?;
+    }
+}
+
+/// Nothing where the repo declared no budget, or where the walk never reaches the file.
 fn findings(file: &Path) -> Option<(PathBuf, Vec<String>)> {
-    Config::source_path(file, None)?;
-    let config = Config::load(file, None, &[]).ok()?;
+    let budget = repo_budget(file)?;
+    let config = Config::load(file, Some(&budget), &[]).ok()?;
     let engine = Engine::new(&config, None);
     if !engine.reaches(file) {
         return None;
@@ -103,11 +115,11 @@ fn envelope(root: &Path, lines: &[String]) -> String {
         let _ = writeln!(body, "{l}");
     }
     let context = format!(
-        "{headline}\n\n{body}\nThe bound is the detector: cut or restructure what tripped it. \
-         Raising a threshold in .comment-crusher.toml is not a fix."
+        "{headline}\n\n{body}\nThe bound is the detector. Cut what tripped it; raising a \
+         threshold in .comment-crusher.toml is not a fix."
     );
     let mut message = headline.to_string();
-    // One finding is two lines, and the second is the help the agent gets and the user need not.
+    // A finding is two lines; the second is help the user need not read.
     for l in lines.iter().filter_map(|l| l.lines().next()).take(6) {
         let _ = write!(message, "\n{l}");
     }
