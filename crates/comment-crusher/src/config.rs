@@ -5,6 +5,7 @@ use std::path::{Path, PathBuf};
 
 use anyhow::{Context, Result, bail};
 use globset::{Glob, GlobSet, GlobSetBuilder};
+use ignore::gitignore::{Gitignore, GitignoreBuilder};
 use serde::Deserialize;
 use toml::{Table, Value};
 
@@ -127,7 +128,7 @@ pub struct Config {
     /// The directory the budget was found in. Allowance globs and reported paths are relative
     /// to it, so one repo answer holds from wherever the tool is invoked.
     root: PathBuf,
-    pub exclude: Vec<String>,
+    excludes: Gitignore,
     pub base: Rules,
     allowances: Vec<Allowance>,
     langs: Vec<Syntax>,
@@ -198,7 +199,7 @@ impl Config {
         let mut cfg = Self {
             root,
             shipped,
-            exclude: global.exclude,
+            excludes: build_excludes(&global.exclude)?,
             base,
             allowances,
             langs: Vec::with_capacity(raw_langs.len()),
@@ -275,6 +276,10 @@ impl Config {
             .filter_map(|w| Path::new(w).file_name()?.to_str())
             .find_map(|w| self.by_interpreter.get(w))?;
         self.langs.get(*idx)
+    }
+
+    pub const fn excludes(&self) -> &Gitignore {
+        &self.excludes
     }
 
     pub fn root(&self) -> &Path {
@@ -505,6 +510,27 @@ fn resolve_embed(e: &RawEmbed) -> Result<EmbedSpec> {
         balanced: e.balanced,
         skip: e.skip.clone(),
     })
+}
+
+/// Gitignore syntax against the root every path here is relative to: what no walk descends into.
+fn build_excludes(patterns: &[String]) -> Result<Gitignore> {
+    let mut b = GitignoreBuilder::new(".");
+    // The one exclusion no budget declares, and none can name back in.
+    b.add_line(None, ".git/").context("excluding .git")?;
+    for p in patterns {
+        if p.starts_with('!') {
+            bail!(
+                "exclude `{p}`: a pattern cannot name a file back in, because the directory \
+                 holding it is never descended. Widen its bound with [[allow]] instead"
+            );
+        }
+        if p.starts_with('#') || p.trim().is_empty() {
+            bail!("exclude `{p}`: excludes nothing");
+        }
+        b.add_line(None, p)
+            .with_context(|| format!("bad exclude pattern `{p}`"))?;
+    }
+    b.build().context("exclude set")
 }
 
 fn build_globs(patterns: &[String]) -> Result<GlobSet> {

@@ -69,9 +69,10 @@ OUTPUT (--format json)
 
   `allowance` names the reason a bound was widened for the file, when one was.
 
-  Two warnings are about the run, not about a file, and carry no `location` at all:
-  `allowance.unused` for a --allow glob that matched none of the files measured, and
-  `target.outside_budget` for a target the budget's directory does not contain.
+  Three warnings are about the run, not about a file, and carry no `location` at all:
+  `allowance.unused` for a --allow glob that matched none of the files measured,
+  `target.outside_budget` for a target the budget's directory does not contain, and
+  `target.excluded` for one [global] exclude names, which no walk would have reached.
   A budget file that is not TOML is `config.syntax`, carrying the byte range the parser
   pointed at; one the tool refuses afterwards is `config.rejected`.
   `error` appears only when status is error. A field with no value is omitted, never null,
@@ -315,7 +316,16 @@ const CONFIG_GUIDE: &str = r#"WRITING A BUDGET — comment-crusher
    - Name only what differs from what ships. Every rule ships on and denying.
    - A key the defaults never declare is refused, `[[allow]]` excepted, so a typo fails the
      run instead of silently setting nothing.
-   - [global] exclude adds directory names to the pruned list, never replaces it.
+   - [global] exclude adds gitignore patterns to the pruned list, never replaces it, and names
+     what the repo does not author or nothing can be measured in: a generated tree, a vendored
+     one, a binary fixture. A source file over a bound is widened by [[allow]], never excluded.
+   - A pattern with no slash inside it prunes that name at any depth, whether or not it ends in
+     one: `build/` prunes src/build too. A pattern with an inner slash is anchored to the root
+     the run resolved, which --root moves. A trailing slash means directories only; `**` spans
+     them. Nothing is named back in, because a pruned directory is never descended: a leading
+     `!` is refused, and so is a `#` comment or a blank, which would exclude nothing.
+   - [[allow]] paths and --allow take globs, not gitignore patterns: `vendor` there names a
+     top-level vendor only, where the same word under exclude prunes every one.
 
 2. Allowances widen a bound for the paths they name. They never unbind one:
 

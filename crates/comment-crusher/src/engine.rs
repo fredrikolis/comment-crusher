@@ -3,7 +3,7 @@
 use std::path::{Path, PathBuf};
 
 use anyhow::Result;
-use ignore::WalkBuilder;
+use ignore::{WalkBuilder, gitignore::Gitignore};
 use rayon::prelude::*;
 use serde::Serialize;
 
@@ -15,6 +15,12 @@ use crate::syntax::Syntax;
 /// A NUL means an encoding this tool does not read: a binary, or UTF-16, which is text.
 fn is_binary(bytes: &[u8]) -> bool {
     bytes.iter().take(8192).any(|b| *b == 0)
+}
+
+/// An excluded directory takes everything under it, so every level above the path answers.
+/// A path the root does not contain is not the budget's to exclude, and would panic below.
+fn excluded_by(exclude: &Gitignore, rel: &Path, is_dir: bool) -> bool {
+    !rel.has_root() && exclude.matched_path_or_any_parents(rel, is_dir).is_ignore()
 }
 
 #[derive(Debug, Clone, Serialize)]
@@ -96,6 +102,20 @@ impl<'a> Engine<'a> {
                 "Run from the tree the budget governs, or point --root at this one.",
             ));
         }
+        for t in targets
+            .iter()
+            .filter(|t| t.is_file() && self.excluded(t, false))
+        {
+            report.diagnostics.push(Diagnostic::about_the_run(
+                "target.excluded",
+                Level::Warn,
+                format!(
+                    "{} is excluded by the budget, so it was not measured",
+                    t.display()
+                ),
+                "Drop the [global] exclude pattern that names it, or measure something else.",
+            ));
+        }
         let measured: Vec<PathBuf> = report.files.iter().map(|f| f.path.clone()).collect();
         for glob in self.config.argv_globs_matching_none(&measured) {
             report.diagnostics.push(Diagnostic::about_the_run(
@@ -110,31 +130,34 @@ impl<'a> Engine<'a> {
         report
     }
 
-    /// A named file is measured whatever the walk would have said: naming it is an instruction.
+    /// Naming a file buys no answer the walk would refuse: constitution #5, one repo answer.
     fn collect(&self, targets: &[PathBuf]) -> Vec<PathBuf> {
         let mut out = Vec::new();
         for t in targets {
             if t.is_file() {
-                out.push(t.clone());
+                if !self.excluded(t, false) {
+                    out.push(t.clone());
+                }
                 continue;
             }
             let mut b = WalkBuilder::new(t);
             b.hidden(false).git_ignore(true).require_git(false);
             // Pruned, not filtered after: a committed vendor tree is never descended.
-            let names: Vec<String> = self.config.exclude.clone();
+            let exclude = self.config.excludes().clone();
+            let (base, from) = (self.relative(t), t.clone());
             b.filter_entry(move |e| {
-                !e.file_type().is_some_and(|f| f.is_dir())
-                    || !e
-                        .path()
-                        .file_name()
-                        .is_some_and(|n| Self::pruned_name(&names, n))
+                let under = e.path().strip_prefix(&from).unwrap_or_else(|_| e.path());
+                !excluded_by(
+                    &exclude,
+                    &base.join(under),
+                    e.file_type().is_some_and(|f| f.is_dir()),
+                )
             });
             out.extend(
                 b.build()
                     .filter_map(Result::ok)
                     .filter(|e| e.file_type().is_some_and(|f| f.is_file()))
-                    .map(ignore::DirEntry::into_path)
-                    .filter(|p| !self.excluded(p)),
+                    .map(ignore::DirEntry::into_path),
             );
         }
         out.sort();
@@ -152,14 +175,8 @@ impl<'a> Engine<'a> {
         out
     }
 
-    fn excluded(&self, path: &Path) -> bool {
-        self.relative(path)
-            .components()
-            .any(|c| Self::pruned_name(&self.config.exclude, c.as_os_str()))
-    }
-
-    fn pruned_name(exclude: &[String], name: &std::ffi::OsStr) -> bool {
-        name == ".git" || exclude.iter().any(|e| name == e.as_str())
+    fn excluded(&self, path: &Path, is_dir: bool) -> bool {
+        excluded_by(self.config.excludes(), &self.relative(path), is_dir)
     }
 
     /// Would the walk reach this file? Naming one skips the question, and a caller reporting
@@ -168,7 +185,7 @@ impl<'a> Engine<'a> {
         let Some(rel) = self.rooted(file) else {
             return false;
         };
-        if self.excluded(file) {
+        if self.excluded(file, false) {
             return false;
         }
         let mut here = self.root.clone();

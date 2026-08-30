@@ -1082,3 +1082,79 @@ fn the_config_guide_prints_every_rule_at_the_value_that_ships() {
     assert_eq!(v["data"]["shipped"]["rules"], shipped["rules"]);
     assert_eq!(v["data"]["shipped"]["global"], shipped["global"]);
 }
+
+/// The shape a repo needs for the binary fixtures it pins: a path, not a directory name.
+/// Nothing can be measured in one, so every caller must agree it is not measured — the walk,
+/// a path named on argv, and the hook. A bare name still prunes it at any depth.
+#[test]
+fn exclude_takes_gitignore_patterns_and_every_caller_answers_from_them() {
+    let dir = tempfile::tempdir().expect("tempdir");
+    let fixture = "tests/fixtures/pinned.rs";
+    write(dir.path(), "src/lean.rs", &lean_rust());
+    write(dir.path(), fixture, "fn f() -> u32 {\0\0 1 }\n");
+    write(dir.path(), "src/atlas.gen.rs", "fn g() -> u32 {\0\0 2 }\n");
+    // `vendor` ships in the pruned list, so a bare name still answers wherever it sits.
+    write(dir.path(), "src/deep/vendor/fat.rs", &over_budget_rust());
+    budgeted_repo(dir.path());
+
+    // The control: until the budget names them, both fixtures are findings.
+    let out = run(dir.path(), &[".", "--format", "json"]);
+    assert_eq!(code(&out), 3, "{}", stdout(&out));
+    for named in [fixture, "atlas.gen.rs"] {
+        assert!(stdout(&out).contains(named), "{named}: {}", stdout(&out));
+    }
+    assert!(!stdout(&out).contains("vendor"), "{}", stdout(&out));
+    let event = format!(
+        r#"{{"tool_name":"Edit","cwd":"{}","tool_input":{{"file_path":"{fixture}"}}}}"#,
+        dir.path().display()
+    );
+    let out = run_stdin(dir.path(), &["hook", "--claude"], &event);
+    assert!(stdout(&out).contains("unreadable"), "{}", stdout(&out));
+
+    write(
+        dir.path(),
+        ".comment-crusher.toml",
+        "[global]\nexclude = [\"tests/fixtures/**\", \"**/*.gen.rs\"]\n",
+    );
+    let out = run(dir.path(), &[".", "--format", "json"]);
+    assert_eq!(code(&out), 0, "{}", stdout(&out));
+    assert!(stdout(&out).contains("src/lean.rs"), "{}", stdout(&out));
+    for gone in ["fixtures", "atlas.gen.rs", "vendor"] {
+        assert!(!stdout(&out).contains(gone), "{gone}: {}", stdout(&out));
+    }
+    // The hook and CI say the same thing about it, so a session is not told what CI will not.
+    let out = run_stdin(dir.path(), &["hook", "--claude"], &event);
+    assert_eq!(
+        stdout(&out),
+        "",
+        "an excluded path is not a hook's business"
+    );
+
+    // Naming it on argv is not a way around the budget, and the run says why it was skipped.
+    let out = run(dir.path(), &[fixture]);
+    assert_eq!(code(&out), 0, "{}", stdout(&out));
+    assert!(!stdout(&out).contains("unreadable"), "{}", stdout(&out));
+    assert!(stdout(&out).contains("target.excluded"), "{}", stdout(&out));
+}
+
+/// What a pattern cannot do, said at load: a budget that appears to spare one file, and does
+/// not, is worse than one that refuses to load.
+#[test]
+fn an_exclude_pattern_that_re_includes_or_parses_as_nothing_is_refused() {
+    let dir = tempfile::tempdir().expect("tempdir");
+    write(dir.path(), "a.rs", &lean_rust());
+    for (bad, says) in [
+        ("!keep.rs", "name a file back in"),
+        ("#target", "excludes nothing"),
+        ("tests/{fixtures", "bad exclude pattern"),
+    ] {
+        write(
+            dir.path(),
+            ".comment-crusher.toml",
+            &format!("[global]\nexclude = [\"{bad}\"]\n"),
+        );
+        let out = run(dir.path(), &["a.rs"]);
+        assert_eq!(code(&out), 3, "{bad}: {}", stdout(&out));
+        assert!(stdout(&out).contains(says), "{bad}: {}", stdout(&out));
+    }
+}

@@ -2,7 +2,7 @@
 # Every threshold ships ON and DENYING: a budget nobody enables measures nothing.
 
 [global]
-# Directory names pruned from every walk, on top of .gitignore.
+# Gitignore patterns pruned from every walk, on top of .gitignore: --config-guide has the shapes.
 exclude = ["target", "node_modules", "vendor", "dist", "build", ".venv"]
 
 [rules.comment-ratio]
