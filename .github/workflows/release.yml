@@ -1,0 +1,95 @@
+# Concern: the whole release — the tag, the GitHub release, its binaries, and the crates.io publish | Non-concern: the checks a commit clears (ci.yml) | IO: (a manual run) -> tag, release, assets, crate
+name: Release
+
+on:
+  workflow_dispatch:
+
+env:
+  CARGO_TERM_COLOR: always
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    outputs:
+      ref: ${{ steps.tag.outputs.ref }}
+    steps:
+      - uses: actions/checkout@v6
+      # The manifest is the one version there is, so the tag follows it rather than an input.
+      - id: tag
+        run: |
+          set -eu
+          v="$(sed -n '/^\[package\]/,/^\[/s/^version = "\(.*\)"/\1/p' crates/comment-crusher/Cargo.toml | head -1)"
+          git tag "v$v"
+          git push origin "v$v"
+          echo "ref=refs/tags/v$v" >> "$GITHUB_OUTPUT"
+      - uses: taiki-e/create-gh-release-action@v1
+        with:
+          ref: ${{ steps.tag.outputs.ref }}
+          changelog: crates/comment-crusher/CHANGELOG.md
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+  binaries:
+    needs: release
+    permissions:
+      contents: write
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - target: x86_64-unknown-linux-gnu
+            os: ubuntu-latest
+          - target: x86_64-unknown-linux-musl
+            os: ubuntu-latest
+            build_tool: cargo-zigbuild
+          - target: aarch64-unknown-linux-gnu
+            os: ubuntu-latest
+            build_tool: cargo-zigbuild
+          - target: aarch64-unknown-linux-musl
+            os: ubuntu-latest
+            build_tool: cargo-zigbuild
+          - target: x86_64-apple-darwin
+            os: macos-latest
+          - target: aarch64-apple-darwin
+            os: macos-latest
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          ref: ${{ needs.release.outputs.ref }}
+      # cargo-binstall resolves the archive by this name.
+      - uses: taiki-e/upload-rust-binary-action@v1
+        with:
+          bin: comment-crusher
+          manifest-path: crates/comment-crusher/Cargo.toml
+          target: ${{ matrix.target }}
+          build-tool: ${{ matrix.build_tool || 'cargo' }}
+          archive: $bin-$target
+          checksum: sha256
+          ref: ${{ needs.release.outputs.ref }}
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+  crate:
+    needs: release
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          ref: ${{ needs.release.outputs.ref }}
+      - uses: dtolnay/rust-toolchain@master
+        with:
+          toolchain: "1.96.0"
+      # A version already published is not a failed release: re-running one must not red here.
+      - env:
+          CARGO_REGISTRY_TOKEN: ${{ secrets.CARGO_REGISTRY_TOKEN }}
+        run: |
+          set -eu
+          # Outside the checkout: cargo publish refuses on a dirty working directory.
+          err="$(mktemp)"
+          if cargo publish -p comment-crusher --locked 2>"$err"; then
+            exit 0
+          fi
+          cat "$err" >&2
+          grep -qE 'already (exists|been uploaded|uploaded)' "$err"
+          echo "Version already on crates.io; nothing to do."
