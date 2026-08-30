@@ -6,6 +6,7 @@
 )]
 
 use comment_crusher::cli::Cli;
+use comment_crusher::diagnostic::{Diagnostic, Level};
 use std::path::Path;
 
 /// Whitespace-flattened, so rewrapping a paragraph cannot fail a claim that still holds.
@@ -20,98 +21,26 @@ fn defaults() -> toml::Table {
     toml::from_str(include_str!("../src/default_config.toml")).expect("defaults parse")
 }
 
-fn bound(table: &toml::Table, rule: &str, field: &str) -> String {
-    table["rules"][rule][field].to_string()
-}
-
-/// How many languages declare a construct, so the README cannot hand-count it wrong.
-fn declaring(t: &toml::Table) -> (usize, usize, usize, usize) {
-    let langs = t["languages"].as_table().expect("languages");
-    let count = |f: &dyn Fn(&toml::Value) -> bool| langs.values().filter(|l| f(l)).count();
-    (
-        langs.len(),
-        count(&|l| l.get("nested_block").is_some()),
-        count(&|l| l.get("heredoc").is_some()),
-        count(&|l| {
-            l.get("strings")
-                .and_then(toml::Value::as_array)
-                .is_some_and(|v| {
-                    v.iter()
-                        .any(|s| s.get("docstring").and_then(toml::Value::as_bool) == Some(true))
-                })
-        }),
-    )
-}
-
-fn claims(t: &toml::Table, repos: usize, ratio: f64) -> Vec<(String, &'static str)> {
-    let (languages, nested, heredoc, docstring) = declaring(t);
+fn claims(t: &toml::Table) -> Vec<(String, &'static str)> {
+    let languages = t["languages"].as_table().expect("languages").len();
+    let ratio = t["rules"]["comment-ratio"]["max_ratio"]
+        .as_float()
+        .expect("max_ratio is a float");
     vec![
         (format!("{languages} languages"), "the language count"),
-        (format!("{repos} repositor"), "the corpus size"),
         (
-            format!("Nested blocks in {nested} languages"),
-            "the nesting count",
+            format!("budget is {:.0}%", ratio * 100.0),
+            "comment-ratio.max_ratio",
         ),
-        (format!("heredocs in {heredoc}"), "the heredoc count"),
-        (format!("docstrings in {docstring}"), "the docstring count"),
-        (
-            format!("{repos} pinned repositor"),
-            "the corpus size, again",
-        ),
-        (
-            format!("{} lines", bound(t, "doc-length", "max_lines")),
-            "doc-length",
-        ),
-        (
-            format!(
-                "{} line and {} chars",
-                bound(t, "comment-block", "max_lines"),
-                bound(t, "comment-block", "max_chars")
-            ),
-            "comment-block remark bounds",
-        ),
-        (
-            format!(
-                "{} and {} for a doc comment",
-                bound(t, "comment-block", "doc_max_lines"),
-                bound(t, "comment-block", "doc_max_chars")
-            ),
-            "comment-block doc bounds",
-        ),
-        (
-            format!(
-                "{} and {} for a banner",
-                bound(t, "comment-block", "header_max_lines"),
-                bound(t, "comment-block", "header_max_chars")
-            ),
-            "comment-block header bounds",
-        ),
-        (
-            format!(
-                "under {} chars skipped",
-                bound(t, "comment-ratio", "min_chars")
-            ),
-            "comment-ratio.min_chars",
-        ),
-        (format!("{:.0}%,", ratio * 100.0), "comment-ratio.max_ratio"),
     ]
 }
 
-/// Every shipped bound the README quotes, so a threshold cannot move without the sentence
-/// that names it moving too.
+/// Every bound the README still quotes; the rest is rendered, not written.
 #[test]
 fn the_readme_quotes_the_bounds_that_ship() {
     let t = defaults();
     let text = readme();
-    let repos =
-        std::fs::read_to_string(Path::new(env!("CARGO_MANIFEST_DIR")).join("../../corpus.toml"))
-            .expect("corpus.toml")
-            .matches("[[repo]]")
-            .count();
-    let ratio = t["rules"]["comment-ratio"]["max_ratio"]
-        .as_float()
-        .expect("max_ratio is a float");
-    let claims = claims(&t, repos, ratio);
+    let claims = claims(&t);
     let missing: Vec<&str> = claims
         .iter()
         .filter(|(needle, _)| !text.contains(needle.as_str()))
@@ -123,13 +52,50 @@ fn the_readme_quotes_the_bounds_that_ship() {
     );
 }
 
-/// The exit codes are written in three places, and an agent branches on them.
+/// The README contracts a finding relies on: every `docs_url` anchor, and the allowance it
+/// prints, which the hundredfold ceiling has to still admit.
 #[test]
-fn the_readme_and_help_list_the_exit_codes_the_binary_returns() {
-    let text = readme();
+fn the_readme_carries_every_anchor_a_finding_links_to() {
+    let text =
+        std::fs::read_to_string(Path::new(env!("CARGO_MANIFEST_DIR")).join("../../README.md"))
+            .expect("README.md");
+    let headings: Vec<String> = text
+        .lines()
+        .filter_map(|l| l.strip_prefix("## "))
+        .map(|h| h.to_lowercase().replace(' ', "-"))
+        .collect();
+    for rule in [
+        "config.rejected",
+        "target.excluded",
+        "allowance.unused",
+        "comment-ratio",
+    ] {
+        let d = Diagnostic::about_the_run(rule, Level::Warn, String::new(), "");
+        let wire = serde_json::to_value(&d).expect("a finding serializes");
+        let url = wire["docs_url"].as_str().expect("docs_url");
+        let anchor = url.split('#').nth(1).expect("an anchor");
+        assert!(
+            headings.iter().any(|h| h == anchor),
+            "{rule} links to #{anchor}, which the README lost"
+        );
+    }
+    let shipped = defaults()["rules"]["doc-length"]["max_lines"]
+        .as_integer()
+        .expect("max_lines is an integer");
+    let printed: i64 = text
+        .split("doc-length.max_lines=")
+        .nth(1)
+        .and_then(|rest| rest.split(['"', ' ']).next())
+        .and_then(|n| n.parse().ok())
+        .expect("the README prints an allowance");
+    assert!(printed <= shipped * 100, "the ceiling rejects {printed}");
+}
+
+/// An agent branches on the exit codes, so `--help` names every one.
+#[test]
+fn the_help_lists_the_exit_codes_the_binary_returns() {
     let help = Cli::after_help();
     for code in ["0", "1", "2", "3", "24"] {
-        assert!(text.contains(&format!("| {code} |")), "README omits {code}");
         assert!(
             help.lines()
                 .any(|l| l.split_whitespace().next() == Some(code)),

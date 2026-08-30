@@ -1,91 +1,88 @@
 <!-- Concern: what comment-crusher is, what it measures, and how to configure it | Non-concern: the exhaustive flag reference (--help owns it) or how this repo is developed (CLAUDE.md) | IO: none -->
 # comment-crusher
 
-A gas expands to fill its container. An LLM expands to fill a file with words,... unless we stop it 🥷🏻.
-Across 91 languages from one binary, comment-crusher fails a file whose comment share
-is over budget, whose single comment runs too long, or whose document is longer than allowed.
+A gas expands to fill its container. An LLM expands to fill a file with words,... unless we stop
+it 🥷🏻. Across 91 languages from one binary, comment-crusher fails a file whose comment share is
+over budget, whose single comment runs too long, or whose document is longer than allowed.
+
+**What your agent should leave behind:**
+
+```rust
+counter += 1;
+```
+
+**What it leaves instead:**
+
+```rust
+// Increment the counter by one. We do this because the counter needs to go
+// up by one at this point. Note that this is the increment step, which is
+// important for the loop above to eventually terminate.
+counter += 1;
+```
+
+**What the budget says:**
 
 ```
 $ comment-crusher .
-error: src/parser.rs [comment-ratio] 41% comment (2104/5117 chars), budget is 15%
+error: src/counter.rs [comment-ratio] 41% comment (2104/5117 chars), budget is 15%
 
 298 code files and 14 documents, 14.2% comment (48219/339104 chars), 1 findings
 ```
 
+## Use
+
+```bash
+cargo install --git https://github.com/fredrikolis/comment-crusher
+
+comment-crusher .
+comment-crusher src/counter.rs --format editor  # path:line:column: severity[rule]: message
+comment-crusher src/counter.rs --format json    # one envelope to branch on
+comment-crusher --config-guide                  # what a budget may say, and every default
+comment-crusher --help                          # the whole surface
+```
+
+The budget lives in `.comment-crusher.toml`, found by walking up from the target, so one answer
+holds in CI, in a pre-commit hook and against a single file.
+
+Install Claude hooks (modifies ~/.claude/settings.json)
+
+```bash
+comment-crusher install-hook --claude
+```
+
+## What the installed hook does
+
+1. Measures the file the agent just wrote, at PostToolUse
+2. Hands the findings back with the help under each, so the agent fixes it in the session
+3. Says nothing where the file's own git root declared no budget
+
+Nothing else. `install-hook --claude --uninstall` takes the hooks back out, and leaves the
+budget file in place.
+
+## What it measures
+
+| Rule | Bounds |
+|---|---|
+| `comment-ratio` | comment chars as a share of comment plus code |
+| `comment-block` | one block comment, or one run of whole-line comments |
+| `doc-length` | a prose document (`.md`, `.rst`, `.adoc`, `.txt`, and kin) |
+| `unreadable` | a resolved file that is binary or cannot be read |
+
+**Comment** is markers, their delimiters, doc comments and docstrings. **Code** is strings,
+heredoc bodies, the shebang, and fenced examples inside any comment. The two sum to every
+non-whitespace character, so a trailing `// why` costs what it occupies.
+
 ## No file is exempt
 
-A gas expands to occupy whatever volume it is given; an LLM fills whatever space is available
-with words. So the budget has to bind, and an allowance widens a bound for the paths it names
-without ever unbinding it:
-
-- it **cannot remove** a bound or switch a rule off,
-- it **stops at a hundredfold** of what ships,
-- it **cannot pass what the field allows**, and a ratio never reaches 1.
+An allowance widens a bound for the paths it names, and never unbinds one: it cannot remove a
+bound or switch a rule off, it stops at a hundredfold of what ships, and a ratio never reaches
+1. `reason` is required, and prints beside every finding it covers.
 
 ```toml
 [[allow]]
 paths = ["docs/spec.md"]
-reason = "the specification is the product"   # required, and printed beside every finding
-set = ["doc-length.max_lines=2000"]           # only genuine upper bounds may be set
+reason = "the specification is the product"
+set = ["doc-length.max_lines=2000"]
 ```
-
-Generated trees are not measured: `.gitignore` applies, plus `target`, `node_modules`, `vendor`,
-`dist`, `build` and `.venv`. `[global] exclude` adds gitignore patterns and never replaces them, naming what the repo does not author, never a source file over a bound.
-
-## Use
-
-```sh
-cargo install --git https://github.com/fredrikolis/comment-crusher
-comment-crusher src/parser.rs --format editor  # path:line:column: severity[rule]: message
-comment-crusher src/parser.rs --format json    # one envelope to branch on
-comment-crusher install-hook --claude          # measure what an agent just edited, in its session
-```
-
-The budget lives in `.comment-crusher.toml`, found by walking up from the target, so one answer
-holds in CI, in a pre-commit hook and against a single file. The `hook` verb reads the budget at
-the file's own git root instead: it answers a `PostToolUse` event with the findings for the file
-it names, and says nothing where that root declared no budget. Exit codes:
-
-| Code | Meaning |
-|---|---|
-| 0 | nothing over budget |
-| 1 | internal error |
-| 2 | argv rejected, including a bad `--allow` value |
-| 3 | a file over budget, or a budget or settings file rejected |
-| 24 | no such path |
-
-## What it measures
-
-| Rule | Bounds | Default |
-|---|---|---|
-| `comment-ratio` | comment chars as a share of comment plus code | 15%, under 200 chars skipped |
-| `comment-block` | one block comment, or one run of whole-line comments | 1 line and 163 chars; 7 and 311 for a doc comment; 11 and 971 for a banner |
-| `doc-length` | a prose document (`.md`, `.rst`, `.adoc`, `.txt`, and kin) | 90 lines |
-| `unreadable` | a resolved file that is binary or cannot be read | deny |
-
-The median comment share is 18% and the 75th-percentile document is 90 lines, across the 43
-repositories the tests measure. **`comment-block.max_lines` is policy**, the one bound not
-derived from them.
-
-**Comment** is markers, their delimiters, doc comments and docstrings. **Code** is strings,
-heredoc bodies, the shebang, and fenced examples inside any comment. Counted in characters, the
-two sum to every non-whitespace character, so a trailing `// why` costs what it occupies.
-
-**A banner is discounted**, not exempt: the ratio ignores its first `header_free_chars` and
-charges the rest like any comment, so a file carrying only a short banner measures 0% while a
-long one still fails. `skip_header = false` charges it whole. Under `comment-block`, a doc
-comment gets more lines and more characters than a remark, and a banner more still.
-
-## Languages
-
-- Resolved by exact filename, then extension, then the `#!` interpreter, so `CMakeLists.txt`
-  is CMake and a git hook is measured like anything else. An unknown language is skipped, and
-  adding one is a row in `default_config.toml`.
-- Nested blocks in 16 languages, heredocs in 6, docstrings in 4, raw strings, char literals.
-- `<script>` and `<style>` scanned as the language their tag names, across HTML, Vue, Svelte
-  and Astro; named, never guessed, so a `type=` the table does not map leaves its body code.
-- Comment plus code equals the file's visible chars over 43 pinned repositories, and every
-  declared marker has opened a real comment in one, bar the rare forms `snippet-only.txt`
-  names and snippets cover.
 
 MIT licence.
