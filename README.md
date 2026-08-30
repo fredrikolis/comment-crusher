@@ -1,6 +1,8 @@
 <!-- Concern: what comment-crusher is, what it measures, and how to configure it | Non-concern: the exhaustive flag reference (--help owns it) or how this repo is developed (CLAUDE.md) | IO: none -->
 # comment-crusher
 
+[![crates.io](https://img.shields.io/crates/v/comment-crusher.svg)](https://crates.io/crates/comment-crusher)
+
 A gas expands to fill its container. An LLM expands to fill a file with words,... unless we stop
 it 🥷🏻. Across 91 languages from one binary, comment-crusher fails a file whose comment share is
 over budget, whose single comment runs too long, or whose document is longer than allowed.
@@ -32,7 +34,7 @@ error: src/counter.rs [comment-ratio] 41% comment (2104/5117 chars), budget is 1
 ## Use
 
 ```bash
-cargo install --git https://github.com/fredrikolis/comment-crusher
+cargo install comment-crusher
 
 comment-crusher .
 comment-crusher src/counter.rs --format editor  # path:line:column: severity[rule]: message
