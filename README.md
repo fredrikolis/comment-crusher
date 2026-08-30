@@ -1,6 +1,7 @@
 <!-- Concern: what comment-crusher is, what it measures, and how to configure it | Non-concern: the exhaustive flag reference (--help owns it) or how this repo is developed (CLAUDE.md) | IO: none -->
 # comment-crusher
 
+A gas expands to fill its container. An LLM expands to fill a file with words,... unless we stop it 🥷🏻.
 Across 91 languages from one binary, comment-crusher fails a file whose comment share
 is over budget, whose single comment runs too long, or whose document is longer than allowed.
 
