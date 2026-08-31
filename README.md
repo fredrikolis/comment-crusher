@@ -3,10 +3,9 @@
 
 [![crates.io](https://img.shields.io/crates/v/comment-crusher.svg)](https://crates.io/crates/comment-crusher)
 
-A gas expands to fill its container. Similarly, an AI agent will litter code with comments/notes/reminders until we run out of disk space (sort of). `comment-crusher` is how we fight back 🥷🏻
+A gas expands to fill its container. Similarly, an AI agent will litter code with comments/notes/reminders until we run out of disk space (well, not really, but sort of). `comment-crusher` is how we fight back 🥷🏻
 
-
-`comment-crusher` lets you put hard limits on comment-to-code ratios and line-budgets for docs. Every time a file is modified using a tool call, `comment-crusher` will check these ratios and warn the agent if they are exceeded (so we can avoid expensive review churn, or worse end up with bloated files. 91 programming languages supported with minimal deps.
+`comment-crusher` lets you put hard limits on comment-to-code ratios and line budgets for docs. Every time a file is modified by a tool call, `comment-crusher` checks these ratios and warns the agent if they are exceeded (so we can avoid expensive review churn, or worse, bloated files). 91 programming languages supported, with minimal deps.
 
 **What agents should write:**
 
