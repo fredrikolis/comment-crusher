@@ -3,9 +3,10 @@
 
 [![crates.io](https://img.shields.io/crates/v/comment-crusher.svg)](https://crates.io/crates/comment-crusher)
 
-A gas expands to fill its container. An LLM expands to fill a file with words,... unless we stop
-it 🥷🏻. Across 91 languages from one binary, comment-crusher fails a file whose comment share is
-over budget, whose single comment runs too long, or whose document is longer than allowed.
+A gas expands to fill its container. Similarly, an AI agent will litter code with comments/notes/reminders... Unless we fight back 🥷🏻
+
+
+`comment-crusher` lets you put hard limits on comment-to-code ratios and line-budgets for docs. Every time a file is modified using a tool call, `comment-crusher` will check these ratios and warn the agent if they are exceeded (so we can avoid expensive review churn, or worse end up with bloated files. 91 programming languages supported with minimal deps.
 
 **What your agent should leave behind:**
 
