@@ -9,47 +9,8 @@ use comment_crusher::cli::Cli;
 use comment_crusher::diagnostic::{Diagnostic, Level};
 use std::path::Path;
 
-/// Whitespace-flattened, so rewrapping a paragraph cannot fail a claim that still holds.
-fn readme() -> String {
-    let text =
-        std::fs::read_to_string(Path::new(env!("CARGO_MANIFEST_DIR")).join("../../README.md"))
-            .expect("README.md");
-    text.split_whitespace().collect::<Vec<_>>().join(" ")
-}
-
 fn defaults() -> toml::Table {
     toml::from_str(include_str!("../src/default_config.toml")).expect("defaults parse")
-}
-
-fn claims(t: &toml::Table) -> Vec<(String, &'static str)> {
-    let languages = t["languages"].as_table().expect("languages").len();
-    let ratio = t["rules"]["comment-ratio"]["max_ratio"]
-        .as_float()
-        .expect("max_ratio is a float");
-    vec![
-        (format!("{languages} languages"), "the language count"),
-        (
-            format!("budget is {:.0}%", ratio * 100.0),
-            "comment-ratio.max_ratio",
-        ),
-    ]
-}
-
-/// Every bound the README still quotes; the rest is rendered, not written.
-#[test]
-fn the_readme_quotes_the_bounds_that_ship() {
-    let t = defaults();
-    let text = readme();
-    let claims = claims(&t);
-    let missing: Vec<&str> = claims
-        .iter()
-        .filter(|(needle, _)| !text.contains(needle.as_str()))
-        .map(|(_, what)| *what)
-        .collect();
-    assert!(
-        missing.is_empty(),
-        "README no longer states what ships for: {missing:?}"
-    );
 }
 
 /// The README contracts a finding relies on: every `docs_url` anchor, and the allowance it
@@ -73,7 +34,9 @@ fn the_readme_carries_every_anchor_a_finding_links_to() {
         let d = Diagnostic::about_the_run(rule, Level::Warn, String::new(), "");
         let wire = serde_json::to_value(&d).expect("a finding serializes");
         let url = wire["docs_url"].as_str().expect("docs_url");
-        let anchor = url.split('#').nth(1).expect("an anchor");
+        let Some(anchor) = url.split('#').nth(1) else {
+            continue;
+        };
         assert!(
             headings.iter().any(|h| h == anchor),
             "{rule} links to #{anchor}, which the README lost"

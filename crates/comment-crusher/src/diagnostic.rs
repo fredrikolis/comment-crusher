@@ -131,7 +131,9 @@ impl Serialize for Diagnostic {
                 }),
             },
             help: self.help,
-            docs_url: format!("{DOCS}#{}", self.section()),
+            docs_url: self
+                .section()
+                .map_or_else(|| DOCS.to_owned(), |s| format!("{DOCS}#{s}")),
             allowance: self.allowance.as_deref(),
         }
         .serialize(s)
@@ -142,11 +144,11 @@ impl Serialize for Diagnostic {
 const DOCS: &str = "https://github.com/fredrikolis/comment-crusher";
 
 impl Diagnostic {
-    fn section(&self) -> &'static str {
+    fn section(&self) -> Option<&'static str> {
         match self.rule.split('.').next().unwrap_or_default() {
-            "config" | "target" => "use",
-            "allowance" => "no-file-is-exempt",
-            _ => "what-it-measures",
+            "config" | "target" => None,
+            "allowance" => Some("no-file-is-exempt"),
+            _ => Some("what-it-measures"),
         }
     }
 

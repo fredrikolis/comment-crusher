@@ -71,9 +71,7 @@ budget file in place.
 | `doc-length` | a prose document (`.md`, `.rst`, `.adoc`, `.txt`, and kin) |
 | `unreadable` | a resolved file that is binary or cannot be read |
 
-**Comment** is markers, their delimiters, doc comments and docstrings. **Code** is strings,
-heredoc bodies, the shebang, and fenced examples inside any comment. The two sum to every
-non-whitespace character, so a trailing `// why` costs what it occupies.
+**Comment** is markers, their delimiters, doc comments and docstrings. **Code** is strings, heredoc bodies, the shebang, and fenced examples inside any comment. The two sum to every non-whitespace character, so a trailing `// why` costs what it occupies.
 
 ## No file is exempt
 
