@@ -8,31 +8,32 @@ A gas expands to fill its container. Similarly, an AI agent will litter code wit
 
 `comment-crusher` lets you put hard limits on comment-to-code ratios and line-budgets for docs. Every time a file is modified using a tool call, `comment-crusher` will check these ratios and warn the agent if they are exceeded (so we can avoid expensive review churn, or worse end up with bloated files. 91 programming languages supported with minimal deps.
 
-**What your agent should leave behind:**
+**What agents should write:**
 
 ```rust
 counter += 1;
 ```
 
-**What it leaves instead:**
+**What agents write when left unchecked:**
 
 ```rust
 // Increment the counter by one. We do this because the counter needs to go
 // up by one at this point. Note that this is the increment step, which is
-// important for the loop above to eventually terminate.
+// important for the loop above to eventually terminate. In prior implementations
+// we incremented by 1.0, here this has been corrected to use integer form.
 counter += 1;
 ```
 
-**What the budget says:**
-
+**What an agent sees when trying to litter the code:**
 ```
-$ comment-crusher .
-error: src/counter.rs [comment-ratio] 41% comment (2104/5117 chars), budget is 15%
-
-298 code files and 14 documents, 14.2% comment (48219/339104 chars), 1 findings
+Edit(src/counter.rs)
+  ⎿ Updated src/counter.rs with 5 additions
+    comment-crusher: over budget. CI runs comment-crusher, so this fails it.
+    src/counter.rs: error[comment-ratio]: 83% comment (181/218 chars), budget is 15%
+      help: Delete comments rather than compress them.
 ```
 
-## Use
+## Ask the agent to install it by doing the following
 
 ```bash
 cargo install comment-crusher
