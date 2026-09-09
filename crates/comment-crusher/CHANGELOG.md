@@ -1,6 +1,10 @@
 <!-- Concern: version history and notable changes | Non-concern: usage or roadmap | IO: none -->
 # Changelog
 
+## [0.2.1] - 2026-09-09
+
+- `npm install comment-crusher` installs the prebuilt binary for the host platform.
+
 ## [0.2.0] - 2026-08-30
 
 First published release.
