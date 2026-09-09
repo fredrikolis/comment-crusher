@@ -1,7 +1,7 @@
 <!-- Concern: what comment-crusher is, what it measures, and how to configure it | Non-concern: the exhaustive flag reference (--help owns it) or how this repo is developed (CLAUDE.md) | IO: none -->
 # comment-crusher
 
-[![crates.io](https://img.shields.io/crates/v/comment-crusher.svg)](https://crates.io/crates/comment-crusher)
+[![CI](https://github.com/fredrikolis/comment-crusher/actions/workflows/ci.yml/badge.svg)](https://github.com/fredrikolis/comment-crusher/actions/workflows/ci.yml) [![crates.io](https://img.shields.io/crates/v/comment-crusher.svg)](https://crates.io/crates/comment-crusher) [![npm](https://img.shields.io/npm/v/comment-crusher.svg)](https://www.npmjs.com/package/comment-crusher)
 
 A gas expands to fill its container. Similarly, an AI agent will litter code with comments/notes/reminders until we run out of disk space (well, not really, but sort of). `comment-crusher` is how we fight back 🥷🏻
 
