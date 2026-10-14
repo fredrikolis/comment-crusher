@@ -1,6 +1,11 @@
 <!-- Concern: version history and notable changes | Non-concern: usage or roadmap | IO: none -->
 # Changelog
 
+## [0.3.0] - 2026-10-14
+
+- `install-hook --codex` writes the PostToolUse entry to `~/.codex/hooks.json`; `hook --codex`
+  answers it, measuring every file an `apply_patch` names.
+
 ## [0.2.1] - 2026-09-09
 
 - `npm install comment-crusher` installs the prebuilt binary for the host platform.
