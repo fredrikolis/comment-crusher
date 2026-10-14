@@ -82,8 +82,8 @@ OUTPUT (--format json)
   character column.
 
 VERBS
-  install-hook --claude [FILE]     add the PostToolUse entry to a settings file, ours only
-  hook --claude                    what that entry runs, one event at a time
+  install-hook --claude|--codex [FILE]  add the PostToolUse entry to an agent's hook file, ours only
+  hook --claude|--codex                 what that entry runs, one event at a time
   Each verb's own --help carries its contract; both answer in the format the run asked for.
 
 EXIT CODES
@@ -208,6 +208,7 @@ pub enum Command {
 const INSTALL_HELP: &str = r"EXAMPLES
   comment-crusher install-hook --claude                        ~/.claude/settings.json
   comment-crusher install-hook --claude .claude/settings.json  this repo alone
+  comment-crusher install-hook --codex                         ~/.codex/hooks.json
   comment-crusher install-hook --claude --uninstall            remove our entry, no other
 
 OUTPUT
@@ -222,12 +223,17 @@ EXIT CODES
 
 #[derive(clap::Args)]
 #[command(after_help = INSTALL_HELP, after_long_help = INSTALL_HELP)]
+#[command(group = clap::ArgGroup::new("harness").required(true))]
 pub struct InstallHook {
-    /// Claude Code, the harness these verbs speak to.
-    #[arg(long, required = true)]
+    /// Claude Code, whose hook file is ~/.claude/settings.json.
+    #[arg(long, group = "harness")]
     pub claude: bool,
 
-    /// Settings file to edit [default: ~/.claude/settings.json].
+    /// Codex, whose hook file is ~/.codex/hooks.json (trust it once with `/hooks`).
+    #[arg(long, group = "harness")]
+    pub codex: bool,
+
+    /// Hook file to edit [default: the harness's own].
     #[arg(value_name = "FILE")]
     pub file: Option<PathBuf>,
 
@@ -237,9 +243,10 @@ pub struct InstallHook {
 }
 
 const HOOK_HELP: &str = r#"WHAT IT ANSWERS
-  One PostToolUse event on stdin, and on stdout the envelope Claude Code reads:
+  One PostToolUse event on stdin, and on stdout the envelope Claude Code and Codex read:
   {"systemMessage":..., "hookSpecificOutput":{"hookEventName":"PostToolUse",
-   "additionalContext": the findings for the file the event names}}
+   "additionalContext": the findings for the files the event names}}
+  Claude names one file; Codex's apply_patch carries a patch, whose files are all measured.
 
 SILENCE
   Nothing is printed unless the file's own git root holds a .comment-crusher.toml and a walk
@@ -252,10 +259,15 @@ EXIT CODES
 
 #[derive(clap::Args)]
 #[command(after_help = HOOK_HELP, after_long_help = HOOK_HELP)]
+#[command(group = clap::ArgGroup::new("harness").required(true))]
 pub struct HookEntry {
     /// Read a Claude Code hook event.
-    #[arg(long, required = true)]
+    #[arg(long, group = "harness")]
     pub claude: bool,
+
+    /// Read a Codex hook event.
+    #[arg(long, group = "harness")]
+    pub codex: bool,
 }
 
 impl Command {
@@ -269,7 +281,12 @@ impl Command {
 
 /// Answered in the format the run asked for.
 fn install_hook(args: &InstallHook, format: Format) -> i32 {
-    match crate::hook::install(args.file.as_deref(), args.uninstall) {
+    let harness = if args.codex {
+        crate::hook::Harness::Codex
+    } else {
+        crate::hook::Harness::Claude
+    };
+    match crate::hook::install(harness, args.file.as_deref(), args.uninstall) {
         Ok(done) => {
             match format {
                 Format::Json => say(&success_json(&serde_json::json!({

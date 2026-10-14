@@ -1,8 +1,10 @@
-// Concern: the Claude Code hook — the event it answers and the entry that installs it | Non-concern: measuring a file (engine.rs) or wording a finding (diagnostic.rs) | IO: (event) -> context
+// Concern: the Claude Code and Codex hook — the event it answers and the entry that installs it | Non-concern: measuring a file (engine.rs) or wording a finding (diagnostic.rs) | IO: (event) -> context
 
 //! `PostToolUse`, not Pre: a budget is a fact about the file written, not a veto over it.
 
 mod settings;
+
+pub use settings::Harness;
 
 use std::fmt::Write as _;
 use std::io::Read;
@@ -22,17 +24,24 @@ pub struct Installed {
     pub message: String,
 }
 
-pub fn install(file: Option<&Path>, uninstall: bool) -> Result<Installed, (i32, String)> {
-    let Some(path) = file.map(Path::to_path_buf).or_else(settings::default_path) else {
+pub fn install(
+    harness: Harness,
+    file: Option<&Path>,
+    uninstall: bool,
+) -> Result<Installed, (i32, String)> {
+    let Some(path) = file
+        .map(Path::to_path_buf)
+        .or_else(|| settings::default_path(harness))
+    else {
         return Err((
             EXIT_BAD_ARGS,
             "no HOME, so no default settings file: name one".to_string(),
         ));
     };
     let done = if uninstall {
-        settings::uninstall(&path)
+        settings::uninstall(&path, harness)
     } else {
-        settings::install(&path)
+        settings::install(&path, harness)
     };
     match done {
         Ok(outcome) => Ok(Installed {
@@ -56,25 +65,42 @@ pub fn respond() -> i32 {
         return EXIT_BAD_ARGS;
     };
     // Exit 0 from here: what it finds is about the file, not about the call.
-    let Some(file) = written(&event) else {
-        return 0;
-    };
-    if let Some((root, lines)) = findings(&file) {
-        say(&envelope(&root, &lines));
+    let groups: Vec<_> = written(&event).iter().filter_map(|f| findings(f)).collect();
+    if !groups.is_empty() {
+        say(&envelope(&groups));
     }
     0
 }
 
-fn written(event: &Value) -> Option<PathBuf> {
+/// Claude names one file; Codex's `apply_patch` carries the patch, which names every file it touches.
+fn written(event: &Value) -> Vec<PathBuf> {
     let cwd = event
         .pointer("/cwd")
         .and_then(Value::as_str)
         .map_or_else(|| PathBuf::from("."), PathBuf::from);
-    ["/tool_input/file_path", "/tool_response/filePath"]
+    let named = ["/tool_input/file_path", "/tool_response/filePath"]
         .iter()
         .filter_map(|p| event.pointer(p).and_then(Value::as_str))
+        .map(str::to_string);
+    let patched = event
+        .pointer("/tool_input/command")
+        .and_then(Value::as_str)
+        .filter(|_| event.pointer("/tool_name").and_then(Value::as_str) == Some("apply_patch"))
+        .into_iter()
+        .flat_map(str::lines)
+        .filter_map(|l| {
+            ["*** Add File: ", "*** Update File: ", "*** Move to: "]
+                .iter()
+                .find_map(|m| l.strip_prefix(m))
+        })
+        .map(str::to_string);
+    let mut files: Vec<PathBuf> = named
+        .chain(patched)
         .map(|p| cwd.join(p))
-        .find(|p| p.is_file())
+        .filter(|p| p.is_file())
+        .collect();
+    files.dedup();
+    files
 }
 
 /// The repo's own budget: a hook in every session must never answer from a budget above it.
@@ -107,12 +133,14 @@ fn findings(file: &Path) -> Option<(PathBuf, Vec<String>)> {
     (!lines.is_empty()).then(|| (config.root().to_path_buf(), lines))
 }
 
-fn envelope(root: &Path, lines: &[String]) -> String {
+fn envelope(groups: &[(PathBuf, Vec<String>)]) -> String {
     let headline = "comment-crusher: over budget. CI runs comment-crusher, so this fails it.";
     let mut body = String::new();
-    let _ = writeln!(body, "# paths relative to {}", root.display());
-    for l in lines {
-        let _ = writeln!(body, "{l}");
+    for (root, lines) in groups {
+        let _ = writeln!(body, "# paths relative to {}", root.display());
+        for l in lines {
+            let _ = writeln!(body, "{l}");
+        }
     }
     let context = format!(
         "{headline}\n\n{body}\nThe bound is the detector. Cut what tripped it; raising a \
@@ -120,7 +148,8 @@ fn envelope(root: &Path, lines: &[String]) -> String {
     );
     let mut message = headline.to_string();
     // A finding is two lines; the second is help the user need not read.
-    for l in lines.iter().filter_map(|l| l.lines().next()).take(6) {
+    let firsts = groups.iter().flat_map(|(_, lines)| lines);
+    for l in firsts.filter_map(|l| l.lines().next()).take(6) {
         let _ = write!(message, "\n{l}");
     }
     json!({
