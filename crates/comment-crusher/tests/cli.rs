@@ -1158,3 +1158,61 @@ fn an_exclude_pattern_that_re_includes_or_parses_as_nothing_is_refused() {
         assert!(stdout(&out).contains(says), "{bad}: {}", stdout(&out));
     }
 }
+
+/// Codex keeps its hooks in its own file, under its own verb, so the two entries never collide.
+#[test]
+fn install_hook_codex_writes_its_own_entry_and_leaves_claude_alone() {
+    let dir = tempfile::tempdir().expect("tempdir");
+    let file = dir.path().join("hooks.json").display().to_string();
+    let out = run_bare(dir.path(), &["install-hook", "--codex", &file]);
+    assert_eq!(code(&out), 0, "{}", stdout(&out));
+    let v: serde_json::Value =
+        serde_json::from_str(&std::fs::read_to_string(&file).expect("read")).expect("json");
+    let entry = &v["hooks"]["PostToolUse"][0];
+    assert_eq!(entry["matcher"], "apply_patch|Edit|Write");
+    assert_eq!(entry["hooks"][0]["command"], "comment-crusher hook --codex");
+    let claude = run_bare(dir.path(), &["install-hook", "--claude", &file]);
+    assert!(
+        stdout(&claude).contains("hook installed"),
+        "{}",
+        stdout(&claude)
+    );
+    let gone = run_bare(
+        dir.path(),
+        &["install-hook", "--codex", "--uninstall", &file],
+    );
+    assert!(stdout(&gone).contains("hook removed"), "{}", stdout(&gone));
+    let text = std::fs::read_to_string(&file).expect("read");
+    assert!(
+        text.contains("hook --claude") && !text.contains("hook --codex"),
+        "{text}"
+    );
+}
+
+/// `apply_patch` names no `file_path`: the files are in the patch text, all of them.
+#[test]
+fn the_codex_hook_measures_every_file_an_apply_patch_names() {
+    let dir = tempfile::tempdir().expect("tempdir");
+    budgeted_repo(dir.path());
+    write(dir.path(), "fat.rs", &over_budget_rust());
+    write(dir.path(), "lean.rs", "fn main() {}\n");
+    let patch =
+        "*** Begin Patch\n*** Update File: lean.rs\n@@\n*** Add File: fat.rs\n+x\n*** End Patch";
+    let event = serde_json::json!({
+        "tool_name": "apply_patch",
+        "cwd": dir.path(),
+        "tool_input": { "command": patch },
+    })
+    .to_string();
+    let out = run_stdin(dir.path(), &["hook", "--codex"], &event);
+    assert_eq!(code(&out), 0);
+    let v: serde_json::Value = serde_json::from_str(&stdout(&out)).expect("valid JSON");
+    let context = v["hookSpecificOutput"]["additionalContext"]
+        .as_str()
+        .expect("context");
+    assert!(
+        context.contains("fat.rs: error[comment-ratio]: "),
+        "{context}"
+    );
+    assert!(!context.contains("lean.rs"), "{context}");
+}

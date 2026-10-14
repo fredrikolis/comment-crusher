@@ -5,12 +5,33 @@ use std::path::{Path, PathBuf};
 use serde_json::{Map, Value, json};
 
 const EVENT: &str = "PostToolUse";
-const MATCHER: &str = "Write|Edit|MultiEdit|NotebookEdit";
-const VERB: &str = "hook --claude";
 
-/// A bare name, so the entry survives a reinstall elsewhere.
-fn command() -> String {
-    format!("comment-crusher {VERB}")
+/// The agent a settings file belongs to: each reads the same entry shape from its own file.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum Harness {
+    Claude,
+    Codex,
+}
+
+impl Harness {
+    const fn verb(self) -> &'static str {
+        match self {
+            Self::Claude => "hook --claude",
+            Self::Codex => "hook --codex",
+        }
+    }
+
+    const fn matcher(self) -> &'static str {
+        match self {
+            Self::Claude => "Write|Edit|MultiEdit|NotebookEdit",
+            Self::Codex => "apply_patch|Edit|Write",
+        }
+    }
+
+    /// A bare name, so the entry survives a reinstall elsewhere.
+    fn command(self) -> String {
+        format!("comment-crusher {}", self.verb())
+    }
 }
 
 #[derive(Debug, PartialEq, Eq)]
@@ -43,13 +64,17 @@ impl Outcome {
     }
 }
 
-/// The settings Claude Code reads for every project; one repo is `.claude/settings.json`.
-pub fn default_path() -> Option<PathBuf> {
-    let home = std::env::var_os("HOME")?;
-    Some(PathBuf::from(home).join(".claude").join("settings.json"))
+/// What the agent reads for every project; one repo is `.claude/settings.json` or
+/// `.codex/hooks.json`.
+pub fn default_path(harness: Harness) -> Option<PathBuf> {
+    let home = PathBuf::from(std::env::var_os("HOME")?);
+    Some(match harness {
+        Harness::Claude => home.join(".claude").join("settings.json"),
+        Harness::Codex => home.join(".codex").join("hooks.json"),
+    })
 }
 
-fn is_ours(entry: &Value) -> bool {
+fn is_ours(entry: &Value, harness: Harness) -> bool {
     entry
         .get("hooks")
         .and_then(Value::as_array)
@@ -57,7 +82,7 @@ fn is_ours(entry: &Value) -> bool {
             hooks.iter().any(|h| {
                 h.get("command")
                     .and_then(Value::as_str)
-                    .is_some_and(|c| c.contains(VERB))
+                    .is_some_and(|c| c.contains(harness.verb()))
             })
         })
 }
@@ -101,7 +126,7 @@ fn write(path: &Path, root: &Map<String, Value>) -> Result<(), String> {
 }
 
 /// Keeps every other key, and running it again changes nothing.
-pub fn install(path: &Path) -> Result<Outcome, String> {
+pub fn install(path: &Path, harness: Harness) -> Result<Outcome, String> {
     let mut root = read(path)?;
     let hooks = root
         .entry("hooks")
@@ -113,19 +138,19 @@ pub fn install(path: &Path) -> Result<Outcome, String> {
         .or_insert_with(|| json!([]))
         .as_array_mut()
         .ok_or_else(|| format!("`hooks.{EVENT}` in {} is not an array", path.display()))?;
-    if list.iter().any(is_ours) {
+    if list.iter().any(|e| is_ours(e, harness)) {
         return Ok(Outcome::AlreadyPresent);
     }
     list.push(json!({
-        "matcher": MATCHER,
-        "hooks": [{ "type": "command", "command": command() }],
+        "matcher": harness.matcher(),
+        "hooks": [{ "type": "command", "command": harness.command() }],
     }));
     write(path, &root)?;
     Ok(Outcome::Added)
 }
 
 /// Ours and nothing else, pruning what we created so the file returns to its shape before.
-pub fn uninstall(path: &Path) -> Result<Outcome, String> {
+pub fn uninstall(path: &Path, harness: Harness) -> Result<Outcome, String> {
     let mut root = read(path)?;
     let mut removed = false;
     let hooks_empty = {
@@ -134,7 +159,7 @@ pub fn uninstall(path: &Path) -> Result<Outcome, String> {
         };
         if let Some(list) = hooks.get_mut(EVENT).and_then(Value::as_array_mut) {
             let before = list.len();
-            list.retain(|e| !is_ours(e));
+            list.retain(|e| !is_ours(e, harness));
             removed = list.len() != before;
             if list.is_empty() {
                 hooks.remove(EVENT);

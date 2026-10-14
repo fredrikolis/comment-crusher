@@ -47,19 +47,20 @@ comment-crusher --help                          # the whole surface
 The budget lives in `.comment-crusher.toml`, found by walking up from the target, so one answer
 holds in CI, in a pre-commit hook and against a single file.
 
-Install Claude hooks (modifies ~/.claude/settings.json)
+Install the hook for Claude Code (~/.claude/settings.json) and/or Codex (~/.codex/hooks.json; trust it once with `/hooks`)
 
 ```bash
 comment-crusher install-hook --claude
+comment-crusher install-hook --codex
 ```
 
 ## What the installed hook does
 
-1. Measures the file the agent just wrote, at PostToolUse
+1. Measures the file the agent just wrote, at PostToolUse (for Codex, every file its `apply_patch` names)
 2. Hands the findings back with the help under each, so the agent fixes it in the session
 3. Says nothing where the file's own git root declared no budget
 
-Nothing else. `install-hook --claude --uninstall` takes the hooks back out, and leaves the
+Nothing else. `install-hook --claude --uninstall` (or `--codex`) takes the hooks back out, and leaves the
 budget file in place.
 
 ## What it measures
